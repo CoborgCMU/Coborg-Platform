@@ -1,3 +1,0 @@
-#!/home/coborg/Coborg-Platform/franka_ws/envs/franka/bin/python3.6
-from numba.pycc import main
-main()
