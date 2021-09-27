@@ -1,2 +1,0 @@
-cmu_motor_lab
--DCATKIN_DEVEL_PREFIX=/home/coborg/Coborg-Platform/arduino_ws/devel -DCMAKE_INSTALL_PREFIX=/home/coborg/Coborg-Platform/arduino_ws/install -G Unix Makefiles
