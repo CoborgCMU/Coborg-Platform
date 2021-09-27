@@ -1,8 +1,0 @@
-#!/home/coborg/Coborg-Platform/franka_ws/envs/franka/bin/python3.6
-# -*- coding: UTF-8 -*-
-from __future__ import print_function, division, absolute_import
-
-from numba.misc.numba_entry import main
-
-if __name__ == "__main__":
-    main()
