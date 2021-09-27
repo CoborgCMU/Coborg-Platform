@@ -2,47 +2,28 @@
 # Jekyll 'Front Matter' goes here. Most are set by default, and should NOT be
 # overwritten except in special circumstances. 
 # You should set the date the article was last updated like this:
-date: 2021-09-10 # YYYY-MM-DD
+date: 2021-09-27 # YYYY-MM-DD
 # This will be displayed at the bottom of the article
 # You should set the article's title:
-title: Vision System Setup Readme
+title: Main State Machine Setup Readme
 # The 'title' is automatically displayed at the top of the page
 # and used in other parts of the site.
 ---
 
 ## Overview
 
-In this readme, we will do the following things for vision system:
+In this readme, we will do the following things for the main state machine:
 
-- Set up 2D YOLO v3 with ROS
-- Set up GPU for YOLO
-- Set up 3D YOLO with ROS and surface normal
-- Run goal getter and integrate whole vision system
+- Understand what the main launch file does
+- Understand the inputs and outputs for the system
+- Understand what nodes to look at to debug the main state machine
 
 ---
-## Integrating 2D YOLO with ROS
-
-To install YOLO in ROS, we will use a YOLO ROS wrapper GitHub repository [darknet_ros](https://github.com/leggedrobotics/darknet_ros). You can simply follow their instructions in the README or follow the instructions below. 
-
-Before you start the integration, make sure you have prepared your pre-trained YOLO model weights and configurations. Based on the detection task, the pre-trained model weights may differ. If your task requires objects that are not included in the default YOLO dataset (which uses [VOC](https://pjreddie.com/projects/pascal-voc-dataset-mirror/) or [COCO](https://cocodataset.org/#home) dataset to train), you will need to search for other pre-trained open-source projects and download their model weights and configurations to your local machine. Otherwise, you would need to train YOLO from scratch with your own dataset. The details will not be included in this article, but you may find this article helpful in learning how to do so: [Tutorial](https://blog.roboflow.com/training-yolov4-on-a-custom-dataset/)
-
 ### Requirements
 
 - Ubuntu: 18.04
 
 - ROS: Melodic
-
-- OpenCV: 3.4.6 (if using OpenCV 4+, follow this [link](https://github.com/leggedrobotics/darknet_ros/issues/290#issuecomment-762345858))
-
-- CUDA: 10.2 
-
-- cuDNN: 7.6.x
-
-- numpy: 1.19.0
-
-- If use NVIDIA Jetson, JetPack 4.3 works fine (default: CUDA 10.0 + cuDNN 7.6), need to downgrade default OpenCV from 4.1.1 to 3.4.6 (compile OpenCV from source, using this [link](https://jkjung-avt.github.io/opencv-on-nano/))
-
-- YOLO: The official YOLO ROS wrapper GitHub repo [darknet_ros](https://github.com/leggedrobotics/darknet_ros) currently only supports YOLOv3 and below. If you are using YOLOv4, try this repo instead [yolo_v4](https://github.com/tom13133/darknet_ros/tree/yolov4)
 
 ### Steps
 1. #### Download the repo:
