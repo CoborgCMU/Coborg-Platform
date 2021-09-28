@@ -46,15 +46,26 @@ rosrun main_state_machine main.py
 ### Functions
 
 #### Commands:
-1. Stop > Shut off power to motors
-2. Target > Move to and hold plate
-3. Home > Return to home position
-4. Warning > Motors stop moving, but maintain with lower torque threshold
+0. Pause = Motors stop moving, but maintain with lower torque threshold
+1. Stop = Shut off power to motors
+2. Target = Move to and hold plate
+3. Home = Return to home position
 
+#### Status Outputs:
+1. Initializing = Command received, but not executing yet (e.g. detecting hands)
+2. Executing = Command being executed (e.g. moving to target)
+3. Idle = Command completed/performing holding task, ready for next command (maintaining position in 3d space)
+4. Warning = Issue that is continuable.
+5. Error = Problem that requires full reset.
+
+#### Status Inputs:
+0. Processing = Command recieved and executing
+1. Success = Command completed 
+2. Warning = Command completed but with issues
+3. Error = Command not completed
 
 ### ROS Topics
-* #### Published ROS topics:
 
-   * object_detector (`std_msgs::Int8`) Number of detected objects
-   * bounding_boxes (`darknet_ros_msgs::BoundingBoxes`) Bounding boxes (class, x, y, w, h) details are shown in `/darknet_ros_msgs`
-   * detection_image (`sensor_msgs::Image`) Image with detected bounding boxes
+   * voice_commands_sub (`std_msgs::Int32`) commands from `/voice_commands`
+   * state_output_pub (`std_msgs::Int32`) state outputs from main.py `/state_output`
+   * state_input_sub  (`std_msgs::Int32`) state inputs from other nodes (actuated manipulation) `/state_input`
