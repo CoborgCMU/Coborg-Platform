@@ -10,15 +10,16 @@ import enum
 # Figure out how to publish sounds to speaker
 
 # Functions:
-# 1 = e_stop > Shut off power to motors
-# 2 = hold > Move to and hold plate
-# 3 = compact > Return to home position
-# # = caution > Motors stop moving, but maintain with lower torque threshold
+# 1 = stop > Shut off power to motors
+# 2 = target > Move to and hold plate
+# 3 = home > Return to home position
+# # = warning > Motors stop moving, but maintain with lower torque threshold
 
 class Command(enum.IntEnum): #these are the voice commands that come in and get sent to the motors
     STOP = 1 
     TARGET = 2 
     HOME = 3
+    WARNING = 4
 
 # Statuses:
 # 1 = initializing > Command received, but not executing yet (e.g. detecting hands) [ROS INFO]
