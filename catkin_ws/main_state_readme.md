@@ -10,7 +10,7 @@ title: Main State Machine Setup Readme
 # and used in other parts of the site.
 ---
 
-## Overview
+## Introduction
 
 In this readme, we will do the following things for the main state machine:
 
@@ -25,11 +25,11 @@ In this readme, we will do the following things for the main state machine:
 
 - ROS: Melodic
 
-### Function
+### Overview
 
 main.py is a central hub for all of the inputs and outputs for the Coborg project. 
 
-This node recieves translated commands from the ```/voice commands``` topic and use that to toggle the systems state through ```state_output```. 
+This node recieves translated commands from the ```/voice commands``` topic and use that to toggle the systems state through ```/state_output``` 
 
 It then listens to ```/state_input``` topic to understand whether or not the commands sent were executed successfully. 
       
@@ -42,7 +42,15 @@ If you want to test the main.py file by itself, run:
 ```
 rosrun main_state_machine main.py
 ```
-     
+
+### Functions
+
+#### Commands:
+1. Stop > Shut off power to motors
+2. Target > Move to and hold plate
+3. Home > Return to home position
+4. Warning > Motors stop moving, but maintain with lower torque threshold
+
 
 ### ROS Topics
 * #### Published ROS topics:
