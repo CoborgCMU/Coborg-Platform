@@ -67,7 +67,7 @@ The first thing the user will do is push either one or two hands in front and in
 
 
 ## Team
-CMU 2020 - MRSD Team C:\
+CMU 2020 - MRSD Team C:
 
 Husam Wadi, Yuqing Qin, Gerry D’Ascoli, Feng Xiang, Jonathan Lord-Fonda
 
