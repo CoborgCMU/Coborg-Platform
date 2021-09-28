@@ -9,7 +9,7 @@ import enum
 # Consider changing the state machine to work on actions instead of publisher/subscriber
 # Figure out how to publish sounds to speaker
 
-# Functions:
+# Commands:
 # 1 = stop > Shut off power to motors
 # 2 = target > Move to and hold plate
 # 3 = home > Return to home position
