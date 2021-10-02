@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     //maintain state of the robot
     robot_state::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
     kinematic_state->setToDefaultValues();
-    const robot_state::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("coborg_arm");
+    const robot_state::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("dof_4_lowerlonger_arm");
     const std::vector<std::string>& joint_names = joint_model_group->getVariableNames();
 
     //get current state of joint values
@@ -110,10 +110,10 @@ int main(int argc, char **argv)
     //TODO: create method to auto find the families and names
     //FORNOW: assume there is 1 family and 3 names
     std::vector<std::string> families;
-    families = {"X5-9","X5-9","X5-4"};
+    families = {"01-base", "02-shoulder", "03-elbow","04-wrist"};
 
     std::vector<std::string> names;
-    names = {"base_1", "elbow_2", "wrist_3"};
+    names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 
     //code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
     std::shared_ptr<hebi::Group> group;
@@ -154,6 +154,7 @@ int main(int argc, char **argv)
     // positions[1] = joint_values[1];
     // positions[2] = joint_values[2];
 
+    positions[1] = -1.577;
     
     hebi::GroupCommand groupCommand(group->size());
     groupCommand.setPosition(positions);
@@ -183,6 +184,8 @@ int main(int argc, char **argv)
           continue;
         }
         group->getNextFeedback(group_feedback);
+
+        group->sendCommand(groupCommand);
 
         //Eigen::VectorXd feedbackPos = group_feedback.getPosition();
         //std::cout << "Position feedback: " << std::endl << feedbackPos << std::endl;

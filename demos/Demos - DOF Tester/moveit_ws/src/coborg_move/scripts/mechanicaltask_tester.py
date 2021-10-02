@@ -53,7 +53,7 @@ from moveit_commander.conversions import pose_to_list
 
 
 # Simulation Variables
-monte_carlo_runs = 200
+monte_carlo_runs = 150
 run_buffer = True
 run_task_stability = True
 run_buffer_stability = True
@@ -96,7 +96,7 @@ stable_space_z_min_ft = -1.0/12.0
 # space and buffer space and additionally room for spread
 #  between the hands (midpoint in task space, one hand out)
 # MoveIt Variables
-group_name = "dof_5_config_z_arm"
+group_name = "dof_4_lowerlonger_arm"
 chest_to_t265_transform = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[-0.1651,0.2159,0.3048,1]])
 t265_to_world_transform=np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0.2794,-0.4999,-0.67305,1]])
 # t265_to_world*chest_to_origin*(p_chest)
@@ -107,7 +107,7 @@ if group_name is "coborg_arm":
     compact_configuration_rad = np.array([-1.91986, -2.37365, -2.51327])
 elif group_name is "dof_4_arm":
     compact_configuration_rad = np.array([0.0, -1.91986, -2.37365, -2.51327])
-elif group_name is "dof_4_4inchlower_arm":
+elif group_name is "dof_4_4inchlower_arm" or group_name is "dof_4_lowerlonger_arm":
     compact_configuration_rad = np.array([0.0, -1.91986, -2.37365, -2.51327])
 elif group_name is "dof_5_config_z_arm":
     compact_configuration_rad = np.array([0.0, -1.9266, 0.0, -2.0307, -2.3778])
@@ -243,7 +243,7 @@ task_space_goals_spherical = task_space_goals_spherical + np.add(np.matmul(np.di
 # Convert from spherical coordinates to cartesian coordinates
 task_space_goals_cartesian = np.zeros(task_space_goals_spherical.shape)
 task_space_goals_cartesian[0,:] = task_space_goals_spherical[0,:] * np.cos(task_space_goals_spherical[1,:]*2*np.pi/360) * np.cos(task_space_goals_spherical[2,:]*2*np.pi/360)
-task_space_goals_cartesian[1,:] = task_space_goals_spherical[0,:] * np.sin(task_space_goals_spherical[1,:]*2*np.pi/360) * np.cos(task_space_goals_spherical[2,:]*2*np.pi/360)
+task_space_goals_cartesian[1,:] = task_space_goals_spherical[0,:] * np.sin(task_space_goals_spherical[1,:]*2*np.pi/360)
 task_space_goals_cartesian[2,:] = task_space_goals_spherical[0,:] * np.cos(task_space_goals_spherical[1,:]*2*np.pi/360) * np.sin(task_space_goals_spherical[2,:]*2*np.pi/360) * -1
 # Check each point for IK success
 task_space_success = []
@@ -304,7 +304,7 @@ extended_task_space_goals_spherical = extended_task_space_goals_spherical + np.a
 # Convert from spherical coordinates to cartesian coordinates
 extended_task_space_goals_cartesian = np.zeros(extended_task_space_goals_spherical.shape)
 extended_task_space_goals_cartesian[0,:] = extended_task_space_goals_spherical[0,:] * np.cos(extended_task_space_goals_spherical[1,:]*2*np.pi/360) * np.cos(extended_task_space_goals_spherical[2,:]*2*np.pi/360)
-extended_task_space_goals_cartesian[1,:] = extended_task_space_goals_spherical[0,:] * np.sin(extended_task_space_goals_spherical[1,:]*2*np.pi/360) * np.cos(extended_task_space_goals_spherical[2,:]*2*np.pi/360)
+extended_task_space_goals_cartesian[1,:] = extended_task_space_goals_spherical[0,:] * np.sin(extended_task_space_goals_spherical[1,:]*2*np.pi/360)
 extended_task_space_goals_cartesian[2,:] = extended_task_space_goals_spherical[0,:] * np.cos(extended_task_space_goals_spherical[1,:]*2*np.pi/360) * np.sin(extended_task_space_goals_spherical[2,:]*2*np.pi/360) * -1
 # Check each point for IK success
 extended_task_space_success = []
@@ -385,7 +385,7 @@ if run_buffer:
     # Convert from spherical coordinates to cartesian coordinates
     buffer_space_goals_cartesian = np.zeros(buffer_space_goals_spherical.shape)
     buffer_space_goals_cartesian[0,:,:] = buffer_space_goals_spherical[0,:,:] * np.cos(buffer_space_goals_spherical[1,:,:]*2*np.pi/360) * np.cos(buffer_space_goals_spherical[2,:,:]*2*np.pi/360)
-    buffer_space_goals_cartesian[1,:,:] = buffer_space_goals_spherical[0,:,:] * np.sin(buffer_space_goals_spherical[1,:,:]*2*np.pi/360) * np.cos(buffer_space_goals_spherical[2,:,:]*2*np.pi/360)
+    buffer_space_goals_cartesian[1,:,:] = buffer_space_goals_spherical[0,:,:] * np.sin(buffer_space_goals_spherical[1,:,:]*2*np.pi/360)
     buffer_space_goals_cartesian[2,:,:] = buffer_space_goals_spherical[0,:,:] * np.cos(buffer_space_goals_spherical[1,:,:]*2*np.pi/360) * np.sin(buffer_space_goals_spherical[2,:,:]*2*np.pi/360) * -1
     # Check each point for IK success
     buffer_space_success = []

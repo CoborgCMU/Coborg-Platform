@@ -39,7 +39,7 @@
 #include "std_msgs/Int16.h"
 #include "std_msgs/Int32.h"
 #include <string.h>
-#include <gb_visual_detection_3d_msgs/goal_msg.h>
+#include <goal_getter/goal_msg.h>
 
 ros::Publisher desired_pos_pub;
 
@@ -149,7 +149,7 @@ Eigen::Vector3d presetPositionUpdate(const Eigen::Vector3d& presetVect)
 
 void randomPoseFunc()
 {
-    if (strcmp(svdTargetVal.c_str(),"d400_link") == 0 || strcmp(svdTargetVal.c_str(),"cam1_link") == 0)
+    if (strcmp(svdTargetVal.c_str(),"d400_link") == 0 || strcmp(svdTargetVal.c_str(),"camera_link") == 0)
     {
         // relative to d400_link / camera_link frame at default static transform from t265_link
         // float xRangeMin = 0.6;
@@ -275,7 +275,6 @@ void upDisengagePoseFunc(std::int8_t& seqCount)
     Eigen::MatrixXd seqMat(3, countMax);
 
     Eigen::Vector3d OffsetBack(0,0,-0.15);
-    seqCount = countMax;
 
     // ready push out 15cm out
     seqMat(0,0) = presetPositionUpdate(dummyPushUp + OffsetBack)(0);
@@ -495,7 +494,7 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
         // goal is relative to camera frame
 
         ros::Duration(1.0).sleep();
-        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal");
+        boost::shared_ptr<goal_getter::goal_msg const> goalpose = ros::topic::waitForMessage<goal_getter::goal_msg>("/goal");
 
         ROS_INFO("Position Received");
 
@@ -708,20 +707,12 @@ int main(int argc, char **argv)
         ros::param::get("voiceGoalPoseGenerator/svdTarget", svdTargetVal);
         // ros::param::get("voiceGoalPoseGenerator/originState", "camera_link");
 
-
+        currTime = ros::Time::now();
+        durVar = currTime - beginTime;
 
         // presetPositionUpdate(transform);
         dummyPushOut = svdTargetFunc(svdTargetVal);
 
-        // if ((float) durVar.toSec() > 0.25)
-        // {
-        //     ROS_INFO_STREAM("Current Pose Target: " << svdTargetVal.c_str() << "\n");
-        //     ROS_INFO_STREAM("Current Manipulation State: " << maniState.c_str() << "\n");
-        // }
-
-
-        currTime = ros::Time::now();
-        durVar = currTime - beginTime;
         if (strcmp(maniState.c_str(),"random") == 0 && (float) durVar.toSec() > uniWaitSec)
         {
             randomPoseFunc();

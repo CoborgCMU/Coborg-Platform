@@ -224,12 +224,13 @@ target_link_libraries(dof_PoseGenerator
   ${catkin_LIBRARIES}
 )
 
-add_executable(Mechanical_Task_Space_MoveIt src/Mechanical_Task_Space_MoveIt.cpp)
+# Feng Xiang: commented out because causing catkin_make errors
+# add_executable(Mechanical_Task_Space_MoveIt src/Mechanical_Task_Space_MoveIt.cpp)
 
-## Specify libraries to link a library or executable target against
-target_link_libraries(Mechanical_Task_Space_MoveIt
-  ${catkin_LIBRARIES}
-)
+# ## Specify libraries to link a library or executable target against
+# target_link_libraries(Mechanical_Task_Space_MoveIt
+#   ${catkin_LIBRARIES}
+# )
 
 
 #############
