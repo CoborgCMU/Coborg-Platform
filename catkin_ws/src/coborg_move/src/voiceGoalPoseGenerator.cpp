@@ -494,8 +494,14 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
         // goal is relative to camera frame
 
         ros::Duration(1.0).sleep();
+<<<<<<< Updated upstream
         boost::shared_ptr<goal_getter::goal_msg const> goalpose = ros::topic::waitForMessage<goal_getter::goal_msg>("/goal");
 
+=======
+        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam1");
+        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam2 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam2");
+        
+>>>>>>> Stashed changes
         ROS_INFO("Position Received");
 
         goalSetPose(0) = goalpose->x;

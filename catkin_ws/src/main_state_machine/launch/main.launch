@@ -1,7 +1,12 @@
 <launch>
-    <!--Start up realsense -->
+    <!--Start up realsense(if not working, switch serial no) -->
+    <include file="$(find realsense2_camera)/launch/rs_rgbd.launch">
+        <arg name="camera" value="cam2"/>
+        <arg name="serial_no" value="943222070824"/>
+    </include>
     <include file="$(find realsense2_camera)/launch/rs_d400_and_t265.launch">
         <arg name="camera" value="cam1"/>
+        <arg name="serial_no_camera2" value="943222073980"/>
     </include>
     <!--Start up Move-it nodes-->
     <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch"/>

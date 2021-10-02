@@ -154,7 +154,7 @@ int main(int argc, char **argv)
     Eigen::VectorXd thetas(group->size());
 
     float dt = 0.01;
-    Eigen::Identity W(3,3);
+    Eigen::Identity W(4,4);
 
     ros::Rate rate(20.0);
     while(ros::ok())
@@ -177,7 +177,8 @@ int main(int argc, char **argv)
             //[2d matrix of joint angles ]
 
             //thetadot = inv(W)*J.T*inv(J*inv(W)*J.T)*(xg-x0)
-            
+            //if (W.isIdentity(0.1)) {thetadot = J.T*inv(J*J.T)*(xg-x0)}
+
             //theta = theta + dt*thetadot
             
             //command_angles(theta)

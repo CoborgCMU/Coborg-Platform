@@ -5,6 +5,7 @@
 
 
     <node pkg="tf" type="static_transform_publisher" name="t265_coborg_tf" args="0.2794 -0.4999 -0.67305 0 0 0 /t265_link /world 100" />
-    
+    <node pkg="tf" type="static_transform_publisher" name="t265_to_d400_1" args="0.0035 -0.44 -0.065 0.000 -0.018 0.005 /t265_link /cam1_link 100"/>
+    <node pkg="tf" type="static_transform_publisher" name="t265_to_d400_2" args="0.0035 -0.44 -0.1 0.000 -0.018 0.005 /t265_link /cam2_link 100"/>
 
 </launch>
