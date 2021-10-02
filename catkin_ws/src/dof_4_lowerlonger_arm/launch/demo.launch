@@ -6,16 +6,13 @@
   <!-- By default, we do not start a database (it can be large) -->
   <arg name="db" default="false" />
   <!-- Allow user to specify database location -->
-  <arg name="db_path" default="$(find dof_4_arm)/default_warehouse_mongo_db" />
+  <arg name="db_path" default="$(find dof_4_lowerlonger_arm)/default_warehouse_mongo_db" />
 
   <!-- By default, we are not in debug mode -->
   <arg name="debug" default="false" />
 
   <!-- By default, we will load or override the robot_description -->
   <arg name="load_robot_description" default="true"/>
-
-  <!-- Set execution mode for fake execution controllers -->
-  <arg name="execution_type" default="interpolate" />
 
   <!--
   By default, hide joint_state_publisher's GUI
@@ -43,10 +40,9 @@
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
 
   <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->
-  <include file="$(find dof_4_arm)/launch/move_group.launch">
+  <include file="$(find dof_4_lowerlonger_arm)/launch/move_group.launch">
     <arg name="allow_trajectory_execution" value="true"/>
     <arg name="fake_execution" value="true"/>
-    <arg name="execution_type" value="$(arg execution_type)"/>
     <arg name="info" value="true"/>
     <arg name="debug" value="$(arg debug)"/>
     <arg name="pipeline" value="$(arg pipeline)"/>
@@ -54,13 +50,13 @@
   </include>
 
   <!-- Run Rviz and load the default config to see the state of the move_group node -->
-  <include file="$(find dof_4_arm)/launch/moveit_rviz.launch" if="$(arg use_rviz)">
-    <arg name="rviz_config" value="$(find dof_4_arm)/launch/moveit.rviz"/>
+  <include file="$(find dof_4_lowerlonger_arm)/launch/moveit_rviz.launch" if="$(arg use_rviz)">
+    <arg name="rviz_config" value="$(find dof_4_lowerlonger_arm)/launch/moveit.rviz"/>
     <arg name="debug" value="$(arg debug)"/>
   </include>
 
   <!-- If database loading was enabled, start mongodb as well -->
-  <include file="$(find dof_4_arm)/launch/default_warehouse_db.launch" if="$(arg db)">
+  <include file="$(find dof_4_lowerlonger_arm)/launch/default_warehouse_db.launch" if="$(arg db)">
     <arg name="moveit_warehouse_database_path" value="$(arg db_path)"/>
   </include>
 

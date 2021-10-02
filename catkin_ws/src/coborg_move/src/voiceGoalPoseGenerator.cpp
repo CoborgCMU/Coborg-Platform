@@ -39,7 +39,7 @@
 #include "std_msgs/Int16.h"
 #include "std_msgs/Int32.h"
 #include <string.h>
-#include <goal_getter/goal_msg.h>
+#include <gb_visual_detection_3d_msgs/goal_msg.h>
 
 ros::Publisher desired_pos_pub;
 
@@ -494,28 +494,35 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
         // goal is relative to camera frame
 
         ros::Duration(1.0).sleep();
-<<<<<<< Updated upstream
-        boost::shared_ptr<goal_getter::goal_msg const> goalpose = ros::topic::waitForMessage<goal_getter::goal_msg>("/goal");
-
-=======
-        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam1");
-        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam2 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam2");
+        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam1", ros::Duration(1.5));
+        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam2 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam2", ros::Duration(1.5));
         
->>>>>>> Stashed changes
-        ROS_INFO("Position Received");
+        if (goalpose_cam1 != NULL)
+        {
+            ROS_INFO("Cam 01 Position Received.");
+        }
+        else
+        {
+            return dummyPushOut;
+        }
 
-        goalSetPose(0) = goalpose->x;
-        goalSetPose(1) = goalpose->y;
-        goalSetPose(2) = goalpose->z;
+        if (goalpose_cam2 != NULL)
+        {
+            ROS_INFO("Cam 02 Position Received.");
+        }
 
-        ROS_INFO_STREAM("Goal Position Reading: \n" << *goalpose << "\n");
+        goalSetPose(0) = goalpose_cam1->x;
+        goalSetPose(1) = goalpose_cam1->y;
+        goalSetPose(2) = goalpose_cam1->z;
+
+        ROS_INFO_STREAM("Goal Position Reading: \n" << *goalpose_cam1 << "\n");
 
         Eigen::Vector3d measuredNormal;
         Eigen::Vector3d groundTruthNormal(1, 0, 0);
 
-        measuredNormal[0] = goalpose->normal_x;
-        measuredNormal[1] = goalpose->normal_y;
-        measuredNormal[2] = goalpose->normal_z;
+        measuredNormal[0] = goalpose_cam1->normal_x;
+        measuredNormal[1] = goalpose_cam1->normal_y;
+        measuredNormal[2] = goalpose_cam1->normal_z;
 
         // std::cout << "Measured Normal Vector: " << std::endl;
         // std::cout << measuredNormal << std::endl;

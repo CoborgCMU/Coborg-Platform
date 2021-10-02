@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1.3)
-project(dof_4_arm)
+project(dof_4_lowerlonger_arm)
 
 find_package(catkin REQUIRED)
 

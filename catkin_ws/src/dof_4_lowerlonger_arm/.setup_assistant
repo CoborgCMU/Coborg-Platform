@@ -1,11 +1,11 @@
 moveit_setup_assistant_config:
   URDF:
     package: hebi_description
-    relative_path: urdf/4dof_robot.urdf
+    relative_path: urdf/4dof_4inchlow_5inchlong_robot.urdf
     xacro_args: ""
   SRDF:
     relative_path: config/arm_demo.srdf
   CONFIG:
     author_name: Feng Xiang
     author_email: fxx@andrew.cmu.edu
-    generated_timestamp: 1630883432
+    generated_timestamp: 1632782081
