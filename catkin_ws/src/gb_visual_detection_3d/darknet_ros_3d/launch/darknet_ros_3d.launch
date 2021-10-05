@@ -10,32 +10,29 @@
   <arg name="yolo_weights_path"          default="$(find darknet_ros)/yolo_network_config/weights"/>
   <arg name="yolo_config_path"           default="$(find darknet_ros)/yolo_network_config/cfg"/>
 
-  <!-- ROS and network parameter files -->
-  <!-- <arg name="ros_param_file"             default="$(find darknet_ros)/config/ros.yaml"/>
-  <arg name="network_param_file"         default="$(find darknet_ros)/config/yolov3-hand.yaml"/> -->
 
   <!-- Load parameters -->
   <rosparam command="load" ns="cam1/darknet_ros" file="$(find darknet_ros)/config/ros.yaml"/>
-  <rosparam command="load" ns="cam1/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand-tiny.yaml"/>
-  <!-- <rosparam command="load" ns="cam2/darknet_ros" file="$(find darknet_ros)/config/ros_cam2.yaml"/>
-  <rosparam command="load" ns="cam2/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand.yaml"/> -->
+  <rosparam command="load" ns="cam1/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand.yaml"/>
+  <rosparam command="load" ns="cam2/darknet_ros" file="$(find darknet_ros)/config/ros_cam2.yaml"/>
+  <rosparam command="load" ns="cam2/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand.yaml"/>
 
   <!-- Start darknet and ros wrapper -->
   <node  ns="cam1" pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="weights_path"                              value="$(arg yolo_weights_path)" />
     <param name="config_path"                               value="$(arg yolo_config_path)" />
   </node>
-  <!-- <node  ns="cam2" pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">
+  <node  ns="cam2" pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="weights_path"                              value="$(arg yolo_weights_path)" />
     <param name="config_path"                               value="$(arg yolo_config_path)" />
-  </node> -->
+  </node>
 
   <!-- Start darknet ros 3d -->
   <node ns="cam1" pkg="darknet_ros_3d" type="darknet3d_node" name="darknet_3d" output="screen">
     <rosparam command="load" file="$(find darknet_ros_3d)/config/darknet_3d.yaml" />
   </node>
-  <!-- <node ns="cam2" pkg="darknet_ros_3d" type="darknet3d_node" name="darknet_3d" output="screen">
+  <node ns="cam2" pkg="darknet_ros_3d" type="darknet3d_node" name="darknet_3d" output="screen">
     <rosparam command="load" file="$(find darknet_ros_3d)/config/darknet_3d_cam2.yaml" />
-  </node> -->
+  </node>
 
 </launch>
