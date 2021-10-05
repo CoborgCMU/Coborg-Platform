@@ -225,6 +225,13 @@ target_link_libraries(voiceGoalPoseGenerator
   ${catkin_LIBRARIES}
 )
 
+add_executable(resolved_rate src/resolved_rate.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(resolved_rate
+  ${catkin_LIBRARIES}
+)
+
 #############
 ## Install ##
 #############

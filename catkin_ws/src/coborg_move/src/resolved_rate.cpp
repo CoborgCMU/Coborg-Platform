@@ -9,6 +9,7 @@
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
+#include "hebi_cpp_api/robot_model.hpp"
 
 #include <tf/transform_listener.h>
 #include <tf/tf.h>
@@ -23,11 +24,11 @@
 #include <gb_visual_detection_3d_msgs/goal_msg.h>
 
 tf::StampedTransform* prevTransform;
-tf::Listener* globalListener;
-gb_visual_detection_3d_msgs::goal_msg* goal; 
+tf::TransformListener* globalListener;
+gb_visual_detection_3d_msgs::goal_msg goal; 
 bool enable_rr;
 
-geometry_msgs::Pose poseMotionDetection(const geometry_msgs::Pose::ConstPtr& pose_msg)
+geometry_msgs::Pose poseMotionDetection(const geometry_msgs::Pose& pose_msg)
 {    
     tf::StampedTransform transform;
     geometry_msgs::Pose target_pose;
@@ -37,12 +38,13 @@ geometry_msgs::Pose poseMotionDetection(const geometry_msgs::Pose::ConstPtr& pos
         // TODO: acquire the transform once
         // FORNOW: update transform parameters at every callback interval
         //listener.waitForTransform("/world", "/camera_link", ros::Time(0), ros::Duration(3.0));
-        globalListener->lookupTransform("/t265_odom", "/motor1_link/INPUT_INTERFACE",ros::Time(0), transform);
+        globalListener->waitForTransform("/t265_odom", "/motor1_link/INPUT_INTERFACE",ros::Time::now(), ros::Duration(3.0));
+        globalListener->lookupTransform("/t265_odom", "/motor1_link/INPUT_INTERFACE",ros::Time::now(), transform);
 
         // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
-        target_pose.position.x = -(transform.getOrigin().getX()-prevTransform->getOrigin().getX()) + pose_msg->position.x;
-        target_pose.position.y = -(transform.getOrigin().getY()-prevTransform->getOrigin().getY()) + pose_msg->position.y;
-        target_pose.position.z = -(transform.getOrigin().getZ()-prevTransform->getOrigin().getZ()) + pose_msg->position.z;
+        target_pose.position.x = -(transform.getOrigin().getX()-prevTransform->getOrigin().getX()) + pose_msg.position.x;
+        target_pose.position.y = -(transform.getOrigin().getY()-prevTransform->getOrigin().getY()) + pose_msg.position.y;
+        target_pose.position.z = -(transform.getOrigin().getZ()-prevTransform->getOrigin().getZ()) + pose_msg.position.z;
 
         ROS_INFO("Transforms are: x: %f, y: %f: z: %f", target_pose.position.x,target_pose.position.y, target_pose.position.z);
 
@@ -52,7 +54,7 @@ geometry_msgs::Pose poseMotionDetection(const geometry_msgs::Pose::ConstPtr& pos
     catch (tf::TransformException &ex)
     {
         ROS_ERROR("%s", ex.what());
-        return *pose_msg;
+        return pose_msg;
     }
 }
 
@@ -60,7 +62,7 @@ void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_m
 {
     tf::StampedTransform transform;
 
-    bool goal_got = false
+    bool goal_got = false;
     while(!goal_got)
     {
         try
@@ -68,14 +70,15 @@ void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_m
             // TODO: acquire the transform once
             // FORNOW: update transform parameters at every callback interval
             //listener.waitForTransform("/world", "/camera_link", ros::Time(0), ros::Duration(3.0));
-            globalListener->waitForTransform("/d400_link", "/t265_odom", ros::Time(0), ros::Duration(3.0), transform);
+            globalListener->waitForTransform("/d400_link", "/t265_odom", ros::Time::now(), ros::Duration(3.0));
+            globalListener->lookupTransform("/d400_link", "/t265_odom", ros::Time::now(), transform);
 
             // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
-            goal.position.x = -transform.getOrigin().getX() + goal_msg->position.x;
-            goal.position.y = -transform.getOrigin().getY() + goal_msg->position.y;
-            goal.position.z = -transform.getOrigin().getZ() + goal_msg->position.z;
+            goal.x = -transform.getOrigin().getX() + goal_msg->x;
+            goal.y = -transform.getOrigin().getY() + goal_msg->y;
+            goal.z = -transform.getOrigin().getZ() + goal_msg->z;
 
-            ROS_INFO("Transforms are: x: %f, y: %f: z: %f", goal.position.x,goal.position.y, goal.position.z);
+            ROS_INFO("Transforms are: x: %f, y: %f: z: %f", goal.x,goal.y, goal.z);
 
             // robot arm can now move to updated goal pose
             goal_got = true;
@@ -102,8 +105,9 @@ int main(int argc, char **argv)
     tf::TransformListener listener;
     globalListener = &listener;
 
-    tf::Transform tempTrans;
-    globalListener->waitForTransform("/t265_odom", "/end_link/INPUT_INTERFACE", ros::Time(0), ros::Duration(3.0), tempTrans);
+    tf::StampedTransform tempTrans;
+    globalListener->waitForTransform("/t265_odom", "/end_link/INPUT_INTERFACE", ros::Time::now(), ros::Duration(3.0));
+    globalListener->lookupTransform("/t265_odom", "/end_link/INPUT_INTERFACE", ros::Time::now(), tempTrans);
     prevTransform = &tempTrans;
 
     enable_rr = false;
@@ -152,9 +156,12 @@ int main(int argc, char **argv)
 
     hebi::GroupFeedback group_feedback(group->size());
     Eigen::VectorXd thetas(group->size());
+    Eigen::VectorXd thetadot(group->size());
 
     float dt = 0.01;
-    Eigen::Identity W(4,4);
+    Eigen::MatrixXd W(group->size(),group->size());
+    W.setIdentity();
+    std::unique_ptr<hebi::robot_model::RobotModel> model = hebi::robot_model::RobotModel::loadHRDF("coborgarm-temp.hrdf");
 
     ros::Rate rate(20.0);
     while(ros::ok())
@@ -162,7 +169,16 @@ int main(int argc, char **argv)
         if(enable_rr)
         {
             //xg = goal
-            gb_visual_detection_3d_msgs::goal_msg xg = *goal;
+            //convert gb_visual_detection_3d_msgs::goal_msg to geometry_msgs::Pose
+            geometry_msgs::Pose goal_converted;
+            goal_converted.position.x = goal.x;
+            goal_converted.position.y = goal.y;
+            goal_converted.position.z = goal.z;
+            //update geometry_msgs::Pose to most recent /t265_odom transform
+            geometry_msgs::Pose target_pose = poseMotionDetection(goal_converted);
+            //convert geometry_msgs::Pose to Eigen::Vector3d
+            Eigen::Vector3d xg;
+            xg << target_pose.position.x, target_pose.position.y, target_pose.position.z;
 
             //theta = Get joint state
             if (group->getNextFeedback(group_feedback))
@@ -170,16 +186,51 @@ int main(int argc, char **argv)
                 thetas = group_feedback.getPosition(); 
             }
             
-            //x0 = forward_kinematics(theta)
-            //[x,y,z of the end effector]
+            //[x,y,z of the end effector] -- x0
+            Eigen::Matrix4d transform;
+            //model->getFK(hebi::robot_model::FrameType::CenterOfMass, thetas, transforms)
+            model->getEndEffector(thetas,transform);
+            Eigen::Vector3d x0;
+            x0 << transform(0,3), transform(1,3), transform(2,3);
 
-            //J = compute_jacobian(theta)
+            //Compute Jacobian -- J
             //[2d matrix of joint angles ]
+            hebi::robot_model::MatrixXdVector J;
+            model->getJ(hebi::robot_model::FrameType::CenterOfMass, thetas, J);
+            Eigen::MatrixXd ee_J = J[J.size()-1].block(0,0,3,4);
+
+
+            if (W.isIdentity(0.1))
+            {
+                thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*(xg - x0);
+            }
+            else
+            {
+                thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*(xg - x0);
+            }
+
+            // if (W.isIdentity(0.1))
+            // {   
+            //     for (int it = 0; it < thetadot.size(); it++)
+            //     {
+            //         Eigen::MatrixXd _temp_J = J[it].transpose()*(J[it]*J[it].transpose()).inverse(); // (3x4)
+            //         Eigen::VectorXd _temp_diff = xg - x0; // (3x1)
+            //         thetadot[it] = _temp_J*_temp_diff;
+            //     }
+            // }
+            // else
+            // {
+            //     for (int it = 0; it < thetadot.size(); it++)
+            //     {
+            //         thetadot[it] = W.inverse()*J[it].transpose()*(J[it]*W.inverse()*J[it].transpose()).inverse()*(xg-x0);
+            //     }
+            // }
 
             //thetadot = inv(W)*J.T*inv(J*inv(W)*J.T)*(xg-x0)
             //if (W.isIdentity(0.1)) {thetadot = J.T*inv(J*J.T)*(xg-x0)}
 
-            //theta = theta + dt*thetadot
+            //thetas = thetas + dt*thetadot
+            thetas += dt*thetadot;
             
             //command_angles(theta)
             groupCommand.setPosition(thetas);
