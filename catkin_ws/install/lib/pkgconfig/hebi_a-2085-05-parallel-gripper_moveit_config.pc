@@ -1,4 +1,4 @@
-prefix=/home/yuqing/Desktop/Coborg-Platform/catkin_ws/install
+prefix=/media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install
 
 Name: hebi_a-2085-05-parallel-gripper_moveit_config
 Description: Description of hebi_a-2085-05-parallel-gripper_moveit_config

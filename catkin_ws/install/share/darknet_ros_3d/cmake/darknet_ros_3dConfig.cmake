@@ -67,14 +67,14 @@ set(darknet_ros_3d_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("FALSE" STREQUAL "TRUE")
-  set(darknet_ros_3d_SOURCE_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/src/darknet_ros_3d_normal/darknet_ros_3d)
-  set(darknet_ros_3d_DEVEL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/devel)
+  set(darknet_ros_3d_SOURCE_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/src/darknet_ros_3d_normal/darknet_ros_3d)
+  set(darknet_ros_3d_DEVEL_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/devel)
   set(darknet_ros_3d_INSTALL_PREFIX "")
   set(darknet_ros_3d_PREFIX ${darknet_ros_3d_DEVEL_PREFIX})
 else()
   set(darknet_ros_3d_SOURCE_PREFIX "")
   set(darknet_ros_3d_DEVEL_PREFIX "")
-  set(darknet_ros_3d_INSTALL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install)
+  set(darknet_ros_3d_INSTALL_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install)
   set(darknet_ros_3d_PREFIX ${darknet_ros_3d_INSTALL_PREFIX})
 endif()
 
@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install/lib;/opt/ros/melodic/lib)
+    foreach(path /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install/lib;/opt/ros/melodic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)

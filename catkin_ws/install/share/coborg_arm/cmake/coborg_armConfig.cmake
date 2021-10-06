@@ -67,27 +67,15 @@ set(coborg_arm_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("FALSE" STREQUAL "TRUE")
-<<<<<<< HEAD:franka_ws/ws/robot-autonomy-labs/lab3/cv_bridge_catkin_ws/build/vision_opencv/cv_bridge/catkin_generated/installspace/cv_bridgeConfig.cmake
-  set(cv_bridge_SOURCE_PREFIX /home/coborg/Coborg-Platform/franka_ws/ws/robot-autonomy-labs/lab3/cv_bridge_catkin_ws/src/vision_opencv/cv_bridge)
-  set(cv_bridge_DEVEL_PREFIX /home/coborg/Coborg-Platform/franka_ws/ws/robot-autonomy-labs/lab3/cv_bridge_catkin_ws/devel)
-  set(cv_bridge_INSTALL_PREFIX "")
-  set(cv_bridge_PREFIX ${cv_bridge_DEVEL_PREFIX})
-else()
-  set(cv_bridge_SOURCE_PREFIX "")
-  set(cv_bridge_DEVEL_PREFIX "")
-  set(cv_bridge_INSTALL_PREFIX /home/coborg/Coborg-Platform/franka_ws/ws/robot-autonomy-labs/lab3/cv_bridge_catkin_ws/install)
-  set(cv_bridge_PREFIX ${cv_bridge_INSTALL_PREFIX})
-=======
-  set(coborg_arm_SOURCE_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/src/coborg_arm)
-  set(coborg_arm_DEVEL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/devel)
+  set(coborg_arm_SOURCE_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/src/coborg_arm)
+  set(coborg_arm_DEVEL_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/devel)
   set(coborg_arm_INSTALL_PREFIX "")
   set(coborg_arm_PREFIX ${coborg_arm_DEVEL_PREFIX})
 else()
   set(coborg_arm_SOURCE_PREFIX "")
   set(coborg_arm_DEVEL_PREFIX "")
-  set(coborg_arm_INSTALL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install)
+  set(coborg_arm_INSTALL_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install)
   set(coborg_arm_PREFIX ${coborg_arm_INSTALL_PREFIX})
->>>>>>> 0ad6f6b835c25920092c265e79cc9ef3ac4c9b72:catkin_ws/install/share/coborg_arm/cmake/coborg_armConfig.cmake
 endif()
 
 # warn when using a deprecated package
@@ -166,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/coborg/Coborg-Platform/franka_ws/ws/robot-autonomy-labs/lab3/cv_bridge_catkin_ws/install/lib;/opt/ros/melodic/lib)
+    foreach(path /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install/lib;/opt/ros/melodic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)

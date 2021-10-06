@@ -27,13 +27,19 @@ struct goal_msg_
     : Class()
     , x(0.0)
     , y(0.0)
-    , z(0.0)  {
+    , z(0.0)
+    , normal_x(0.0)
+    , normal_y(0.0)
+    , normal_z(0.0)  {
     }
   goal_msg_(const ContainerAllocator& _alloc)
     : Class(_alloc)
     , x(0.0)
     , y(0.0)
-    , z(0.0)  {
+    , z(0.0)
+    , normal_x(0.0)
+    , normal_y(0.0)
+    , normal_z(0.0)  {
   (void)_alloc;
     }
 
@@ -50,6 +56,15 @@ struct goal_msg_
 
    typedef double _z_type;
   _z_type z;
+
+   typedef double _normal_x_type;
+  _normal_x_type normal_x;
+
+   typedef double _normal_y_type;
+  _normal_y_type normal_y;
+
+   typedef double _normal_z_type;
+  _normal_z_type normal_z;
 
 
 
@@ -83,7 +98,10 @@ bool operator==(const ::goal_getter::goal_msg_<ContainerAllocator1> & lhs, const
   return lhs.Class == rhs.Class &&
     lhs.x == rhs.x &&
     lhs.y == rhs.y &&
-    lhs.z == rhs.z;
+    lhs.z == rhs.z &&
+    lhs.normal_x == rhs.normal_x &&
+    lhs.normal_y == rhs.normal_y &&
+    lhs.normal_z == rhs.normal_z;
 }
 
 template<typename ContainerAllocator1, typename ContainerAllocator2>
@@ -140,12 +158,12 @@ struct MD5Sum< ::goal_getter::goal_msg_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "1995ab0b6624278887ba1c25d7923c9c";
+    return "a14534629947e0e1a95981852d661e1b";
   }
 
   static const char* value(const ::goal_getter::goal_msg_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x1995ab0b66242788ULL;
-  static const uint64_t static_value2 = 0x87ba1c25d7923c9cULL;
+  static const uint64_t static_value1 = 0xa14534629947e0e1ULL;
+  static const uint64_t static_value2 = 0xa95981852d661e1bULL;
 };
 
 template<class ContainerAllocator>
@@ -168,7 +186,9 @@ struct Definition< ::goal_getter::goal_msg_<ContainerAllocator> >
 "float64 x\n"
 "float64 y\n"
 "float64 z\n"
-"\n"
+"float64 normal_x\n"
+"float64 normal_y\n"
+"float64 normal_z\n"
 ;
   }
 
@@ -191,6 +211,9 @@ namespace serialization
       stream.next(m.x);
       stream.next(m.y);
       stream.next(m.z);
+      stream.next(m.normal_x);
+      stream.next(m.normal_y);
+      stream.next(m.normal_z);
     }
 
     ROS_DECLARE_ALLINONE_SERIALIZER
@@ -217,6 +240,12 @@ struct Printer< ::goal_getter::goal_msg_<ContainerAllocator> >
     Printer<double>::stream(s, indent + "  ", v.y);
     s << indent << "z: ";
     Printer<double>::stream(s, indent + "  ", v.z);
+    s << indent << "normal_x: ";
+    Printer<double>::stream(s, indent + "  ", v.normal_x);
+    s << indent << "normal_y: ";
+    Printer<double>::stream(s, indent + "  ", v.normal_y);
+    s << indent << "normal_z: ";
+    Printer<double>::stream(s, indent + "  ", v.normal_z);
   }
 };
 

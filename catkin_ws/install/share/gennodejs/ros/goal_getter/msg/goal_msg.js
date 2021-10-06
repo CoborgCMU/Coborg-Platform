@@ -22,6 +22,9 @@ class goal_msg {
       this.x = null;
       this.y = null;
       this.z = null;
+      this.normal_x = null;
+      this.normal_y = null;
+      this.normal_z = null;
     }
     else {
       if (initObj.hasOwnProperty('Class')) {
@@ -48,6 +51,24 @@ class goal_msg {
       else {
         this.z = 0.0;
       }
+      if (initObj.hasOwnProperty('normal_x')) {
+        this.normal_x = initObj.normal_x
+      }
+      else {
+        this.normal_x = 0.0;
+      }
+      if (initObj.hasOwnProperty('normal_y')) {
+        this.normal_y = initObj.normal_y
+      }
+      else {
+        this.normal_y = 0.0;
+      }
+      if (initObj.hasOwnProperty('normal_z')) {
+        this.normal_z = initObj.normal_z
+      }
+      else {
+        this.normal_z = 0.0;
+      }
     }
   }
 
@@ -61,6 +82,12 @@ class goal_msg {
     bufferOffset = _serializer.float64(obj.y, buffer, bufferOffset);
     // Serialize message field [z]
     bufferOffset = _serializer.float64(obj.z, buffer, bufferOffset);
+    // Serialize message field [normal_x]
+    bufferOffset = _serializer.float64(obj.normal_x, buffer, bufferOffset);
+    // Serialize message field [normal_y]
+    bufferOffset = _serializer.float64(obj.normal_y, buffer, bufferOffset);
+    // Serialize message field [normal_z]
+    bufferOffset = _serializer.float64(obj.normal_z, buffer, bufferOffset);
     return bufferOffset;
   }
 
@@ -76,13 +103,19 @@ class goal_msg {
     data.y = _deserializer.float64(buffer, bufferOffset);
     // Deserialize message field [z]
     data.z = _deserializer.float64(buffer, bufferOffset);
+    // Deserialize message field [normal_x]
+    data.normal_x = _deserializer.float64(buffer, bufferOffset);
+    // Deserialize message field [normal_y]
+    data.normal_y = _deserializer.float64(buffer, bufferOffset);
+    // Deserialize message field [normal_z]
+    data.normal_z = _deserializer.float64(buffer, bufferOffset);
     return data;
   }
 
   static getMessageSize(object) {
     let length = 0;
     length += object.Class.length;
-    return length + 28;
+    return length + 52;
   }
 
   static datatype() {
@@ -92,7 +125,7 @@ class goal_msg {
 
   static md5sum() {
     //Returns md5sum for a message object
-    return '1995ab0b6624278887ba1c25d7923c9c';
+    return 'a14534629947e0e1a95981852d661e1b';
   }
 
   static messageDefinition() {
@@ -102,7 +135,9 @@ class goal_msg {
     float64 x
     float64 y
     float64 z
-    
+    float64 normal_x
+    float64 normal_y
+    float64 normal_z
     
     `;
   }
@@ -139,6 +174,27 @@ class goal_msg {
     }
     else {
       resolved.z = 0.0
+    }
+
+    if (msg.normal_x !== undefined) {
+      resolved.normal_x = msg.normal_x;
+    }
+    else {
+      resolved.normal_x = 0.0
+    }
+
+    if (msg.normal_y !== undefined) {
+      resolved.normal_y = msg.normal_y;
+    }
+    else {
+      resolved.normal_y = 0.0
+    }
+
+    if (msg.normal_z !== undefined) {
+      resolved.normal_z = msg.normal_z;
+    }
+    else {
+      resolved.normal_z = 0.0
     }
 
     return resolved;

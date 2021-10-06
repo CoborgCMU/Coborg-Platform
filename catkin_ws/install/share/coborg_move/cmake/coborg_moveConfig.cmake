@@ -67,14 +67,14 @@ set(coborg_move_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("FALSE" STREQUAL "TRUE")
-  set(coborg_move_SOURCE_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/src/coborg_move)
-  set(coborg_move_DEVEL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/devel)
+  set(coborg_move_SOURCE_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/src/coborg_move)
+  set(coborg_move_DEVEL_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/devel)
   set(coborg_move_INSTALL_PREFIX "")
   set(coborg_move_PREFIX ${coborg_move_DEVEL_PREFIX})
 else()
   set(coborg_move_SOURCE_PREFIX "")
   set(coborg_move_DEVEL_PREFIX "")
-  set(coborg_move_INSTALL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install)
+  set(coborg_move_INSTALL_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install)
   set(coborg_move_PREFIX ${coborg_move_INSTALL_PREFIX})
 endif()
 
@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install/lib;/opt/ros/melodic/lib)
+    foreach(path /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install/lib;/opt/ros/melodic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
@@ -185,7 +185,7 @@ foreach(t ${coborg_move_EXPORTED_TARGETS})
   endif()
 endforeach()
 
-set(depends "roscpp;rospy;hebi_cpp_api;message_runtime;std_msgs;tf;trajectory_msgs;moveit_core;moveit_ros_planning_interface;goal_getter")
+set(depends "roscpp;rospy;hebi_cpp_api;message_runtime;std_msgs;tf;trajectory_msgs;moveit_core;moveit_ros_planning_interface;sensor_msgs;goal_getter")
 foreach(depend ${depends})
   string(REPLACE " " ";" depend_list ${depend})
   # the package name of the dependency must be kept in a unique variable so that it is not overwritten in recursive calls

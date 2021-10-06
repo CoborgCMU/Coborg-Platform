@@ -67,14 +67,14 @@ set(hebi_cpp_api_examples_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("FALSE" STREQUAL "TRUE")
-  set(hebi_cpp_api_examples_SOURCE_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/src/hebi_cpp_api_examples)
-  set(hebi_cpp_api_examples_DEVEL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/devel)
+  set(hebi_cpp_api_examples_SOURCE_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/src/hebi_cpp_api_examples)
+  set(hebi_cpp_api_examples_DEVEL_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/devel)
   set(hebi_cpp_api_examples_INSTALL_PREFIX "")
   set(hebi_cpp_api_examples_PREFIX ${hebi_cpp_api_examples_DEVEL_PREFIX})
 else()
   set(hebi_cpp_api_examples_SOURCE_PREFIX "")
   set(hebi_cpp_api_examples_DEVEL_PREFIX "")
-  set(hebi_cpp_api_examples_INSTALL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install)
+  set(hebi_cpp_api_examples_INSTALL_PREFIX /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install)
   set(hebi_cpp_api_examples_PREFIX ${hebi_cpp_api_examples_INSTALL_PREFIX})
 endif()
 
@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install/lib;/opt/ros/melodic/lib)
+    foreach(path /media/fengxiang/ubuntu_drive_sto/Coborg-Platform/catkin_ws/install/lib;/opt/ros/melodic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)

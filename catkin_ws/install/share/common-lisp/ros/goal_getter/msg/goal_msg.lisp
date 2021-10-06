@@ -26,6 +26,21 @@
     :reader z
     :initarg :z
     :type cl:float
+    :initform 0.0)
+   (normal_x
+    :reader normal_x
+    :initarg :normal_x
+    :type cl:float
+    :initform 0.0)
+   (normal_y
+    :reader normal_y
+    :initarg :normal_y
+    :type cl:float
+    :initform 0.0)
+   (normal_z
+    :reader normal_z
+    :initarg :normal_z
+    :type cl:float
     :initform 0.0))
 )
 
@@ -56,6 +71,21 @@
 (cl:defmethod z-val ((m <goal_msg>))
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader goal_getter-msg:z-val is deprecated.  Use goal_getter-msg:z instead.")
   (z m))
+
+(cl:ensure-generic-function 'normal_x-val :lambda-list '(m))
+(cl:defmethod normal_x-val ((m <goal_msg>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader goal_getter-msg:normal_x-val is deprecated.  Use goal_getter-msg:normal_x instead.")
+  (normal_x m))
+
+(cl:ensure-generic-function 'normal_y-val :lambda-list '(m))
+(cl:defmethod normal_y-val ((m <goal_msg>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader goal_getter-msg:normal_y-val is deprecated.  Use goal_getter-msg:normal_y instead.")
+  (normal_y m))
+
+(cl:ensure-generic-function 'normal_z-val :lambda-list '(m))
+(cl:defmethod normal_z-val ((m <goal_msg>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader goal_getter-msg:normal_z-val is deprecated.  Use goal_getter-msg:normal_z instead.")
+  (normal_z m))
 (cl:defmethod roslisp-msg-protocol:serialize ((msg <goal_msg>) ostream)
   "Serializes a message object of type '<goal_msg>"
   (cl:let ((__ros_str_len (cl:length (cl:slot-value msg 'Class))))
@@ -83,6 +113,33 @@
     (cl:write-byte (cl:ldb (cl:byte 8 48) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 56) bits) ostream))
   (cl:let ((bits (roslisp-utils:encode-double-float-bits (cl:slot-value msg 'z))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 32) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 40) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 48) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 56) bits) ostream))
+  (cl:let ((bits (roslisp-utils:encode-double-float-bits (cl:slot-value msg 'normal_x))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 32) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 40) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 48) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 56) bits) ostream))
+  (cl:let ((bits (roslisp-utils:encode-double-float-bits (cl:slot-value msg 'normal_y))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 32) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 40) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 48) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 56) bits) ostream))
+  (cl:let ((bits (roslisp-utils:encode-double-float-bits (cl:slot-value msg 'normal_z))))
     (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
@@ -132,6 +189,36 @@
       (cl:setf (cl:ldb (cl:byte 8 48) bits) (cl:read-byte istream))
       (cl:setf (cl:ldb (cl:byte 8 56) bits) (cl:read-byte istream))
     (cl:setf (cl:slot-value msg 'z) (roslisp-utils:decode-double-float-bits bits)))
+    (cl:let ((bits 0))
+      (cl:setf (cl:ldb (cl:byte 8 0) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 8) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 32) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 40) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 48) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 56) bits) (cl:read-byte istream))
+    (cl:setf (cl:slot-value msg 'normal_x) (roslisp-utils:decode-double-float-bits bits)))
+    (cl:let ((bits 0))
+      (cl:setf (cl:ldb (cl:byte 8 0) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 8) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 32) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 40) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 48) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 56) bits) (cl:read-byte istream))
+    (cl:setf (cl:slot-value msg 'normal_y) (roslisp-utils:decode-double-float-bits bits)))
+    (cl:let ((bits 0))
+      (cl:setf (cl:ldb (cl:byte 8 0) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 8) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 32) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 40) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 48) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 56) bits) (cl:read-byte istream))
+    (cl:setf (cl:slot-value msg 'normal_z) (roslisp-utils:decode-double-float-bits bits)))
   msg
 )
 (cl:defmethod roslisp-msg-protocol:ros-datatype ((msg (cl:eql '<goal_msg>)))
@@ -142,19 +229,22 @@
   "goal_getter/goal_msg")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<goal_msg>)))
   "Returns md5sum for a message object of type '<goal_msg>"
-  "1995ab0b6624278887ba1c25d7923c9c")
+  "a14534629947e0e1a95981852d661e1b")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'goal_msg)))
   "Returns md5sum for a message object of type 'goal_msg"
-  "1995ab0b6624278887ba1c25d7923c9c")
+  "a14534629947e0e1a95981852d661e1b")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<goal_msg>)))
   "Returns full string definition for message of type '<goal_msg>"
-  (cl:format cl:nil "string Class~%float64 x~%float64 y~%float64 z~%~%~%~%"))
+  (cl:format cl:nil "string Class~%float64 x~%float64 y~%float64 z~%float64 normal_x~%float64 normal_y~%float64 normal_z~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'goal_msg)))
   "Returns full string definition for message of type 'goal_msg"
-  (cl:format cl:nil "string Class~%float64 x~%float64 y~%float64 z~%~%~%~%"))
+  (cl:format cl:nil "string Class~%float64 x~%float64 y~%float64 z~%float64 normal_x~%float64 normal_y~%float64 normal_z~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <goal_msg>))
   (cl:+ 0
      4 (cl:length (cl:slot-value msg 'Class))
+     8
+     8
+     8
      8
      8
      8
@@ -166,4 +256,7 @@
     (cl:cons ':x (x msg))
     (cl:cons ':y (y msg))
     (cl:cons ':z (z msg))
+    (cl:cons ':normal_x (normal_x msg))
+    (cl:cons ':normal_y (normal_y msg))
+    (cl:cons ':normal_z (normal_z msg))
 ))
