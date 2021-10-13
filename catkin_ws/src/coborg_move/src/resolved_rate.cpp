@@ -161,7 +161,7 @@ int main(int argc, char **argv)
     float dt = 0.01;
     Eigen::MatrixXd W(group->size(),group->size());
     W.setIdentity();
-    std::unique_ptr<hebi::robot_model::RobotModel> model = hebi::robot_model::RobotModel::loadHRDF("coborgarm-temp.hrdf");
+    std::unique_ptr<hebi::robot_model::RobotModel> model = hebi::robot_model::RobotModel::loadHRDF("dof_4_robot.hrdf");
 
     ros::Rate rate(20.0);
     while(ros::ok())
