@@ -497,33 +497,66 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
         boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam1", ros::Duration(1.5));
         boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam2 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam2", ros::Duration(1.5));
         
+        goalSetPose(0) = 0;
+        goalSetPose(1) = 0;
+        goalSetPose(2) = 0;
+        int totalCameras = 0;
+
         if (goalpose_cam1 != NULL)
         {
             ROS_INFO("Cam 01 Position Received.");
+            // tf transform to t265 frame -> world frame
+            double transformed_x = 1.0; // placeholder
+            double transformed_y = 1.0; // placeholder
+            double transformed_z = 1.0; // placeholder
+
+            // add to goal pose
+            goalSetPose(0) += transformed_x;
+            goalSetPose(1) += transformed_y;
+            goalSetPose(2) += transformed_z;
+            totalCameras++;
         }
-        else
-        {
-            return dummyPushOut;
-        }
+        // else
+        // {
+        //     return dummyPushOut;
+        // }
 
         if (goalpose_cam2 != NULL)
         {
             ROS_INFO("Cam 02 Position Received.");
+            // tf transform to t265 frame -> world frame
+            double transformed_x = 1.0; // placeholder
+            double transformed_y = 1.0; // placeholder
+            double transformed_z = 1.0; // placeholder
+
+            // add to goal pose
+            goalSetPose(0) += transformed_x;
+            goalSetPose(1) += transformed_y;
+            goalSetPose(2) += transformed_z;
+            totalCameras++;
         }
 
-        goalSetPose(0) = goalpose_cam1->x;
-        goalSetPose(1) = goalpose_cam1->y;
-        goalSetPose(2) = goalpose_cam1->z;
+        goalSetPose(0) /= totalCameras;
+        goalSetPose(1) /= totalCameras;
+        goalSetPose(2) /= totalCameras;
 
         ROS_INFO_STREAM("Goal Position Reading: \n" << *goalpose_cam1 << "\n");
 
         Eigen::Vector3d measuredNormal;
         Eigen::Vector3d groundTruthNormal(1, 0, 0);
 
-        measuredNormal[0] = goalpose_cam1->normal_x;
-        measuredNormal[1] = goalpose_cam1->normal_y;
-        measuredNormal[2] = goalpose_cam1->normal_z;
+        if (goalpose_cam1!=NULL){
+            measuredNormal[0] = goalpose_cam1->normal_x;
+            measuredNormal[1] = goalpose_cam1->normal_y;
+            measuredNormal[2] = goalpose_cam1->normal_z;
+        }
 
+        if (goalpose_cam2!= NULL){
+            measuredNormal[0] = goalpose_cam2->normal_x;
+            measuredNormal[1] = goalpose_cam2->normal_y;
+            measuredNormal[2] = goalpose_cam2->normal_z;
+        }
+        
         // std::cout << "Measured Normal Vector: " << std::endl;
         // std::cout << measuredNormal << std::endl;
 

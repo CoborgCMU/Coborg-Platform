@@ -33,6 +33,7 @@
 double motor1_joint;
 double motor2_joint;
 double motor3_joint;
+double motor4_joint;
 
 // start up variables
 // set start up procedure to prevent max torque at start up phenomena
@@ -54,9 +55,10 @@ bool impValue = false;
 // convert joint angles from MoveIt node to HEBI joint angles
 void hebiOutputCallback(const sensor_msgs::JointState::ConstPtr& msg){
   // ROS_INFO("motor1: %f | motor2: %f | motor3: %f", msg->position[0],msg->position[1],msg->position[2]);
-  motor1_joint = msg->position[0] + 0.1; // offset determined empirically for level arm out at 0 radians 
-  motor2_joint = msg->position[1];
+  motor1_joint = msg->position[0]; // offset determined empirically for level arm out at 0 radians 
+  motor2_joint = msg->position[1] + 0.1;
   motor3_joint = msg->position[2];
+  motor4_joint = msg->position[3];
 }
 
 void effortCallback(const geometry_msgs::Vector3::ConstPtr& msg)
@@ -87,10 +89,10 @@ int main(int argc, char **argv)
     //TODO: create method to auto find the families and names
     //FORNOW: assume there is 1 family and 3 names
     std::vector<std::string> families;
-    families = {"X5-9","X5-9","X5-4"};
+    families = {"01-base","02-shoulder","03-elbow","04-wrist"};
 
     std::vector<std::string> names;
-    names = {"base_1", "elbow_2", "wrist_3"};
+    names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 
     // connect to HEBI joints on network through UDP connection
     std::shared_ptr<hebi::Group> group;
@@ -178,6 +180,7 @@ int main(int argc, char **argv)
         torques[0] = (float) feedbackTor(0);
         torques[1] = (float) feedbackTor(1);
         torques[2] = (float) feedbackTor(2);
+        torques[3] = (float) feedbackTor(3);
         groupCommandStabilize.setEffort(torques);
         group->sendCommand(groupCommandStabilize);
 
@@ -191,9 +194,9 @@ int main(int argc, char **argv)
           // TODO: load xml gain files that has the velocity and effort limits on them
           // FORNOW: hardcode velocity numbers and push those velocities to the joints for a period of time
           curr = ros::Time::now();
-          startupVelocity[0] = 0.2*durr*(motor1_joint - publishState.linear.x);
-          startupVelocity[1] = 0.2*durr*(motor2_joint - publishState.linear.y);
-          startupVelocity[2] = 0.2*durr*(motor3_joint - publishState.linear.z);
+          startupVelocity[1] = 0.2*durr*(motor1_joint - publishState.linear.x);
+          startupVelocity[2] = 0.2*durr*(motor2_joint - publishState.linear.y);
+          startupVelocity[3] = 0.2*durr*(motor3_joint - publishState.linear.z);
 
           groupCommandBegin.setVelocity(startupVelocity);
           group->sendCommand(groupCommandBegin);
@@ -220,9 +223,9 @@ int main(int argc, char **argv)
           // torques[1] = -0.29;
           // torques[2] = 0.15;
           
-          torques[0] = torqueVect.x;
-          torques[1] = torqueVect.y;
-          torques[2] = torqueVect.z;
+          torques[1] = torqueVect.x;
+          torques[2] = torqueVect.y;
+          torques[3] = torqueVect.z;
 
           groupCommandStabilize.setEffort(torques);
           group->sendCommand(groupCommandStabilize);
@@ -240,6 +243,7 @@ int main(int argc, char **argv)
           positions[0] = motor1_joint;
           positions[1] = motor2_joint;
           positions[2] = motor3_joint;
+          positions[3] = motor4_joint;
 
           groupCommand.setPosition(positions);
           // group->sendCommand(groupCommand);

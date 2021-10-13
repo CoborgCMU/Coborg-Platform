@@ -120,9 +120,9 @@ int main(int argc, char **argv)
 
     // inititalize HEBI API
     std::vector<std::string> families;
-    families = {"X5-9","X5-9","X5-4"};
+    families = {"X5-9","X8-16","X5-9","X5-4"};
     std::vector<std::string> names;
-    names = {"base_1", "elbow_2", "wrist_3"};
+    names = {"base_1", "shoulder_2", "elbow_2", "wrist_3"};
 
     // connect to HEBI joints on network through UDP connection
     std::shared_ptr<hebi::Group> group;
