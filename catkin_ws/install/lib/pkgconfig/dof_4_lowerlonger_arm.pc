@@ -1,0 +1,8 @@
+prefix=/media/coborg/Coborg-Platform/catkin_ws/install
+
+Name: dof_4_lowerlonger_arm
+Description: Description of dof_4_lowerlonger_arm
+Version: 0.3.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

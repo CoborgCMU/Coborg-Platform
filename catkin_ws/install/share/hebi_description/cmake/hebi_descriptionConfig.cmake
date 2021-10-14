@@ -67,14 +67,14 @@ set(hebi_description_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("FALSE" STREQUAL "TRUE")
-  set(hebi_description_SOURCE_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/src/hebi_description)
-  set(hebi_description_DEVEL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/devel)
+  set(hebi_description_SOURCE_PREFIX /media/coborg/Coborg-Platform/catkin_ws/src/hebi_description)
+  set(hebi_description_DEVEL_PREFIX /media/coborg/Coborg-Platform/catkin_ws/devel)
   set(hebi_description_INSTALL_PREFIX "")
   set(hebi_description_PREFIX ${hebi_description_DEVEL_PREFIX})
 else()
   set(hebi_description_SOURCE_PREFIX "")
   set(hebi_description_DEVEL_PREFIX "")
-  set(hebi_description_INSTALL_PREFIX /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install)
+  set(hebi_description_INSTALL_PREFIX /media/coborg/Coborg-Platform/catkin_ws/install)
   set(hebi_description_PREFIX ${hebi_description_INSTALL_PREFIX})
 endif()
 
@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/yuqing/Desktop/Coborg-Platform/catkin_ws/install/lib;/opt/ros/melodic/lib)
+    foreach(path /media/coborg/Coborg-Platform/catkin_ws/install/lib;/media/coborg/Coborg-Platform/catkin_ws/devel/lib;/opt/ros/melodic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)

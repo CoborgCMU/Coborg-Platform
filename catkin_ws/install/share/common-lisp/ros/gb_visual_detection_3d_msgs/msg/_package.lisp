@@ -5,5 +5,7 @@
    "BOUNDINGBOX3D"
    "<BOUNDINGBOXES3D>"
    "BOUNDINGBOXES3D"
+   "<GOAL_MSG>"
+   "GOAL_MSG"
   ))
 

@@ -9,4 +9,6 @@
     (:file "_package_BoundingBox3d" :depends-on ("_package"))
     (:file "BoundingBoxes3d" :depends-on ("_package_BoundingBoxes3d"))
     (:file "_package_BoundingBoxes3d" :depends-on ("_package"))
+    (:file "goal_msg" :depends-on ("_package_goal_msg"))
+    (:file "_package_goal_msg" :depends-on ("_package"))
   ))
