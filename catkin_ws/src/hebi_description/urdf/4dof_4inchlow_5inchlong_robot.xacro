@@ -35,9 +35,9 @@
   </link>
   <link name="body">
     <visual>
-      <origin xyz=".09 0.2475 -.25" rpy="0 0 0" />
+      <origin xyz=".09 0.2475 -.50" rpy="0 0 0" />
       <geometry>
-        <box size="0.25 0.32 .5" />
+        <box size="0.25 0.32 1.0" />
       </geometry>
       <xacro:silver_material/>
     </visual>
@@ -163,13 +163,13 @@
   <!-- joints -->
   <xacro:x5 joint="motor1" child="right_arm1" model="X5_9"/>
   <xacro:shoulder name="ms1" extension="0.4" twist="0"/>
-  <xacro:x_tube_link name="right_arm1" child="motor2" extension="0.125" twist="1.3343"/>
+  <xacro:x_tube_link name="right_arm1" child="motor2" extension="0.1336" twist="1.3343"/>
   <xacro:x5 joint="motor2" child="right_arm2" model="X5_9"/>
-  <xacro:x_tube_link name="right_arm2" child="motor3" extension="0.2317" twist="2.1630"/>
+  <xacro:x_tube_link name="right_arm2" child="motor3" extension="0.2352" twist="2.1630"/>
   <xacro:x5 joint="motor3" child="right_arm3" model="X5_9"/>
-  <xacro:x_tube_link name="right_arm3" child="motor4" extension="0.2048" twist="-3.7736" />
+  <xacro:x_tube_link name="right_arm3" child="motor4" extension="0.1971" twist="-3.7736" />
   <xacro:x5 joint="motor4" child="sensor" model="X5_4" />
-  <xacro:sensor_mac name="sensor" child="end_link" extension="0.2559"/>
+  <xacro:sensor_mac name="sensor" child="end_link" extension="0.2542"/>
 
    <!-- end link -->
   <link name="end_link/INPUT_INTERFACE">

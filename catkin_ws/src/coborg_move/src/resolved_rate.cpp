@@ -78,6 +78,7 @@ void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_m
             goal.y = -transform.getOrigin().getY() + goal_msg->y;
             goal.z = -transform.getOrigin().getZ() + goal_msg->z;
 
+            std::cout << "[RESOLVED RATE] - goal callback received and transformed to t265_odom frame." << std::endl;
             ROS_INFO("Transforms are: x: %f, y: %f: z: %f", goal.x,goal.y, goal.z);
 
             // robot arm can now move to updated goal pose
@@ -109,20 +110,21 @@ int main(int argc, char **argv)
     globalListener->waitForTransform("/t265_odom", "/end_link/INPUT_INTERFACE", ros::Time::now(), ros::Duration(3.0));
     globalListener->lookupTransform("/t265_odom", "/end_link/INPUT_INTERFACE", ros::Time::now(), tempTrans);
     prevTransform = &tempTrans;
+    std::cout << "[RESOLVED RATE] Initialization - transform between t265_odom and end_link recieved." << std::endl;
 
     enable_rr = false;
 
     // Get goal position once it's published by vision nodes (same goal move_it picks up)
-    ros::Subscriber goal_pos_sub = node.subscribe("/goal",1,goal_callback);
+    ros::Subscriber goal_pos_sub = node.subscribe("/cam2_goal",1,goal_callback);
     // Topic to trigger resolved rate to begin
     ros::Subscriber tigger_rr_sub = node.subscribe("/enable_rr",1,enable_rr_callback);
 
 
     // inititalize HEBI API
     std::vector<std::string> families;
-    families = {"X5-9","X8-16","X5-9","X5-4"};
+    families = {"01-base","02-shoulder","03-elbow","04-wrist"};
     std::vector<std::string> names;
-    names = {"base_1", "shoulder_2", "elbow_2", "wrist_3"};
+    names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 
     // connect to HEBI joints on network through UDP connection
     std::shared_ptr<hebi::Group> group;
@@ -139,14 +141,14 @@ int main(int argc, char **argv)
         }
         break;
       }
-      ROS_WARN("Could not find group actuators, trying again...");
+      ROS_WARN("[RESOLVED RATE] Initialization - Could not find group actuators, trying again...");
       ros::Duration(1.0).sleep();
     }
     //code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
 
     // error out if HEBI joints are not found on the network
     if (!group) {
-      ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+      ROS_ERROR("[RESOLVED RATE] Initialization - Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
       return -1;
     }
     //print names of each HEBI item in the group
@@ -162,6 +164,8 @@ int main(int argc, char **argv)
     Eigen::MatrixXd W(group->size(),group->size());
     W.setIdentity();
     std::unique_ptr<hebi::robot_model::RobotModel> model = hebi::robot_model::RobotModel::loadHRDF("dof_4_robot.hrdf");
+    std::cout << "[RESOLVED RATE] Initialization - Found HRDF file of robot arm." << std::endl;
+
 
     ros::Rate rate(20.0);
     while(ros::ok())
@@ -176,6 +180,7 @@ int main(int argc, char **argv)
             goal_converted.position.z = goal.z;
             //update geometry_msgs::Pose to most recent /t265_odom transform
             geometry_msgs::Pose target_pose = poseMotionDetection(goal_converted);
+            std::cout << "[RESOLVED RATE] Loop - goal converted from t265_link to end_link." << std::endl;
             //convert geometry_msgs::Pose to Eigen::Vector3d
             Eigen::Vector3d xg;
             xg << target_pose.position.x, target_pose.position.y, target_pose.position.z;
@@ -197,6 +202,7 @@ int main(int argc, char **argv)
             //[2d matrix of joint angles ]
             hebi::robot_model::MatrixXdVector J;
             model->getJ(hebi::robot_model::FrameType::CenterOfMass, thetas, J);
+            std::cout << "[RESOLVED RATE] Loop - acquired Jacobian from HRDF model." << std::endl;
             Eigen::MatrixXd ee_J = J[J.size()-1].block(0,0,3,4);
 
 
@@ -234,6 +240,7 @@ int main(int argc, char **argv)
             
             //command_angles(theta)
             groupCommand.setPosition(thetas);
+            std::cout << "[RESOLVED RATE] Loop - Sending updated theta positions to motors." << std::endl;
             group->sendCommand(groupCommand);
 
         }
