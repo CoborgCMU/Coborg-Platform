@@ -25,6 +25,12 @@
         <joint name="motor3/X5_9" value="-2.3778" />
         <joint name="motor4/X5_4" value="-2.5167" />
     </group_state>
+    <group_state name="ready_pos" group="dof_4_lowerlonger_arm">
+        <joint name="motor1/X5_9" value="0.2951" />
+        <joint name="motor2/X5_9" value="-1.024" />
+        <joint name="motor3/X5_9" value="-2.3778" />
+        <joint name="motor4/X5_4" value="-1.6141" />
+    </group_state>
     <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
     <end_effector name="end_effector" parent_link="end_link/INPUT_INTERFACE" group="dof_4_lowerlonger_arm" />
     <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
