@@ -33,13 +33,17 @@ geometry_msgs::Pose poseMotionDetection(const geometry_msgs::Pose& pose_msg)
     tf::StampedTransform transform;
     geometry_msgs::Pose target_pose;
 
+    // TODO check time of msg with current ros time -> return if greater than 0.1
+    // TODO set prev_time = msg->header.stamp.time
     try
     {
+        // TODO: do ros time check and only perform when make it
         // TODO: acquire the transform once
         // FORNOW: update transform parameters at every callback interval
         //listener.waitForTransform("/world", "/camera_link", ros::Time(0), ros::Duration(3.0));
-        globalListener->waitForTransform("/t265_odom", "/motor1_link/INPUT_INTERFACE",ros::Time::now(), ros::Duration(3.0));
-        globalListener->lookupTransform("/t265_odom", "/motor1_link/INPUT_INTERFACE",ros::Time::now(), transform);
+        ros::Time currTime = ros::Time::now();
+        // globalListener->waitForTransform("/t265_odom_frame", "/motor1_link/INPUT_INTERFACE",currTime, ros::Duration(3.0));
+        globalListener->lookupTransform("/t265_odom_frame", "/motor1_link/INPUT_INTERFACE",currTime, transform);
 
         // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
         target_pose.position.x = -(transform.getOrigin().getX()-prevTransform->getOrigin().getX()) + pose_msg.position.x;
@@ -70,8 +74,9 @@ void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_m
             // TODO: acquire the transform once
             // FORNOW: update transform parameters at every callback interval
             //listener.waitForTransform("/world", "/camera_link", ros::Time(0), ros::Duration(3.0));
-            globalListener->waitForTransform("/d400_link", "/t265_odom", ros::Time::now(), ros::Duration(3.0));
-            globalListener->lookupTransform("/d400_link", "/t265_odom", ros::Time::now(), transform);
+            ros::Time currTime = ros::Time::now();
+            // globalListener->waitForTransform("/cam2_link", "/t265_odom_frame", currTime, ros::Duration(3.0));
+            globalListener->lookupTransform("/cam2_link", "/t265_odom_frame", currTime, transform);
 
             // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
             goal.x = -transform.getOrigin().getX() + goal_msg->x;
@@ -107,9 +112,10 @@ int main(int argc, char **argv)
     globalListener = &listener;
 
     tf::StampedTransform tempTrans;
-    globalListener->waitForTransform("/t265_odom", "/end_link/INPUT_INTERFACE", ros::Time::now(), ros::Duration(3.0));
-    globalListener->lookupTransform("/t265_odom", "/end_link/INPUT_INTERFACE", ros::Time::now(), tempTrans);
-    prevTransform = &tempTrans;
+    ros::Time currTime = ros::Time::now();
+    // globalListener->waitForTransform("/t265_odom_frame", "/end_link/INPUT_INTERFACE", currTime, ros::Duration(3.0));
+    // globalListener->lookupTransform("/t265_odom_frame", "/end_link/INPUT_INTERFACE", currTime, tempTrans);
+    // prevTransform = &tempTrans;
     std::cout << "[RESOLVED RATE] Initialization - transform between t265_odom and end_link recieved." << std::endl;
 
     enable_rr = false;
@@ -167,13 +173,22 @@ int main(int argc, char **argv)
     std::cout << "[RESOLVED RATE] Initialization - Found HRDF file of robot arm." << std::endl;
 
 
+    ros::Publisher goal_pub = node.advertise<gb_visual_detection_3d_msgs::goal_msg>("/cam2_goal", 1);
+    gb_visual_detection_3d_msgs::goal_msg test_goal;
+    test_goal.header.stamp = ros::Time::now();
+    test_goal.x = 0.8379;
+    test_goal.y = -0.02463;
+    test_goal.z = 0.09184;
+    test_goal.normal_x = 1.0;
+    test_goal.normal_y = 0.0;
+    test_goal.normal_z = 0.0;
+    goal_pub.publish(test_goal);
+
     ros::Rate rate(20.0);
     while(ros::ok())
     {
         if(enable_rr)
         {
-            //xg = goal
-            //convert gb_visual_detection_3d_msgs::goal_msg to geometry_msgs::Pose
             geometry_msgs::Pose goal_converted;
             goal_converted.position.x = goal.x;
             goal_converted.position.y = goal.y;
@@ -215,15 +230,6 @@ int main(int argc, char **argv)
                 thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*(xg - x0);
             }
 
-            // if (W.isIdentity(0.1))
-            // {   
-            //     for (int it = 0; it < thetadot.size(); it++)
-            //     {
-            //         Eigen::MatrixXd _temp_J = J[it].transpose()*(J[it]*J[it].transpose()).inverse(); // (3x4)
-            //         Eigen::VectorXd _temp_diff = xg - x0; // (3x1)
-            //         thetadot[it] = _temp_J*_temp_diff;
-            //     }
-            // }
             // else
             // {
             //     for (int it = 0; it < thetadot.size(); it++)
@@ -244,6 +250,7 @@ int main(int argc, char **argv)
             group->sendCommand(groupCommand);
 
         }
+
         ros::spinOnce();
         rate.sleep();
     }
