@@ -108,6 +108,9 @@ std_msgs::Int32 commandReceived;
 std_msgs::Int32 robotExecuting;
 std_msgs::Int32 robotDone;
 bool commandDone = true;
+double tf_time_offset = 0.1;
+double cam1_prevTime = 0.0;
+double cam2_prevTime = 0.0;
 
 
 Eigen::Vector3d presetPositionUpdate(const Eigen::Vector3d& presetVect)
@@ -144,6 +147,41 @@ Eigen::Vector3d presetPositionUpdate(const Eigen::Vector3d& presetVect)
 
 
     
+}
+
+
+// source frame is either /cam1_link or /cam2_link
+Eigen::Vector3d generalPositionUpdate(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg, const std::string source_frame, double &prevTime)
+{
+    if (ros::Time::now().toSec() - prevTime > tf_time_offset)
+    {
+        tf::StampedTransform transform;
+        ros::Time currTime = ros::Time::now();
+        Eigen::Vector3d tempVect;
+        try{
+            globalListener->waitForTransform("/world", source_frame.c_str(), currTime, ros::Duration(3.0));
+            globalListener->lookupTransform("/world", source_frame.c_str(), currTime, transform);
+            // presetPositionUpdate(transform, homePose);
+            tempVect(0) = -transform.getOrigin().getX() + goal_msg->x;
+            tempVect(1) = -transform.getOrigin().getY() + goal_msg->y;
+            tempVect(2) = -transform.getOrigin().getZ() + goal_msg->z;
+            
+            // ROS_INFO("Transform rotation is: x: %f, y: %f, z: %f, w: %f",transform.getRotation().x(),transform.getRotation().y(),transform.getRotation().z(),transform.getRotation().w());
+            // ROS_INFO("Transform translation is: x: %f, y: %f: z: %f", transform.getOrigin().getX(),transform.getOrigin().getY(), transform.getOrigin().getZ());
+
+            prevTime = ros::Time::now().toSec();
+            return tempVect; 
+
+        }
+        catch (tf::TransformException ex){
+            ROS_ERROR("%s", ex.what());
+            Eigen::Vector3d nullVect;
+            return nullVect;
+
+        }
+
+    }
+
 }
 
 
@@ -505,35 +543,44 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
         if (goalpose_cam1 != NULL)
         {
             ROS_INFO("Cam 01 Position Received.");
-            // tf transform to t265 frame -> world frame
-            double transformed_x = 1.0; // placeholder
-            double transformed_y = 1.0; // placeholder
-            double transformed_z = 1.0; // placeholder
+            // tf transform to cam1_link -> world frame
+            Eigen::Vector3d cam1_goalSetPose = generalPositionUpdate(goalpose_cam1, "/cam1_link", cam1_prevTime);
+            
+            
+            if (cam1_goalSetPose(0) == 0)
+            {
+                double transformed_x = cam1_goalSetPose(0); // placeholder
+                double transformed_y = cam1_goalSetPose(1); // placeholder
+                double transformed_z = cam1_goalSetPose(2); // placeholder
 
-            // add to goal pose
-            goalSetPose(0) += transformed_x;
-            goalSetPose(1) += transformed_y;
-            goalSetPose(2) += transformed_z;
-            totalCameras++;
+                // add to goal pose
+                goalSetPose(0) += transformed_x;
+                goalSetPose(1) += transformed_y;
+                goalSetPose(2) += transformed_z;
+                totalCameras++;
+            }
+
         }
-        // else
-        // {
-        //     return dummyPushOut;
-        // }
+
 
         if (goalpose_cam2 != NULL)
         {
             ROS_INFO("Cam 02 Position Received.");
-            // tf transform to t265 frame -> world frame
-            double transformed_x = 1.0; // placeholder
-            double transformed_y = 1.0; // placeholder
-            double transformed_z = 1.0; // placeholder
+            // tf transform to cam2_link frame -> world frame
+            Eigen::Vector3d cam2_goalSetPose = generalPositionUpdate(goalpose_cam2, "/cam2_link", cam2_prevTime);
+            if (cam2_goalSetPose(0) == 0)
+            {
+                double transformed_x = cam2_goalSetPose(0); // placeholder
+                double transformed_y = cam2_goalSetPose(1); // placeholder
+                double transformed_z = cam2_goalSetPose(2); // placeholder
 
-            // add to goal pose
-            goalSetPose(0) += transformed_x;
-            goalSetPose(1) += transformed_y;
-            goalSetPose(2) += transformed_z;
-            totalCameras++;
+                // add to goal pose
+                goalSetPose(0) += transformed_x;
+                goalSetPose(1) += transformed_y;
+                goalSetPose(2) += transformed_z;
+                totalCameras++;
+            }
+
         }
 
         goalSetPose(0) /= totalCameras;
@@ -746,6 +793,8 @@ int main(int argc, char **argv)
 
     beginTime = ros::Time::now();
 
+    std::cout << "[VOICE POSE GENERATOR]: Initialization finished." << std::endl;
+
     while(ros::ok())
     {
         ros::param::get("tf_moveit_goalsetNode/manipulation_state",maniState);
@@ -815,6 +864,7 @@ int main(int argc, char **argv)
         else if (strcmp(maniState.c_str(), voiceGoTo.c_str()) == 0 && (float) durVar.toSec() > uniWaitSec)
         {
             // ROS_INFO("Voice Function Going to Be Called Now");
+            std::cout << "[VOICE POSE GENERATOR]: Voice GO function going to called now." <<std::endl;
             voiceGoalFunc(sequenceCount);
             if (goalPose.position.x < 0.001)
             {
@@ -826,6 +876,7 @@ int main(int argc, char **argv)
         }
         else if (strcmp(maniState.c_str(), voiceGoBack.c_str()) == 0 && (float) durVar.toSec() > uniWaitSec)
         {
+            std::cout << "[VOICE POSE GENERATOR]: Voice COME BACK function going to called now." <<std::endl;
             outDisengagePoseFunc(sequenceCount);
             if (goalPose.position.x < 0.001)
             {

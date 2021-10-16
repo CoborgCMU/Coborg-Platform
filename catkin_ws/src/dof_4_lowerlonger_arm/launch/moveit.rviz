@@ -317,6 +317,16 @@ Visualization Manager:
         All Enabled: false
         body:
           Value: false
+        cam1_aligned_depth_to_color_frame:
+          Value: false
+        cam1_color_frame:
+          Value: false
+        cam1_color_optical_frame:
+          Value: false
+        cam1_depth_frame:
+          Value: false
+        cam1_depth_optical_frame:
+          Value: false
         cam1_link:
           Value: true
         cam2_aligned_depth_to_color_frame:
@@ -379,46 +389,84 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        world:
-          body:
-            {}
-          head:
-            {}
-          motor1/INPUT_INTERFACE:
-            right_arm1/INPUT_INTERFACE:
-              motor2/INPUT_INTERFACE:
-                right_arm2/INPUT_INTERFACE:
-                  motor3/INPUT_INTERFACE:
-                    right_arm3/INPUT_INTERFACE:
-                      motor4/INPUT_INTERFACE:
-                        sensor/INPUT_INTERFACE:
-                          end_link/INPUT_INTERFACE:
-                            {}
-          ms1/INPUT_INTERFACE:
-            cam1_link:
-              {}
-            lowerintermediate_link:
-              middleintermediate_link:
-                cam2_link:
-                  cam2_aligned_depth_to_color_frame:
-                    cam2_color_optical_frame:
-                      {}
-                  cam2_color_frame:
+        t265_odom_frame:
+          t265_pose_frame:
+            t265_link:
+              cam2_link:
+                cam2_aligned_depth_to_color_frame:
+                  cam2_color_optical_frame:
                     {}
-                  cam2_depth_frame:
-                    cam2_depth_optical_frame:
-                      {}
-                highintermediate_lnk:
+                cam2_color_frame:
                   {}
-              t265_link:
-                {}
-          rodL:
-            {}
-          rodR:
-            {}
-          shoulder_len:
-            {}
+                cam2_depth_frame:
+                  cam2_depth_optical_frame:
+                    {}
+              world:
+                body:
+                  {}
+                head:
+                  {}
+                motor1/INPUT_INTERFACE:
+                  right_arm1/INPUT_INTERFACE:
+                    motor2/INPUT_INTERFACE:
+                      right_arm2/INPUT_INTERFACE:
+                        motor3/INPUT_INTERFACE:
+                          right_arm3/INPUT_INTERFACE:
+                            motor4/INPUT_INTERFACE:
+                              sensor/INPUT_INTERFACE:
+                                end_link/INPUT_INTERFACE:
+                                  {}
+                ms1/INPUT_INTERFACE:
+                  cam1_link:
+                    cam1_aligned_depth_to_color_frame:
+                      cam1_color_optical_frame:
+                        {}
+                    cam1_color_frame:
+                      {}
+                    cam1_depth_frame:
+                      cam1_depth_optical_frame:
+                        {}
+                  lowerintermediate_link:
+                    middleintermediate_link:
+                      highintermediate_lnk:
+                        {}
+                rodL:
+                  {}
+                rodR:
+                  {}
+                shoulder_len:
+                  {}
       Update Interval: 0
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic: /cam1/depth_registered/points
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
       Value: true
   Enabled: true
   Global Options:
@@ -451,10 +499,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3347970247268677
+      Pitch: 0.40979674458503723
       Target Frame: world
       Value: XYOrbit (rviz)
-      Yaw: 4.0249481201171875
+      Yaw: 3.994940757751465
     Saved: ~
 Window Geometry:
   Displays:
