@@ -23,43 +23,47 @@
 #include "std_msgs/Bool.h"
 #include <gb_visual_detection_3d_msgs/goal_msg.h>
 
+#include <unistd.h>
+#include <iostream>
+
 tf::StampedTransform* prevTransform;
 tf::TransformListener* globalListener;
 gb_visual_detection_3d_msgs::goal_msg goal; 
 bool enable_rr;
+double tf_offset_time = 0.01;
+double prevGoalCallbackTime = 0.0;
+double prevPoseMotionDetectTime = 0.0;
 
 geometry_msgs::Pose poseMotionDetection(const geometry_msgs::Pose& pose_msg)
 {    
     tf::StampedTransform transform;
     geometry_msgs::Pose target_pose;
 
-    // TODO check time of msg with current ros time -> return if greater than 0.1
-    // TODO set prev_time = msg->header.stamp.time
-    try
+    if (ros::Time::now().toSec() - prevPoseMotionDetectTime > tf_offset_time)
     {
-        // TODO: do ros time check and only perform when make it
-        // TODO: acquire the transform once
-        // FORNOW: update transform parameters at every callback interval
-        //listener.waitForTransform("/world", "/camera_link", ros::Time(0), ros::Duration(3.0));
-        ros::Time currTime = ros::Time::now();
-        // globalListener->waitForTransform("/t265_odom_frame", "/motor1_link/INPUT_INTERFACE",currTime, ros::Duration(3.0));
-        globalListener->lookupTransform("/t265_odom_frame", "/motor1_link/INPUT_INTERFACE",currTime, transform);
+        try
+        {
+            ros::Time currTime = ros::Time::now();
+            globalListener->waitForTransform("/t265_odom_frame", "/motor1/INPUT_INTERFACE",currTime, ros::Duration(3.0));
+            globalListener->lookupTransform("/t265_odom_frame", "/motor1/INPUT_INTERFACE",currTime, transform);
 
-        // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
-        target_pose.position.x = -(transform.getOrigin().getX()-prevTransform->getOrigin().getX()) + pose_msg.position.x;
-        target_pose.position.y = -(transform.getOrigin().getY()-prevTransform->getOrigin().getY()) + pose_msg.position.y;
-        target_pose.position.z = -(transform.getOrigin().getZ()-prevTransform->getOrigin().getZ()) + pose_msg.position.z;
+            target_pose.position.x = -(transform.getOrigin().getX()-prevTransform->getOrigin().getX()) + pose_msg.position.x;
+            target_pose.position.y = -(transform.getOrigin().getY()-prevTransform->getOrigin().getY()) + pose_msg.position.y;
+            target_pose.position.z = -(transform.getOrigin().getZ()-prevTransform->getOrigin().getZ()) + pose_msg.position.z;
 
-        ROS_INFO("Transforms are: x: %f, y: %f: z: %f", target_pose.position.x,target_pose.position.y, target_pose.position.z);
+            ROS_INFO("Transforms are: x: %f, y: %f: z: %f", target_pose.position.x,target_pose.position.y, target_pose.position.z);
 
-        // robot arm can now move to updated goal pose
-        return target_pose;
+            // robot arm can now move to updated goal pose
+            return target_pose;
+            prevPoseMotionDetectTime = ros::Time::now().toSec();
+        }
+        catch (tf::TransformException &ex)
+        {
+            ROS_ERROR("Pose Transform Error: %s", ex.what());
+            return pose_msg;
+        }
     }
-    catch (tf::TransformException &ex)
-    {
-        ROS_ERROR("%s", ex.what());
-        return pose_msg;
-    }
+
 }
 
 void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg)
@@ -67,34 +71,37 @@ void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_m
     tf::StampedTransform transform;
 
     bool goal_got = false;
-    while(!goal_got)
+    if (ros::Time::now().toSec() - prevGoalCallbackTime > tf_offset_time)
     {
-        try
+        while(!goal_got)
         {
-            // TODO: acquire the transform once
-            // FORNOW: update transform parameters at every callback interval
-            //listener.waitForTransform("/world", "/camera_link", ros::Time(0), ros::Duration(3.0));
-            ros::Time currTime = ros::Time::now();
-            // globalListener->waitForTransform("/cam2_link", "/t265_odom_frame", currTime, ros::Duration(3.0));
-            globalListener->lookupTransform("/cam2_link", "/t265_odom_frame", currTime, transform);
+            try
+            {
 
-            // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
-            goal.x = -transform.getOrigin().getX() + goal_msg->x;
-            goal.y = -transform.getOrigin().getY() + goal_msg->y;
-            goal.z = -transform.getOrigin().getZ() + goal_msg->z;
+                ros::Time currTime = ros::Time::now();
+                globalListener->waitForTransform("/cam2_link", "/t265_odom_frame", currTime, ros::Duration(3.0));
+                globalListener->lookupTransform("/cam2_link", "/t265_odom_frame", currTime, transform);
 
-            std::cout << "[RESOLVED RATE] - goal callback received and transformed to t265_odom frame." << std::endl;
-            ROS_INFO("Transforms are: x: %f, y: %f: z: %f", goal.x,goal.y, goal.z);
+                // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
+                goal.x = -transform.getOrigin().getX() + goal_msg->x;
+                goal.y = -transform.getOrigin().getY() + goal_msg->y;
+                goal.z = -transform.getOrigin().getZ() + goal_msg->z;
 
-            // robot arm can now move to updated goal pose
-            goal_got = true;
-        }
-        catch (tf::TransformException &ex)
-        {
-            ROS_ERROR("%s", ex.what());
-            goal_got = false;
+                std::cout << "[RESOLVED RATE] - goal callback received and transformed to t265_odom frame." << std::endl;
+                ROS_INFO("Transforms are: x: %f, y: %f: z: %f", goal.x,goal.y, goal.z);
+
+                // robot arm can now move to updated goal pose
+                goal_got = true;
+                prevGoalCallbackTime = ros::Time::now().toSec();
+            }
+            catch (tf::TransformException &ex)
+            {
+                ROS_ERROR("Goal Callback: %s", ex.what());
+                goal_got = false;
+            }
         }
     }
+
 }
 
 void enable_rr_callback(const std_msgs::Bool::ConstPtr& bool_msg)
@@ -112,14 +119,27 @@ int main(int argc, char **argv)
     globalListener = &listener;
 
     tf::StampedTransform tempTrans;
-    ros::Time currTime = ros::Time::now();
-    // globalListener->waitForTransform("/t265_odom_frame", "/end_link/INPUT_INTERFACE", currTime, ros::Duration(3.0));
-    // globalListener->lookupTransform("/t265_odom_frame", "/end_link/INPUT_INTERFACE", currTime, tempTrans);
-    // prevTransform = &tempTrans;
+    
+    bool transformReceived = false;
+    while (!transformReceived)
+    {
+        try
+        {
+            globalListener->lookupTransform("t265_odom_frame", "end_link/INPUT_INTERFACE", ros::Time(0), tempTrans);
+            transformReceived = true;
+        }
+        catch (tf::TransformException ex)
+        {
+            ROS_WARN("T265 Odom Initialization: %s", ex.what());
+            ros::Duration(0.5).sleep();
+        }
+    }
+    prevTransform = &tempTrans;
     std::cout << "[RESOLVED RATE] Initialization - transform between t265_odom and end_link recieved." << std::endl;
 
-    enable_rr = false;
+    enable_rr = true;
 
+    
     // Get goal position once it's published by vision nodes (same goal move_it picks up)
     ros::Subscriber goal_pos_sub = node.subscribe("/cam2_goal",1,goal_callback);
     // Topic to trigger resolved rate to begin
@@ -169,13 +189,27 @@ int main(int argc, char **argv)
     float dt = 0.01;
     Eigen::MatrixXd W(group->size(),group->size());
     W.setIdentity();
+
+    std::string cwd("\0", FILENAME_MAX+1);
+    std::cout << "Current path: " << getcwd(&cwd[0],cwd.capacity()) << std::endl;
+
     std::unique_ptr<hebi::robot_model::RobotModel> model = hebi::robot_model::RobotModel::loadHRDF("dof_4_robot.hrdf");
-    std::cout << "[RESOLVED RATE] Initialization - Found HRDF file of robot arm." << std::endl;
+    if (model == NULL)
+    {
+        ROS_WARN("[RESOLVED RATE] Initialization - Did NOT find HRDF file of robot arm.");
+
+    }
+    else
+    {
+        
+        std::cout << "[RESOLVED RATE] Initialization - Found HRDF file of robot arm." << std::endl;
+    }
+    
 
 
     ros::Publisher goal_pub = node.advertise<gb_visual_detection_3d_msgs::goal_msg>("/cam2_goal", 1);
     gb_visual_detection_3d_msgs::goal_msg test_goal;
-    test_goal.header.stamp = ros::Time::now();
+    // test_goal.header.stamp = ros::Time::now();
     test_goal.x = 0.8379;
     test_goal.y = -0.02463;
     test_goal.z = 0.09184;
@@ -183,12 +217,16 @@ int main(int argc, char **argv)
     test_goal.normal_y = 0.0;
     test_goal.normal_z = 0.0;
     goal_pub.publish(test_goal);
+    std::cout << "[RESOLVED RATE] Initialization - Published test goal message." << std::endl;
 
     ros::Rate rate(20.0);
     while(ros::ok())
     {
+        // goal_pub.publish(test_goal);
         if(enable_rr)
         {
+            // xg = goal
+            //convert gb_visual_detection_3d_msgs::goal_msg to geometry_msgs::Pose
             geometry_msgs::Pose goal_converted;
             goal_converted.position.x = goal.x;
             goal_converted.position.y = goal.y;
@@ -230,6 +268,15 @@ int main(int argc, char **argv)
                 thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*(xg - x0);
             }
 
+            // if (W.isIdentity(0.1))
+            // {   
+            //     for (int it = 0; it < thetadot.size(); it++)
+            //     {
+            //         Eigen::MatrixXd _temp_J = J[it].transpose()*(J[it]*J[it].transpose()).inverse(); // (3x4)
+            //         Eigen::VectorXd _temp_diff = xg - x0; // (3x1)
+            //         thetadot[it] = _temp_J*_temp_diff;
+            //     }
+            // }
             // else
             // {
             //     for (int it = 0; it < thetadot.size(); it++)
@@ -254,4 +301,6 @@ int main(int argc, char **argv)
         ros::spinOnce();
         rate.sleep();
     }
+
+    std::cout << "Code is Done." << std::endl;
 }
