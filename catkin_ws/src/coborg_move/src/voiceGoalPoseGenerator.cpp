@@ -38,6 +38,7 @@
 
 #include "std_msgs/Int16.h"
 #include "std_msgs/Int32.h"
+#include "geometry_msgs/PoseStamped.h"
 #include <string.h>
 #include <gb_visual_detection_3d_msgs/goal_msg.h>
 
@@ -158,13 +159,44 @@ Eigen::Vector3d generalPositionUpdate(const gb_visual_detection_3d_msgs::goal_ms
         tf::StampedTransform transform;
         ros::Time currTime = ros::Time::now();
         Eigen::Vector3d tempVect;
+
+        geometry_msgs::PoseStamped tempPoseStamped;
+        tempPoseStamped.header.frame_id = goal_msg->header.frame_id;
+        tempPoseStamped.header.stamp = goal_msg->header.stamp;
+        tempPoseStamped.pose.position.x = goal_msg->x;
+        tempPoseStamped.pose.position.y = goal_msg->y;
+        tempPoseStamped.pose.position.z = goal_msg->z;
+
+
+
+        double camRoll = atan(goal_msg->normal_z / goal_msg->normal_y);
+        double camPitch = 3.14159 - atan(goal_msg->normal_z / goal_msg->normal_x);
+        double camYaw = atan(goal_msg->normal_y / goal_msg->normal_x);
+
+        // Eigen::Vector3d cameraXAxis(1,0,0);
+        // Eigen::Vector3d cameraYAxis(0,1,0);
+
+        // Eigen::Vector3d normVectX(goal_msg->normal_x, goal_msg->normal_y, goal_msg->normal_z);
+        tf::Quaternion tempQuaternion;
+        // this is wrong (normal x is not a radian)
+        tempQuaternion.setRPY(camRoll, camPitch, camYaw);
+        tempPoseStamped.pose.orientation.x = tempQuaternion.x;
+        tf::quaternionTFToMsg(tempQuaternion, tempPoseStamped.pose.orientation);
+        
+
+
         try{
-            globalListener->waitForTransform("/world", source_frame.c_str(), currTime, ros::Duration(3.0));
-            globalListener->lookupTransform("/world", source_frame.c_str(), currTime, transform);
+            // globalListener->waitForTransform("/world", source_frame.c_str(), currTime, ros::Duration(3.0));
+            // globalListener->lookupTransform("/world", source_frame.c_str(), currTime, transform);
+            // geometry_msgs::TransformStamped frame_leap_motion = globalListener->lookupTransform("/world", source_frame.c_str(), currTime, ros::Duration(1.0));
             // presetPositionUpdate(transform, homePose);
-            tempVect(0) = -transform.getOrigin().getX() + goal_msg->x;
-            tempVect(1) = -transform.getOrigin().getY() + goal_msg->y;
-            tempVect(2) = -transform.getOrigin().getZ() + goal_msg->z;
+            globalListener->transformPose("/world", tempPoseStamped, tempPoseStamped);
+            tempVect(0) = tempPoseStamped.pose.position.x;
+            tempVect(1) = tempPoseStamped.pose.position.y;
+            tempVect(2) = tempPoseStamped.pose.position.z;
+            // tempVect(0) = -transform.getOrigin().getX() + goal_msg->x;
+            // tempVect(1) = -transform.getOrigin().getY() + goal_msg->y;
+            // tempVect(2) = -transform.getOrigin().getZ() + goal_msg->z;
             
             // ROS_INFO("Transform rotation is: x: %f, y: %f, z: %f, w: %f",transform.getRotation().x(),transform.getRotation().y(),transform.getRotation().z(),transform.getRotation().w());
             // ROS_INFO("Transform translation is: x: %f, y: %f: z: %f", transform.getOrigin().getX(),transform.getOrigin().getY(), transform.getOrigin().getZ());
@@ -527,13 +559,31 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
     else if(strcmp(svdTargetVal.c_str(), visionTargetStart.c_str()) == 0)
     {
         ros::Time begin_vision_time = ros::Time::now();
-        std::cout << svdTargetVal.c_str() << std::endl;
+        // std::cout << svdTargetVal.c_str() << std::endl;
         Eigen::Vector3d goalSetPose;
         // goal is relative to camera frame
 
         ros::Duration(1.0).sleep();
-        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam1", ros::Duration(1.5));
-        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam2 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam2", ros::Duration(1.5));
+        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1;
+        boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam2;
+        try
+        {
+            goalpose_cam1 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam1", ros::Duration(1.0));
+        }
+        catch(std::exception e)
+        {
+            std::cout << "Cam1 not found" << std::endl;
+        }
+        
+        try
+        {
+            goalpose_cam2 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam2", ros::Duration(1.0));
+        }
+        catch(std::exception e)
+        {
+            std::cout << "Cam2 not found" << std::endl;
+        }
+        
         
         goalSetPose(0) = 0;
         goalSetPose(1) = 0;
@@ -547,7 +597,7 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
             Eigen::Vector3d cam1_goalSetPose = generalPositionUpdate(goalpose_cam1, "/cam1_link", cam1_prevTime);
             
             
-            if (cam1_goalSetPose(0) == 0)
+            if (cam1_goalSetPose(0) != 0)
             {
                 double transformed_x = cam1_goalSetPose(0); // placeholder
                 double transformed_y = cam1_goalSetPose(1); // placeholder
@@ -562,13 +612,12 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
 
         }
 
-
         if (goalpose_cam2 != NULL)
         {
             ROS_INFO("Cam 02 Position Received.");
             // tf transform to cam2_link frame -> world frame
             Eigen::Vector3d cam2_goalSetPose = generalPositionUpdate(goalpose_cam2, "/cam2_link", cam2_prevTime);
-            if (cam2_goalSetPose(0) == 0)
+            if (cam2_goalSetPose(0) != 0)
             {
                 double transformed_x = cam2_goalSetPose(0); // placeholder
                 double transformed_y = cam2_goalSetPose(1); // placeholder
@@ -587,25 +636,35 @@ Eigen::Vector3d svdTargetFunc(std::string& svdTargetVal)
         goalSetPose(1) /= totalCameras;
         goalSetPose(2) /= totalCameras;
 
-        ROS_INFO_STREAM("Goal Position Reading: \n" << *goalpose_cam1 << "\n");
+        ROS_INFO_STREAM("Goal Position Reading: \n" << goalSetPose << "\n");
 
-        Eigen::Vector3d measuredNormal;
+        Eigen::Vector3d measuredNormal(0,0,0);
         Eigen::Vector3d groundTruthNormal(1, 0, 0);
 
         if (goalpose_cam1!=NULL){
-            measuredNormal[0] = goalpose_cam1->normal_x;
-            measuredNormal[1] = goalpose_cam1->normal_y;
-            measuredNormal[2] = goalpose_cam1->normal_z;
+            // transform to normal frame
+
+            measuredNormal[0] += goalpose_cam1->normal_x;
+            measuredNormal[1] += goalpose_cam1->normal_y;
+            measuredNormal[2] += goalpose_cam1->normal_z;
         }
 
         if (goalpose_cam2!= NULL){
-            measuredNormal[0] = goalpose_cam2->normal_x;
-            measuredNormal[1] = goalpose_cam2->normal_y;
-            measuredNormal[2] = goalpose_cam2->normal_z;
+            measuredNormal[0] += goalpose_cam2->normal_x;
+            measuredNormal[1] += goalpose_cam2->normal_y;
+            measuredNormal[2] += goalpose_cam2->normal_z;
         }
+
+        // compute normal 
+
+        // TODO get average between 2 axis, average each vector
         
         // std::cout << "Measured Normal Vector: " << std::endl;
         // std::cout << measuredNormal << std::endl;
+
+        // (1,0, 0)
+        // (0,1,0)
+        // (0,0,1)
 
         float angle = groundTruthNormal.dot(measuredNormal);
         angle = acos (angle);
@@ -864,7 +923,7 @@ int main(int argc, char **argv)
         else if (strcmp(maniState.c_str(), voiceGoTo.c_str()) == 0 && (float) durVar.toSec() > uniWaitSec)
         {
             // ROS_INFO("Voice Function Going to Be Called Now");
-            std::cout << "[VOICE POSE GENERATOR]: Voice GO function going to called now." <<std::endl;
+            // std::cout << "[VOICE POSE GENERATOR]: Voice GO function going to called now." <<std::endl;
             voiceGoalFunc(sequenceCount);
             if (goalPose.position.x < 0.001)
             {
@@ -876,7 +935,7 @@ int main(int argc, char **argv)
         }
         else if (strcmp(maniState.c_str(), voiceGoBack.c_str()) == 0 && (float) durVar.toSec() > uniWaitSec)
         {
-            std::cout << "[VOICE POSE GENERATOR]: Voice COME BACK function going to called now." <<std::endl;
+            // std::cout << "[VOICE POSE GENERATOR]: Voice COME BACK function going to called now." <<std::endl;
             outDisengagePoseFunc(sequenceCount);
             if (goalPose.position.x < 0.001)
             {

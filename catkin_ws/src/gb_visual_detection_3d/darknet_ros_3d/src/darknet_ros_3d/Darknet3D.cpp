@@ -207,7 +207,9 @@ Darknet3D::calculate_boxes(const sensor_msgs::PointCloud2& cloud_pc2,
   boxes -> normal_y = ny;
   boxes -> normal_z = nz;
 
-  goal -> Class = "Hand";
+  goal ->header.stamp = cloud_pc2.header.stamp;
+  goal ->header.frame_id = working_frame_;
+  goal -> Class = "Hand: " + std::to_string(original_bboxes_.size());
   goal -> x = searchPoint.x;
   goal -> y = searchPoint.y;
   goal -> z = searchPoint.z;

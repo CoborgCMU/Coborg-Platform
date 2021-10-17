@@ -23,10 +23,10 @@
     <!-- </node> -->
 
     <!--Start up goal setter-->
-    <include file="$(find coborg_move)/launch/tf_moveit_goalsetNode.launch"/>
+    <!-- <include file="$(find coborg_move)/launch/tf_moveit_goalsetNode.launch"/> -->
 
     <!--Start up voice goal-->
-    <include file="$(find coborg_move)/launch/voiceGoalPoseGenerator.launch"/>
+    <!-- <include file="$(find coborg_move)/launch/voiceGoalPoseGenerator.launch"/> -->
 
     <!--Start up hebi moveit planner-->
     <!-- <include file="$(find coborg_move)/launch/find_hebi_moveit_planner.launch"/> -->
