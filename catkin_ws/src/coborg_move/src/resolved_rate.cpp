@@ -44,15 +44,17 @@ geometry_msgs::Pose poseMotionDetection(const geometry_msgs::Pose& pose_msg)
         try
         {
             ros::Time currTime = ros::Time::now();
-            globalListener->waitForTransform("/t265_odom_frame", "/motor1/INPUT_INTERFACE",currTime, ros::Duration(3.0));
-            globalListener->lookupTransform("/t265_odom_frame", "/motor1/INPUT_INTERFACE",currTime, transform);
+            globalListener->waitForTransform("/motor1/INPUT_INTERFACE","/t265_odom_frame", currTime, ros::Duration(3.0));
+            globalListener->lookupTransform("/motor1/INPUT_INTERFACE","/t265_odom_frame", currTime, transform);
 
-            target_pose.position.x = -(transform.getOrigin().getX()-prevTransform->getOrigin().getX()) + pose_msg.position.x;
-            target_pose.position.y = -(transform.getOrigin().getY()-prevTransform->getOrigin().getY()) + pose_msg.position.y;
-            target_pose.position.z = -(transform.getOrigin().getZ()-prevTransform->getOrigin().getZ()) + pose_msg.position.z;
+            target_pose.position.x = -(transform.getOrigin().getX()) + pose_msg.position.x;
+            target_pose.position.y = -(transform.getOrigin().getY()) + pose_msg.position.y;
+            target_pose.position.z = -(transform.getOrigin().getZ()) + pose_msg.position.z;
 
-            ROS_INFO("Transforms are: x: %f, y: %f: z: %f", target_pose.position.x,target_pose.position.y, target_pose.position.z);
 
+            ROS_INFO("Motor1 Goal Transforms are: x: %f, y: %f: z: %f", target_pose.position.x,target_pose.position.y, target_pose.position.z);
+
+            // *prevTransform = transform;
             // robot arm can now move to updated goal pose
             return target_pose;
             prevPoseMotionDetectTime = ros::Time::now().toSec();
@@ -79,16 +81,16 @@ void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_m
             {
 
                 ros::Time currTime = ros::Time::now();
-                globalListener->waitForTransform("/cam2_link", "/t265_odom_frame", currTime, ros::Duration(3.0));
-                globalListener->lookupTransform("/cam2_link", "/t265_odom_frame", currTime, transform);
+                globalListener->waitForTransform("/t265_odom_frame", "/cam2_link", currTime, ros::Duration(3.0));
+                globalListener->lookupTransform("/t265_odom_frame", "/cam2_link", currTime, transform);
 
                 // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
                 goal.x = -transform.getOrigin().getX() + goal_msg->x;
                 goal.y = -transform.getOrigin().getY() + goal_msg->y;
                 goal.z = -transform.getOrigin().getZ() + goal_msg->z;
 
-                std::cout << "[RESOLVED RATE] - goal callback received and transformed to t265_odom frame." << std::endl;
-                ROS_INFO("Transforms are: x: %f, y: %f: z: %f", goal.x,goal.y, goal.z);
+                // std::cout << "[RESOLVED RATE] - goal callback received and transformed to t265_odom frame." << std::endl;
+                ROS_INFO("T265 Goal Transforms are: x: %f, y: %f: z: %f", goal.x,goal.y, goal.z);
 
                 // robot arm can now move to updated goal pose
                 goal_got = true;
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
     {
         try
         {
-            globalListener->lookupTransform("t265_odom_frame", "end_link/INPUT_INTERFACE", ros::Time(0), tempTrans);
+            globalListener->lookupTransform("/motor1/INPUT_INTERFACE", "t265_odom_frame", ros::Time(0), tempTrans);
             transformReceived = true;
         }
         catch (tf::TransformException ex)
@@ -137,7 +139,7 @@ int main(int argc, char **argv)
     prevTransform = &tempTrans;
     std::cout << "[RESOLVED RATE] Initialization - transform between t265_odom and end_link recieved." << std::endl;
 
-    enable_rr = true;
+    enable_rr = false;
 
     
     // Get goal position once it's published by vision nodes (same goal move_it picks up)
@@ -186,9 +188,10 @@ int main(int argc, char **argv)
     Eigen::VectorXd thetas(group->size());
     Eigen::VectorXd thetadot(group->size());
 
-    float dt = 0.01;
+    float dt = 1.0;
     Eigen::MatrixXd W(group->size(),group->size());
     W.setIdentity();
+    //W(3,3) = 100;
 
     std::string cwd("\0", FILENAME_MAX+1);
     std::cout << "Current path: " << getcwd(&cwd[0],cwd.capacity()) << std::endl;
@@ -210,19 +213,20 @@ int main(int argc, char **argv)
     ros::Publisher goal_pub = node.advertise<gb_visual_detection_3d_msgs::goal_msg>("/cam2_goal", 1);
     gb_visual_detection_3d_msgs::goal_msg test_goal;
     // test_goal.header.stamp = ros::Time::now();
-    test_goal.x = 0.8379;
-    test_goal.y = -0.02463;
-    test_goal.z = 0.09184;
+    test_goal.x = 0.3;
+    test_goal.y = 0.1;
+    test_goal.z = 0.2;
     test_goal.normal_x = 1.0;
     test_goal.normal_y = 0.0;
     test_goal.normal_z = 0.0;
-    goal_pub.publish(test_goal);
+    // goal_pub.publish(test_goal);
     std::cout << "[RESOLVED RATE] Initialization - Published test goal message." << std::endl;
 
-    ros::Rate rate(20.0);
+    ros::Rate rate(10.0);
     while(ros::ok())
     {
         // goal_pub.publish(test_goal);
+        
         if(enable_rr)
         {
             // xg = goal
@@ -238,6 +242,8 @@ int main(int argc, char **argv)
             Eigen::Vector3d xg;
             xg << target_pose.position.x, target_pose.position.y, target_pose.position.z;
 
+            
+
             //theta = Get joint state
             if (group->getNextFeedback(group_feedback))
             {
@@ -251,6 +257,9 @@ int main(int argc, char **argv)
             Eigen::Vector3d x0;
             x0 << transform(0,3), transform(1,3), transform(2,3);
 
+            std::cout << "Goal:" << xg << std::endl;
+            std::cout << "Current: " << x0 << std::endl;
+
             //Compute Jacobian -- J
             //[2d matrix of joint angles ]
             hebi::robot_model::MatrixXdVector J;
@@ -258,44 +267,34 @@ int main(int argc, char **argv)
             std::cout << "[RESOLVED RATE] Loop - acquired Jacobian from HRDF model." << std::endl;
             Eigen::MatrixXd ee_J = J[J.size()-1].block(0,0,3,4);
 
+            Vector3d err = xg - x0;
+            // if(err.norm() < 0.1) dt = 0.2;
+            // else dt = 0.5;
 
             if (W.isIdentity(0.1))
             {
-                thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*(xg - x0);
+                thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*err;
             }
             else
             {
-                thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*(xg - x0);
+                thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*err;
             }
 
-            // if (W.isIdentity(0.1))
-            // {   
-            //     for (int it = 0; it < thetadot.size(); it++)
-            //     {
-            //         Eigen::MatrixXd _temp_J = J[it].transpose()*(J[it]*J[it].transpose()).inverse(); // (3x4)
-            //         Eigen::VectorXd _temp_diff = xg - x0; // (3x1)
-            //         thetadot[it] = _temp_J*_temp_diff;
-            //     }
-            // }
-            // else
-            // {
-            //     for (int it = 0; it < thetadot.size(); it++)
-            //     {
-            //         thetadot[it] = W.inverse()*J[it].transpose()*(J[it]*W.inverse()*J[it].transpose()).inverse()*(xg-x0);
-            //     }
-            // }
-
-            //thetadot = inv(W)*J.T*inv(J*inv(W)*J.T)*(xg-x0)
-            //if (W.isIdentity(0.1)) {thetadot = J.T*inv(J*J.T)*(xg-x0)}
-
-            //thetas = thetas + dt*thetadot
             thetas += dt*thetadot;
+
+            // ROS_INFO(thetas);
+            // std::cout << thetas << std::endl;
             
             //command_angles(theta)
             groupCommand.setPosition(thetas);
             std::cout << "[RESOLVED RATE] Loop - Sending updated theta positions to motors." << std::endl;
             group->sendCommand(groupCommand);
 
+        }
+        else
+        {
+            goal_pub.publish(test_goal);
+            enable_rr = true;
         }
 
         ros::spinOnce();

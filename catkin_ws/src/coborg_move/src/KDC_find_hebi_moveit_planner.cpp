@@ -87,10 +87,10 @@ int main(int argc, char** argv)
     //TODO: create method to auto find the families and names
     //FORNOW: assume there is 1 family and 3 names
     std::vector<std::string> families;
-    families = { "X5-9","X5-9","X5-4" };
+    families = {"02-shoulder","03-elbow","04-wrist"};
 
     std::vector<std::string> names;
-    names = { "base_1", "elbow_2", "wrist_3" };
+    names = {"shoulder_2", "elbow_3", "wrist_4"};
 
     // connect to HEBI joints on network through UDP connection
     std::shared_ptr<hebi::Group> group;

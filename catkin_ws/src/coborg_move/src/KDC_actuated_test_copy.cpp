@@ -27,7 +27,7 @@
 #include "std_msgs/Int32.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "geometry_msgs/PoseStamped.h"
-#include "goal_getter/goal_msg.h" // Change to darknet_ros_3d/goal_message when switching to arm branch
+#include "gb_visual_detection_3d_msgs/goal_msg.h" // Change to darknet_ros_3d/goal_message when switching to arm branch
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -47,7 +47,7 @@
 #include "hebi_cpp_api/trajectory.hpp"
 
 // TO DO:
-// Get the frame and time stamp from the updated goal_getter message
+// Get the frame and time stamp from the updated gb_visual_detection_3d_msgs message
 // Update goal_tolerance_angle with the actual tolerance of the end-effector
 // Consider adding an adjusting tolerance for plans in the while loop
 // Consider allowing the stitching and planning time offsets to be lowered if they were previously increased
@@ -68,10 +68,11 @@ Eigen::Vector3d motor_joints;
 geometry_msgs::Twist publishState;
 geometry_msgs::Vector3 torqueVect;
 std::shared_ptr<hebi::Group> group;
-std::vector<std::string> families = {"X5-9","X5-9","X5-4"};
-std::vector<std::string> names = {"base_1", "elbow_2", "wrist_3"};
+std::vector<std::string> families = {"02-shoulder","03-elbow","04-wrist"};
+std::vector<std::string> names = {"shoulder_2", "elbow_3", "wrist_4"};
 // MoveIt Global Pointers
-planning_scene_monitor::PlanningSceneMonitorPtr* psmPtr;
+// planning_scene::PlanningSceneConstPtr* psmPtr;
+planning_scene::PlanningScenePtr* psmPtr;
 planning_pipeline::PlanningPipelinePtr planning_pipeline_global_ptr;
 moveit_visual_tools::MoveItVisualTools* visual_tools_ptr;
 const moveit::core::JointModelGroup* joint_model_group;
@@ -84,12 +85,14 @@ ros::Publisher* display_publisher_ptr;
 // Planning Initializations
 int state = 0;
 std_msgs::Int32 status;
-const std::string PLANNING_GROUP = "coborg_arm";
+const std::string PLANNING_GROUP = "dof_4_lowerlonger_arm";
 // Initialize Goal and Transform Variables
 tf::TransformListener* listener_ptr;
 tf::StampedTransform odom_tf_goal;
+double tf_delay_threshold = 0.1;
+ros::Time most_recent_transform;
 std::string goal_frame_name = "/world";
-std::string global_origin_frame_name = "/odom";
+std::string global_origin_frame_name = "/t265_odom_frame";
 std::string default_camera_frame_name = "/d400_link";
 ros::Time goal_time;
 Eigen::Vector4d homogeneous_goal;
@@ -103,7 +106,8 @@ Eigen::Matrix3d odom_tf_goal_rotation_matrix;
 Eigen::Matrix4d odom_tf_goal_homogeneous_matrix;
 Eigen::Vector3d global_goal;
 Eigen::Vector3d global_goal_normal;
-std::vector<double> goal_tolerance_pose_default {0.02, 0.02, 0.02};
+std::vector<double> goal_tolerance_pose_default {0.05, 0.05, 0.05};
+// std::vector<double> goal_tolerance_pose_default {0.2, 0.2, 0.2};
 std::vector<double> goal_tolerance_pose = goal_tolerance_pose_default;
 std::vector<double> goal_tolerance_angle_default {10, 0.79, 0.79};
 std::vector<double> goal_tolerance_angle = goal_tolerance_angle_default;
@@ -125,6 +129,7 @@ moveit::planning_interface::MoveItErrorCode moveitSuccess;
 moveit::planning_interface::MoveGroupInterface::Plan my_plan;
 ros::Time plan_start;
 ros::Time plan_end;
+std::string end_effector_name = "end_link/INPUT_INTERFACE";
 double planning_time_offset_default = 0.3;
 double planning_time_offset = planning_time_offset_default;
 double stitching_time_offset_default = 0.1;
@@ -178,7 +183,23 @@ Eigen::Isometry3d naive_pull_current_pose;
 void update_rel_goal()
 {
 	// Get the current transform from the ODOM frame to the world frame
-	listener_ptr -> lookupTransform(goal_frame_name, global_origin_frame_name, ros::Time::now(), odom_tf_current);
+	// TODO record message time as global variabl
+	ros::Time currTime = ros::Time::now();
+	if (currTime.toSec() - most_recent_transform.toSec() > tf_delay_threshold)
+	{
+		// lookup transform
+		listener_ptr -> waitForTransform(goal_frame_name, global_origin_frame_name, currTime, ros::Duration(3.0));
+		listener_ptr -> lookupTransform(goal_frame_name, global_origin_frame_name, currTime, odom_tf_current);
+		most_recent_transform = ros::Time::now();
+		std::cout<<"Local transform received"<<std::endl;
+	}
+	else
+	{
+		std::cout<<"Failed to find recent transform"<<std::endl;
+		// fail case
+		return;
+	}
+	
 	odom_tf_current_translation << odom_tf_current.getOrigin().getX(), odom_tf_current.getOrigin().getY(), odom_tf_current.getOrigin().getZ();
 	// Store the tf::Quaternion
 	tf::Quaternion tfQuat;
@@ -230,6 +251,7 @@ void update_rel_goal()
 	goal_pose.pose.orientation.y = goal_normal_quaternion.y();
 	goal_pose.pose.orientation.z = goal_normal_quaternion.z();
 	goal_pose.pose.orientation.w = goal_normal_quaternion.w();
+	std::cout<<"Local goal updated"<<std::endl;
 	return;
 }
 void update_impedance_goal()
@@ -261,11 +283,12 @@ void update_impedance_goal()
 
 // Define subscriber callbacks
 // Camera goal callback
-void camera_goal_callback(const goal_getter::goal_msg::ConstPtr& msg)
+void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& msg)
 {
 	std::cout<<"Current state is: "<<state<<std::endl;
 	if (state == 1)
 	{
+		std::cout<<"Goal Message Received"<<std::endl;
 		// Block other camera inputs
 		state = -1;
 		// Reset the planning and stitching time offsets from the previous action
@@ -279,8 +302,18 @@ void camera_goal_callback(const goal_getter::goal_msg::ConstPtr& msg)
 		homogeneous_goal << msg->x, msg->y, msg->z, 1.0;
 		// Get the transform from the local frame to the ODOM frame
 		std::cout<<"Listening to transform"<<std::endl;
-		listener_ptr -> waitForTransform(global_origin_frame_name, msg->header.frame_id, goal_time, ros::Duration(3.0));
-		listener_ptr -> lookupTransform(global_origin_frame_name, msg->header.frame_id, goal_time, odom_tf_goal);
+		while(true){
+			try{
+				listener_ptr -> waitForTransform(global_origin_frame_name, msg->header.frame_id, goal_time, ros::Duration(3.0));
+				listener_ptr -> lookupTransform(global_origin_frame_name, msg->header.frame_id, goal_time, odom_tf_goal);
+				break;
+			}
+			catch(...){
+				std::cout<<"Current ROS time is: "<<ros::Time::now()<<std::endl;
+				std::cout<<"Message time is: "<<goal_time<<std::endl;
+				ros::Duration(3).sleep();
+			}
+		}																	
 		std::cout<<"Populating odom_tf_goal_translation"<<std::endl;
 		odom_tf_goal_translation << odom_tf_goal.getOrigin().getX(), odom_tf_goal.getOrigin().getY(), odom_tf_goal.getOrigin().getZ();
 		// Store the tf::Quaternion
@@ -309,14 +342,21 @@ void camera_goal_callback(const goal_getter::goal_msg::ConstPtr& msg)
 		goal_tolerance_pose = goal_tolerance_pose_default;
 		goal_tolerance_angle = goal_tolerance_angle_default;
 		// Set kinematic constraints
-		moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints("end_link/INPUT_INTERFACE", goal_pose, goal_tolerance_pose, goal_tolerance_angle);
+		moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
+		std::cout<<"Added kinematic constraints"<<std::endl;
+		ROS_INFO_STREAM(pose_goal);
 		plan_req.group_name = PLANNING_GROUP;
 		plan_req.goal_constraints.clear();
 		plan_req.goal_constraints.push_back(pose_goal);
-		// Lock the visual planner
-		planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+		plan_req.allowed_planning_time = (float)moveit_planning_time;
+		plan_req.num_planning_attempts;
+		std::cout<<"Pushed back pose_goal"<<std::endl;
+		// // Lock the visual planner
+		// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+		// std::cout<<"Locked planning scene monitor"<<std::endl;
 		/* Now, call the pipeline and check whether planning was successful. */
-		planning_pipeline_global_ptr->generatePlan(lscene, plan_req, plan_res);
+		planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+		std::cout<<"Called planning pipeline to generate plan"<<std::endl;
 		/* Now, call the pipeline and check whether planning was successful. */
 		/* Check that the planning was successful */
 		while (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
@@ -326,12 +366,13 @@ void camera_goal_callback(const goal_getter::goal_msg::ConstPtr& msg)
 			goal_tolerance_pose[0] = goal_tolerance_pose[0] + goal_tolerance_pose_adjustment;
 			goal_tolerance_pose[1] = goal_tolerance_pose[1] + goal_tolerance_pose_adjustment;
 			goal_tolerance_pose[2] = goal_tolerance_pose[2] + goal_tolerance_pose_adjustment;
-			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints("end_link/INPUT_INTERFACE", goal_pose, goal_tolerance_pose, goal_tolerance_angle);
+			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
 			plan_req.group_name = PLANNING_GROUP;
 			plan_req.goal_constraints.clear();
 			plan_req.goal_constraints.push_back(pose_goal);
-			planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
-			planning_pipeline_global_ptr->generatePlan(lscene, plan_req, plan_res);
+			// // Lock the visual planner
+			// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
 			if ( sqrt(pow(goal_tolerance_pose[0],2)+pow(goal_tolerance_pose[1],2)+pow(goal_tolerance_pose[2],2)) > goal_tolerance_pose_adjusted_threshold)
 			{
 				state = 0;
@@ -408,7 +449,7 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 			// Set the desired end-effector velocity
 			desired_velocity << -goal_normal * naive_push_speed, 0, 0, 0;
 			// Grab the starting end-effector pose
-			naive_pull_starting_pose = (*robot_state_ptr)->getGlobalLinkTransform("end_link/INPUT_INTERFACE");
+			naive_pull_starting_pose = (*robot_state_ptr)->getGlobalLinkTransform(end_effector_name);
 			// Let the main_state_machine node know that the robot is executing
 			ROS_INFO("Leaving target");
 			status.data = 2;
@@ -471,9 +512,12 @@ int main(int argc, char** argv)
 	ros::AsyncSpinner spinner(0);
 	spinner.start();
 
-    // Global variable pointer attachments
+    // ROS-dependent initializations
+	most_recent_transform = ros::Time::now();
+	// Global variable pointer attachments
     tf::TransformListener listener;
     listener_ptr = &listener;
+	
 	//code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
 	// connect to HEBI joints on network through UDP connection
     for (int num_tries = 0; num_tries < 3; num_tries++) {
@@ -528,30 +572,28 @@ int main(int argc, char** argv)
 	std::cout<<"Move_group settings created"<<std::endl;
 	// Load robot model
 	robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
-	robot_model_loader::RobotModelLoaderPtr robot_model_loader_ptr(new robot_model_loader::RobotModelLoader("robot_description"));
 	robot_model::RobotModelPtr robot_model = robot_model_loader.getModel();
 	std::cout<<"Robot model loaded"<<std::endl;
 	// Create Planning Scene
-	planning_scene_monitor::PlanningSceneMonitorPtr psm(new planning_scene_monitor::PlanningSceneMonitor(robot_model_loader_ptr));
+	planning_scene::PlanningScenePtr psm(new planning_scene::PlanningScene(robot_model));
 	psmPtr = &psm;
 	/* listen for planning scene messages on topic /XXX and apply them to the internal planning scene
 						the internal planning scene accordingly */
-	psm->startSceneMonitor();
+	// psm->startSceneMonitor();
 	/* listens to changes of world geometry, collision objects, and (optionally) octomaps
 								world geometry, collision objects and optionally octomaps */
-	psm->startWorldGeometryMonitor();
+	// psm->startWorldGeometryMonitor();
 	/* listen to joint state updates as well as changes in attached collision objects
 						and update the internal planning scene accordingly*/
-	psm->startStateMonitor();
+	// psm->startStateMonitor();
 	std::cout<<"Planning scene initialized"<<std::endl;
 
 	/* We can also use the RobotModelLoader to get a robot model which contains the robot's kinematic information */
-	moveit::core::RobotModelPtr kin_model = robot_model_loader_ptr->getModel();
-	////////////////////////////////////////////////////////CHANGED THE ABOVE FROM ROBOT_MODEL TO KIN_MODEL
+	/////////////////////////////////////////////////
 	/* We can get the most up to date robot state from the PlanningSceneMonitor by locking the internal planning scene
 	for reading. This lock ensures that the underlying scene isn't updated while we are reading it's state.
 	RobotState's are useful for computing the forward and inverse kinematics of the robot among many other uses */
-	moveit::core::RobotStatePtr robot_state(new moveit::core::RobotState(planning_scene_monitor::LockedPlanningSceneRO(psm)->getCurrentState()));
+	moveit::core::RobotStatePtr robot_state(new moveit::core::RobotState(robot_model));
 	robot_state_ptr = &robot_state;
 	std::cout<<"Robot state set up"<<std::endl;
 	/* Create a JointModelGroup to keep track of the current robot pose and planning group. The Joint Model
@@ -597,11 +639,13 @@ int main(int argc, char** argv)
 	state_input_pub.publish(status);
 
 	// Initialize Subscribers
-	ros::Subscriber camera_goal_sub = node_handle.subscribe("/goal", 1, camera_goal_callback);
+	ros::Subscriber camera_goal_sub = node_handle.subscribe("/goal_cam2", 1, camera_goal_callback);
 	ros::Subscriber state_output_sub = node_handle.subscribe("/state_output", 1, state_output_callback);
 	ros::Subscriber execute_action_sub = node_handle.subscribe("/execute_trajectory/feedback", 5, execute_trajectory_feedback_callback);
 	ros::Subscriber hebi_joints_sub = node_handle.subscribe("/hebi_joints", 1, hebiJointsCallback);
 
+	std::cout<<"Publishers and subscribers initialized"<<std::endl;
+	std::cout<<"Looping and ready"<<std::endl;
 	while (ros::ok())
 	{
 		// Check if the robot is executing trajectories to target
@@ -639,15 +683,15 @@ int main(int argc, char** argv)
 			update_rel_goal();
 			// Plan RRT Connect Path and send it for execution
 			// Set kinematic constraints
-			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints("end_link/INPUT_INTERFACE", goal_pose, goal_tolerance_pose, goal_tolerance_angle);
+			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
 			plan_req.group_name = PLANNING_GROUP;
 			plan_req.goal_constraints.clear();
 			plan_req.goal_constraints.push_back(pose_goal);
 			// Lock the visual planner
 			{
-				planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+				// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
 				/* Now, call the pipeline and check whether planning was successful. */
-				planning_pipeline->generatePlan(lscene, plan_req, plan_res);
+				planning_pipeline->generatePlan(*psmPtr, plan_req, plan_res);
 			}
 			/* Now, call the pipeline and check whether planning was successful. */
 			/* Check that the planning was successful */
@@ -783,7 +827,7 @@ int main(int argc, char** argv)
 				identity_worker = impedance_goal_offset * identity_worker;
 				Eigen::Vector3d goal_offset_worker;
 				goal_offset_worker = identity_worker * goal_normal;
-				current_end_effector_position_worker = (robot_state->getGlobalLinkTransform("end_link/INPUT_INTERFACE")).translation();
+				current_end_effector_position_worker = (robot_state->getGlobalLinkTransform(end_effector_name)).translation();
 				impedance_goal(0) = current_end_effector_position_worker.x() + goal_offset_worker(0);
 				impedance_goal(1) = current_end_effector_position_worker.y() + goal_offset_worker(1);
 				impedance_goal(2) = current_end_effector_position_worker.z() + goal_offset_worker(2);
@@ -826,7 +870,7 @@ int main(int argc, char** argv)
 			jointVelocityVect << hebiJointAngVelocities.at(0), hebiJointAngVelocities.at(1), hebiJointAngVelocities.at(2);
 			// compute fwd kinematics from hebi joints
 			robot_state->setJointGroupPositions(joint_model_group, hebiJointAngles);
-			end_effector_state = robot_state->getGlobalLinkTransform("end_link/INPUT_INTERFACE");
+			end_effector_state = robot_state->getGlobalLinkTransform(end_effector_name);
 			// Update the Jacobian
 			robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
 			// Calculate the taskspace velocity
@@ -853,7 +897,7 @@ int main(int argc, char** argv)
 		if (state == 5)
 		{
 			// Grab the current end-effector pose
-			naive_pull_current_pose = robot_state->getGlobalLinkTransform("end_link/INPUT_INTERFACE");;
+			naive_pull_current_pose = robot_state->getGlobalLinkTransform(end_effector_name);
 			// Check to see if the end-effector has moved far enough
 			if ((naive_pull_starting_pose.translation() - naive_pull_current_pose.translation()).norm() < naive_pull_offset)
 			{

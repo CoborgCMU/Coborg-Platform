@@ -10,7 +10,7 @@
 #include "std_msgs/Int32.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "geometry_msgs/PoseStamped.h"
-#include "goal_getter/goal_msg.h"
+#include "gb_visual_detection_3d_msgs/goal_msg.h"
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -30,7 +30,7 @@
 #include "hebi_cpp_api/trajectory.hpp"
 
 // TO DO:
-// Get the frame and time stamp from the updated goal_getter message
+// Get the frame and time stamp from the updated gb_visual_detection_3d_msgs message
 // Update goal_tolerance_angle with the actual tolerance of the end-effector
 // Consider adding an adjusting tolerance for plans in the while loop
 // Consider allowing the stitching and planning time offsets to be lowered if they were previously increased
@@ -65,7 +65,7 @@ ros::Publisher* display_publisher_ptr;
 // Planning Initializations
 int state = 0;
 std_msgs::Int32 status;
-const std::string PLANNING_GROUP = "coborg_arm";
+const std::string PLANNING_GROUP = "dof_4_lowerlonger_arm";
 // Initialize Goal and Transform Variables
 tf::TransformListener listener;
 tf::StampedTransform odom_tf_goal;
@@ -242,7 +242,7 @@ void update_impedance_goal()
 
 // Define subscriber callbacks
 // Camera goal callback
-void camera_goal_callback(const goal_getter::goal_msg::ConstPtr& msg)
+void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& msg)
 {
 	if (state == 1)
 	{
@@ -259,7 +259,7 @@ void camera_goal_callback(const goal_getter::goal_msg::ConstPtr& msg)
 		homogeneous_goal << msg->x, msg->y, msg->z;
 		// Get the transform from the local frame to the ODOM frame
 		//odom_tf_goal = listener.waitForTransform("/odom", msg->header.frame_id, goal_time, ros::Duration(3.0));/////////FIX/////////////////
-		listener.lookupTransform("/odom", "/d400_link", goal_time, odom_tf_goal);
+		listener.lookupTransform("/odom", "/cam2_link", goal_time, odom_tf_goal);
 		odom_tf_goal_translation << odom_tf_goal.getOrigin().getX(), odom_tf_goal.getOrigin().getY(), odom_tf_goal.getOrigin().getZ();
 		// Store the tf::Quaternion
 		tf::Quaternion tfQuat_initial;

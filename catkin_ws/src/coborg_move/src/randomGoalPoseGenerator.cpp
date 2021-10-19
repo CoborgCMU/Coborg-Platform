@@ -431,7 +431,7 @@ int main(int argc, char **argv)
     // // subscribe to Yuqing's goal getter node
     // // ros::Subscriber desired_goal_sub = node.subscribe("goal", 10, goalPushOutCallback);
     // ros::Duration(1.0).sleep();
-    // boost::shared_ptr<goal_getter::goal_msg const> goalpose = ros::topic::waitForMessage<goal_getter::goal_msg>("/goal");
+    // boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal");
     // // oal_getter::goal_msg goalpose = ros::topic::waitForMessage("/goal");
     // // dummyPushOut[0] = goalpose->x;
     // // dummyPushOut[1] = goalpose->y;
