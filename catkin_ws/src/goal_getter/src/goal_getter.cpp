@@ -1,4 +1,7 @@
+#include <stdio.h>
 #include <ros/ros.h>
+#include <ros/console.h>
+#include <ros/package.h>
 #include <gb_visual_detection_3d_msgs/goal_msg.h>
 #include <vector>
 #include <cmath>
@@ -6,7 +9,6 @@
 #include <boost/scoped_ptr.hpp>
 #include <tf/transform_listener.h>
 #include <tf/tf.h>
-#include <eigen_conversions/eigen_msg.h>
 
 
 #include "Eigen/Eigen"
@@ -18,6 +20,7 @@
 double tf_time_offset = 0.1;
 double cam1_prevTime = 0.0;
 double cam2_prevTime = 0.0;
+ros::Time prevTime;
 
 class GoalGetter
 {
@@ -25,7 +28,7 @@ public:
     GoalGetter()
     {
         // subscribe to state_output rostopic
-        state_output_sub_ = nh_.subscribe("state_output", 1, state_output_callback);
+        state_output_sub_ = nh_.subscribe("state_output", 1, &GoalGetter::state_output_callback, this);
 
         // publish to state_input rostopic
         state_input_pub_ = nh_.advertise<std_msgs::Int32>("state_input", 1);
@@ -36,8 +39,8 @@ public:
         // TODO: publishers for manipulation node
 
         curr_state_ = 0;  // main state
-        goalSetPose(0,0,0);
-        measuredNormal(0,0,0);
+        goalSetPose << 0.0,0.0,0.0;
+        measuredNormal << 0.0,0.0,0.0;
     }
 
     void step(){
@@ -47,13 +50,14 @@ public:
             goal_received = true;
         }
 
-        if (curr_state_ ==2 || curr_state_==3){
-            if (goalSetPose(0)!=0){
-                // keep publishing the point (relative to the world)
-                geometry_msgs::PointStamped goal_point;
-                convertGoalPoint(goal_point, goalSetPose);
-                goal_pub_.publish(goal_point);
+        std::cout << "Current state is: " << curr_state_ << std::endl;
+        std::cout << "Goal is: " <<  goal_point << std::endl;    
 
+        if (curr_state_ ==2 || curr_state_==3){
+            if (goalSetPose(0)!=0.0){
+                // keep publishing the point (relative to the world)
+                convertGoalPoint(goal_point, goalSetPose);
+            
                 // TODO: surface normal
             }
         }
@@ -82,6 +86,7 @@ private:
             geometry_msgs::PointStamped goal_point;
             goal_point.header.frame_id = goal_msg -> header.frame_id;
             goal_point.header.stamp = goal_msg -> header.stamp;
+            prevTime = goal_msg -> header.stamp.toSec();
             goal_point.point.x = goal_msg -> x;
             goal_point.point.y = goal_msg -> y;
             goal_point.point.z = goal_msg -> z;
@@ -95,7 +100,7 @@ private:
 
 
             try{
-                tfListener.transformPoint("/t265_odom_frame", goal_point, goal_point);
+                tfListener_.transformPoint("/t265_odom_frame", goal_point, goal_point);
                 transformedGoalNormal(0,0) = goal_point.point.x;
                 transformedGoalNormal(0,1) = goal_point.point.y;
                 transformedGoalNormal(0,2) = goal_point.point.z;
@@ -121,7 +126,7 @@ private:
     }
 
     void processGoal(Eigen::Vector3d& goalSetPose, Eigen::Vector3d& measuredNormal){
-        // goal is relative to camera frame
+        // convert goal from camera frame to /t265_odom_frame and take care of edge cases
 
         ros::Duration(1.0).sleep();
         boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1;
@@ -203,7 +208,7 @@ private:
 
         ROS_INFO_STREAM("Goal Position Reading: \n" << goalSetPose << "\n");
 
-        measuredNormal(0,0,0);
+        measuredNormal << 0.0,0.0,0.0;
         if (goalpose_cam1!=NULL){
             // transform to normal frame
 
@@ -220,21 +225,23 @@ private:
     }
 
     void convertGoalPoint(geometry_msgs::PointStamped& goal_point, Eigen::Vector3d& goalSetPose){
-        // update time for goal point
-        goal_point.header.stamp = ros::Time::now();
+        // convert goal position from /t265_odom_frame to /world
 
-        if (ros::Time::now().toSec() - prevTime > tf_time_offset)
+        if (ros::Time::now().toSec() - prevTime.toSec() > tf_time_offset)
         {   
             // transform it to point stamp
-            goal_point.header.stamp = ros::Time::now();
+            // goal_point.header.stamp = ros::Time::now();
             goal_point.header.frame_id = "/t265_odom_frame";
+            goal_point.header.stamp = prevTime;
             goal_point.point.x = goalSetPose(0);
             goal_point.point.y = goalSetPose(1);
             goal_point.point.z = goalSetPose(2);
+            std::cout << "Time is  "<< prevTime << std::endl;
             // transform it to /world
             try{
-                tfListener.transformPoint("/world", goal_point, goal_point);
-                prevTime = ros::Time::now().toSec();
+                tfListener_.transformPoint("/world", goal_point, goal_point);
+                goal_pub_.publish(goal_point);
+                prevTime = ros::Time::now();
             }
             catch (tf::TransformException ex){
                 ROS_ERROR("%s", ex.what());
@@ -246,12 +253,13 @@ private:
     ros::Publisher state_input_pub_;
     ros::Publisher goal_pub_;
     ros::Subscriber state_output_sub_;
-    tf::Listener tfListener_;
+    tf::TransformListener tfListener_;
     int curr_state_;
     std_msgs::Int32 commandReceived_;
     Eigen::Vector3d goalSetPose;
     Eigen::Vector3d measuredNormal;
     bool goal_received = false;
+    geometry_msgs::PointStamped goal_point;
 };
 
 

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>goal_getter</name>
-  <version>2.0.0</version>
+  <version>0.0.0</version>
   <description>Goal getter</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
@@ -49,27 +49,20 @@
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
-
-  <build_depend>gb_visual_detection_3d_msgs</build_depend>
-  <build_depend>roscpp</build_depend>
   <build_depend>message_generation</build_depend>
-  <build_depend>std_msgs</build_depend>
-  
-
-  <build_export_depend>gb_visual_detection_3d_msgs</build_export_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>gb_visual_detection_3d_msgs</build_depend>
   <build_export_depend>roscpp</build_export_depend>
-  <build_export_depend>std_msgs</build_export_depend>
-  
-
+  <build_export_depend>message_runtime</build_export_depend>
+  <build_export_depend>gb_visual_detection_3d_msgs</build_export_depend>
   <exec_depend>roscpp</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>gb_visual_detection_3d_msgs</exec_depend>
   <exec_depend>message_runtime</exec_depend>
-
+  <exec_depend>gb_visual_detection_3d_msgs</exec_depend>
 
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>tf</depend>
+  <depend>hebi_cpp_api</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

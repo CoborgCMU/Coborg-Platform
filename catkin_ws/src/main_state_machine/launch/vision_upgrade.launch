@@ -15,8 +15,11 @@
     <!--Start up Vision subystem-->
     <include file="$(find darknet_ros_3d)/launch/darknet_ros_3d.launch"/>
 
-    <!--Start up Voice subsystem-->
-    <include file="$(find voice_recog)/launch/voice.launch"/>
+    <!--Start up goal getter -->
+    <!-- <include file="$(find goal_getter)/launch/goal_getter.launch"/> -->
+
+    <!-- Start up Voice subsystem
+    <include file="$(find voice_recog)/launch/voice.launch"/> -->
 
     <!-- Start up Main State Machine -->
     <node pkg="main_state_machine" name="coborg_main" type="main.py" output="screen"/> 
