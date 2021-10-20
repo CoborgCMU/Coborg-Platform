@@ -27,12 +27,15 @@
 #include <pluginlib/class_loader.h>
 #include <boost/scoped_ptr.hpp>
 
+#include <sensor_msgs/JointState.h>
+
 #include <string.h>
 
 // declare motor joints as global vairables
 double motor1_joint;
 double motor2_joint;
 double motor3_joint;
+double motor4_joint;
 
 // start up variables
 // set start up procedure to prevent max torque at start up phenomena
@@ -40,8 +43,8 @@ bool boolFirstTime = true;
 double startup_sec = 0.1;
 
 // set global variable to publish joint angles
-geometry_msgs::Twist publishState;
-geometry_msgs::Vector3 torqueVect;
+// geometry_msgs::Twist publishState;
+sensor_msgs::JointState torqueVect;
 
 // subscribe to rosparam for state triggers
 std::string maniState;
@@ -57,9 +60,10 @@ void hebiOutputCallback(const sensor_msgs::JointState::ConstPtr& msg) {
     motor1_joint = msg->position[0] + 0.1; // offset determined empirically for level arm out at 0 radians 
     motor2_joint = msg->position[1];
     motor3_joint = msg->position[2];
+    motor4_joint = msg->position[3];
 }
 
-void effortCallback(const geometry_msgs::Vector3::ConstPtr& msg)
+void effortCallback(const sensor_msgs::JointState::ConstPtr& msg)
 {
     impValue = true;
     currImp = ros::Time::now();
@@ -77,20 +81,19 @@ int main(int argc, char** argv)
     //Goals
     //Subscribe to /move_group/fake_controller_states rostopic
     //output the topic to the screen
-
     ros::Subscriber fake_joint_states_sub = node.subscribe("/move_group/fake_controller_joint_states", 1, hebiOutputCallback);
-    ros::Publisher hebi_joints_pub = node.advertise<geometry_msgs::Twist>("hebi_joints", 1);
+    // ros::Publisher hebi_joints_pub = node.advertise<geometry_msgs::Twist>("hebi_joints", 1);
+    ros::Publisher hebi_jointstate_pub = node.advertise<sensor_msgs::JointState>("hebi_joints", 1);
 
     ros::Subscriber desired_torques_sub = node.subscribe("/desired_hebi_efforts", 1, effortCallback);
-
 
     //TODO: create method to auto find the families and names
     //FORNOW: assume there is 1 family and 3 names
     std::vector<std::string> families;
-    families = {"02-shoulder","03-elbow","04-wrist"};
+    families = {"01-base","02-shoulder","03-elbow","04-wrist"};
 
     std::vector<std::string> names;
-    names = {"shoulder_2", "elbow_3", "wrist_4"};
+    names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 
     // connect to HEBI joints on network through UDP connection
     std::shared_ptr<hebi::Group> group;
@@ -140,7 +143,7 @@ int main(int argc, char** argv)
 
 
     // (impedance control) declare varaibles to be using for force control state
-    group->setFeedbackFrequencyHz(50);
+    group->setFeedbackFrequencyHz(20);
     ros::Time begin = ros::Time::now();
     ros::Time curr = ros::Time::now();
     ros::Time beginImp = ros::Time::now();
@@ -150,6 +153,9 @@ int main(int argc, char** argv)
     const double stiffness = 1.0;
 
     ros::Rate loop_rate(20.0);
+
+
+
 
 
     while (ros::ok()) {
@@ -166,22 +172,40 @@ int main(int argc, char** argv)
         if (group->getNextFeedback(group_feedback))
         {
             feedbackPos = group_feedback.getPosition();
-            feedbackTor = group_feedback.getEffort();
             feedbackVel = group_feedback.getVelocity();
-            // std::cout << "Position feedback: " << std::endl << feedbackPos << std::endl;
-            publishState.linear.x = (float)feedbackPos(0); // base motor
-            publishState.linear.y = (float)feedbackPos(1); // elbow motor
-            publishState.linear.z = (float)feedbackPos(2); // wrist motor
-            publishState.angular.x = (float)feedbackVel(0);
-            publishState.angular.y = (float)feedbackVel(1);
-            publishState.angular.z = (float)feedbackVel(2);
-            torques[0] = (float)feedbackTor(0);
-            torques[1] = (float)feedbackTor(1);
-            torques[2] = (float)feedbackTor(2);
-            groupCommandStabilize.setEffort(torques);
-            group->sendCommand(groupCommandStabilize);
+            feedbackTor = group_feedback.getEffort();
+            // // std::cout << "Position feedback: " << std::endl << feedbackPos << std::endl;
+            // publishState.linear.x = (float)feedbackPos(0); // base motor
+            // publishState.linear.y = (float)feedbackPos(1); // elbow motor
+            // publishState.linear.z = (float)feedbackPos(2); // wrist motor
+            // publishState.angular.x = (float)feedbackVel(0);
+            // publishState.angular.y = (float)feedbackVel(1);
+            // publishState.angular.z = (float)feedbackVel(2);
+            // torques[0] = (float)feedbackTor(0);
+            // torques[1] = (float)feedbackTor(1);
+            // torques[2] = (float)feedbackTor(2);
+            // groupCommandStabilize.setEffort(torques);
+            // group->sendCommand(groupCommandStabilize);
 
-            hebi_joints_pub.publish(publishState);
+            // hebi_joints_pub.publish(publishState);
+
+
+
+            sensor_msgs::JointState hebi_feedback_message;
+            hebi_feedback_message.header.stamp = ros::Time::now();
+
+            for (unsigned int it = 0; it < names.size(); it++)
+            {
+                hebi_feedback_message.name.push_back(names[it]);
+
+                hebi_feedback_message.position.push_back((float) feedbackPos(it));
+                hebi_feedback_message.velocity.push_back((float) feedbackVel(it));
+                hebi_feedback_message.effort.push_back((float) feedbackTor(it));
+
+            }
+
+            hebi_jointstate_pub.publish(hebi_feedback_message);
+
 
 
             // intiliaze if HEBI motors are starting up for the first time
@@ -191,9 +215,10 @@ int main(int argc, char** argv)
                 // TODO: load xml gain files that has the velocity and effort limits on them
                 // FORNOW: hardcode velocity numbers and push those velocities to the joints for a period of time
                 curr = ros::Time::now();
-                startupVelocity[0] = 0.2 * durr * (motor1_joint - publishState.linear.x);
-                startupVelocity[1] = 0.2 * durr * (motor2_joint - publishState.linear.y);
-                startupVelocity[2] = 0.2 * durr * (motor3_joint - publishState.linear.z);
+                startupVelocity[0] = 0.2 * durr * (motor1_joint - hebi_feedback_message.position[0]);
+                startupVelocity[1] = 0.2 * durr * (motor2_joint - hebi_feedback_message.position[1]);
+                startupVelocity[2] = 0.2 * durr * (motor3_joint - hebi_feedback_message.position[2]);
+                startupVelocity[3] = 0.2 * durr * (motor4_joint - hebi_feedback_message.position[3]);
 
                 groupCommandBegin.setVelocity(startupVelocity);
                 group->sendCommand(groupCommandBegin);
@@ -220,9 +245,10 @@ int main(int argc, char** argv)
                 // torques[1] = -0.29;
                 // torques[2] = 0.15;
 
-                torques[0] = torqueVect.x;
-                torques[1] = torqueVect.y;
-                torques[2] = torqueVect.z;
+                torques[0] = torqueVect.effort[0];
+                torques[1] = torqueVect.effort[1];
+                torques[2] = torqueVect.effort[2];
+                torques[3] = torqueVect.effort[3];
 
                 groupCommandStabilize.setEffort(torques);
                 group->sendCommand(groupCommandStabilize);
@@ -245,6 +271,7 @@ int main(int argc, char** argv)
                 positions[0] = motor1_joint;
                 positions[1] = motor2_joint;
                 positions[2] = motor3_joint;
+                positions[3] = motor4_joint;
 
                 groupCommand.setPosition(positions);
                 // group->sendCommand(groupCommand);

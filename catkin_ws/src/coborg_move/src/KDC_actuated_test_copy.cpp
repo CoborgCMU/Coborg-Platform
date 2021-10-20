@@ -38,6 +38,7 @@
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit_msgs/DisplayRobotState.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
+#include <sensor_msgs/JointState.h>
 
 // HEBI Includes
 #include "hebi_cpp_api/lookup.hpp"
@@ -64,12 +65,12 @@
 
 // Initialize variables
 // HEBI Initializations
-Eigen::Vector3d motor_joints;
-geometry_msgs::Twist publishState;
-geometry_msgs::Vector3 torqueVect;
+// Eigen::Vector3d motor_joints;
+// sensor_msgs::JointState publishState;
+// geometry_msgs::Vector3 torqueVect;
 std::shared_ptr<hebi::Group> group;
-std::vector<std::string> families = {"02-shoulder","03-elbow","04-wrist"};
-std::vector<std::string> names = {"shoulder_2", "elbow_3", "wrist_4"};
+std::vector<std::string> families = {"01-base", "02-shoulder","03-elbow","04-wrist"};
+std::vector<std::string> names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 // MoveIt Global Pointers
 // planning_scene::PlanningSceneConstPtr* psmPtr;
 planning_scene::PlanningScenePtr* psmPtr;
@@ -127,13 +128,16 @@ moveit_msgs::MotionPlanResponse prev_plan_res;
 geometry_msgs::PoseStamped goal_pose;
 moveit::planning_interface::MoveItErrorCode moveitSuccess;
 moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+double plan_execution_start_delay = 0.1;
 ros::Time plan_start;
 ros::Time plan_end;
 std::string end_effector_name = "end_link/INPUT_INTERFACE";
-double planning_time_offset_default = 0.3;
+double planning_time_offset_default = 0.5;
 double planning_time_offset = planning_time_offset_default;
-double stitching_time_offset_default = 0.1;
+double planning_time_offset_increase_rate = 0.05;
+double stitching_time_offset_default = 0.5;
 double stitching_time_offset = stitching_time_offset_default;
+double stitching_time_offset_increase_rate = 0.05;
 ros::Time stitch_plan_start;
 double desired_plan_start_time;
 bool trajectory_start_point_success;
@@ -148,9 +152,9 @@ float naive_push_force_threshold = 5;
 Eigen::VectorXd end_effector_force(6);
 // Initialize Stabilization Variables
 Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
-std::vector<double> hebiJointAngles(3);
-std::vector<double> hebiJointAngVelocities(3);
-Eigen::Vector3d current_hebi_joints;
+std::vector<double> hebiJointAngles(4);
+std::vector<double> hebiJointAngVelocities(4);
+// Eigen::Vector3d current_hebi_joints;
 Eigen::Isometry3d end_effector_state;
 Eigen::VectorXd impedance_goal(6);
 Eigen::VectorXd impedance_global_goal(6);
@@ -168,7 +172,7 @@ Eigen::Vector3d jointVelocityVect;
 Eigen::Vector3d taskSpaceVelocityVect;
 Eigen::MatrixXd wristJacobian;
 Eigen::VectorXd desiredTorquesEigen;
-geometry_msgs::Vector3 desired_torques;
+sensor_msgs::JointState desired_torques;
 float baseMaxTorque = 2.0;
 float elbowMaxTorque = 2.0;
 float wristMaxTorque = 2.0;
@@ -182,6 +186,7 @@ Eigen::Isometry3d naive_pull_current_pose;
 // Function to update global goal to local and fill in goal_pose message
 void update_rel_goal()
 {
+	std::cout<<"Localizing global goal"<<std::endl;
 	// Get the current transform from the ODOM frame to the world frame
 	// TODO record message time as global variabl
 	ros::Time currTime = ros::Time::now();
@@ -305,7 +310,9 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		while(true){
 			try{
 				listener_ptr -> waitForTransform(global_origin_frame_name, msg->header.frame_id, goal_time, ros::Duration(3.0));
+				std::cout<<"Waited for transform"<<std::endl;
 				listener_ptr -> lookupTransform(global_origin_frame_name, msg->header.frame_id, goal_time, odom_tf_goal);
+				std::cout<<"Looked up transform"<<std::endl;
 				break;
 			}
 			catch(...){
@@ -346,12 +353,6 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		std::cout<<"Added kinematic constraints"<<std::endl;
 		ROS_INFO_STREAM(pose_goal);
 		plan_req.group_name = PLANNING_GROUP;
-		plan_req.goal_constraints.clear();
-		plan_req.goal_constraints.push_back(pose_goal);
-		plan_req.allowed_planning_time = (float)moveit_planning_time;
-		plan_req.num_planning_attempts;
-		std::cout<<"Pushed back pose_goal"<<std::endl;
-		// // Lock the visual planner
 		// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
 		// std::cout<<"Locked planning scene monitor"<<std::endl;
 		/* Now, call the pipeline and check whether planning was successful. */
@@ -463,38 +464,46 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 	// Check if the trajectory has finished
 	if (msg->feedback.state == "IDLE")
 	{
-		// Check if the robot was moving to a target
-		if (state == 2)
+		// Check if any time has passed
+		if (ros::Time::now() - plan_start > ros::Duration(plan_execution_start_delay))
 		{
-			state = 3;
-			ROS_INFO("Successfully reached target offset; extending");
-			ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
-			// Update the normal vector
-			update_rel_goal();
-			// Set the desired end-effector velocity
-			desired_velocity << goal_normal * naive_push_speed, 0, 0, 0;
-		}
-		// Check if the robot was returning to home
-		else if (state == 6)
-		{
-			state = 0;
-			ROS_INFO("Successfully returned to home; waiting");
-			// Let the main_state_machine node know that the robot is ready
-			status.data = 3;
-			state_input_pub_ptr->publish(status);
+			std::cout<<"row::Time::now() is: "<<ros::Time::now()<<std::endl;
+			std::cout<<"plan_start is: "<<plan_start<<std::endl;
+			// Check if the robot was moving to a target
+			if (state == 2)
+			{
+				state = 3;
+				ROS_INFO("Successfully reached target offset; extending");
+				ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
+				// Update the normal vector
+				update_rel_goal();
+				// Set the desired end-effector velocity
+				desired_velocity << goal_normal * naive_push_speed, 0, 0, 0;
+			}
+			// Check if the robot was returning to home
+			else if (state == 6)
+			{
+				state = 0;
+				ROS_INFO("Successfully returned to home; waiting");
+				// Let the main_state_machine node know that the robot is ready
+				status.data = 3;
+				state_input_pub_ptr->publish(status);
+			}
 		}
 	}
 }
 // HEBI joint angles callback
-void hebiJointsCallback(const geometry_msgs::Twist::ConstPtr & hebimsg)
+void hebiJointsCallback(const sensor_msgs::JointState::ConstPtr & hebimsg)
 {
 	// Grab the joint angles and velocities of the robot
-	hebiJointAngles.at(0) = hebimsg->linear.x;
-	hebiJointAngles.at(1) = hebimsg->linear.y;
-	hebiJointAngles.at(2) = hebimsg->linear.z;
-	hebiJointAngVelocities.at(0) = hebimsg->angular.x;
-	hebiJointAngVelocities.at(1) = hebimsg->angular.y;
-	hebiJointAngVelocities.at(2) = hebimsg->angular.z;
+	hebiJointAngles.at(0) = hebimsg->position[0];
+	hebiJointAngles.at(1) = hebimsg->position[1];
+	hebiJointAngles.at(2) = hebimsg->position[2];
+	hebiJointAngles.at(3) = hebimsg->position[3];
+	hebiJointAngVelocities.at(0) = hebimsg->velocity[0];
+	hebiJointAngVelocities.at(1) = hebimsg->velocity[1];
+	hebiJointAngVelocities.at(2) = hebimsg->velocity[2];
+	hebiJointAngVelocities.at(3) = hebimsg->velocity[3];
 }
 
 int main(int argc, char** argv)
@@ -629,7 +638,7 @@ int main(int argc, char** argv)
 	// Initialize Publishers
 	ros::Publisher state_input_pub = node_handle.advertise<std_msgs::Int32>("/state_input", 5);
 	state_input_pub_ptr = &state_input_pub;
-	ros::Publisher desired_efforts_pub = node_handle.advertise<geometry_msgs::Vector3>("/desired_hebi_efforts", 1);
+	ros::Publisher desired_efforts_pub = node_handle.advertise<sensor_msgs::JointState>("/desired_hebi_efforts", 1);
 	ros::Publisher display_publisher = node_handle_ptr->advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
 	display_publisher_ptr = &display_publisher;
 	ros::Duration(0.5).sleep();
@@ -653,9 +662,11 @@ int main(int argc, char** argv)
 		{
 			// prev_plan_res contains the current, time-stamped RRT plan
 			// Determine how far into the future of the current plan to begin the next plan
+			std::cout<<"Beginning new planning trajectory (state == 2)"<<std::endl;
 			desired_plan_start_time = planning_time_offset + stitching_time_offset + ros::Time::now().toSec() - plan_start.toSec();
 			// Loop through the previously planned path until you find the point in the path corresponding to the desired time
 			trajectory_start_point_success = 0;
+			std::cout<<"Searching old plan for breakaway point"<<std::endl;
 			for (unsigned int i = 0; i < (sizeof(prev_plan_res.trajectory.joint_trajectory.points) / sizeof(prev_plan_res.trajectory.joint_trajectory.points[0])); ++i)
 			{
 				if (prev_plan_res.trajectory.joint_trajectory.points[i].time_from_start.toSec() > desired_plan_start_time)
@@ -669,6 +680,7 @@ int main(int argc, char** argv)
 					plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
 					plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[i].positions;
 					plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[i].velocities;
+					std::cout<<"Breakaway point found"<<std::endl;
 					// Stop looping
 					break;
 				}
@@ -676,6 +688,7 @@ int main(int argc, char** argv)
 			// If desired_plan_start_time is greater than the time to finish the path, don't bother planning a new one
 			if (!trajectory_start_point_success)
 			{
+				std::cout<<"No sufficient breakaway point found, looping"<<std::endl;
 				continue;
 			}
 			// Use RRT to plan a path from the beginning point just extracted to the current goal point, updated based on the t_265 localization
@@ -683,6 +696,7 @@ int main(int argc, char** argv)
 			update_rel_goal();
 			// Plan RRT Connect Path and send it for execution
 			// Set kinematic constraints
+			std::cout<<"Updating current goal"<<std::endl;
 			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
 			plan_req.group_name = PLANNING_GROUP;
 			plan_req.goal_constraints.clear();
@@ -691,6 +705,7 @@ int main(int argc, char** argv)
 			{
 				// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
 				/* Now, call the pipeline and check whether planning was successful. */
+				std::cout<<"Generating new plan"<<std::endl;
 				planning_pipeline->generatePlan(*psmPtr, plan_req, plan_res);
 			}
 			/* Now, call the pipeline and check whether planning was successful. */
@@ -699,8 +714,9 @@ int main(int argc, char** argv)
 			{
 				ROS_ERROR("Could not compute plan successfully");
 				continue;
-				// CONSIDER ADDING IN THE TOLERANCES INCREASES
+				// TODO: CONSIDER ADDING IN THE TOLERANCE INCREASES
 			}
+			std::cout<<"Plan generated successfully"<<std::endl;
 			// Stitch the new response (response.trajectory.joint_trajectory.points) onto the beginning of the old one
 			stitch_plan_start = ros::Time::now();
 			// Record the memory size of the arrays
@@ -708,6 +724,7 @@ int main(int argc, char** argv)
 			// Create a working array to hold the stitched trajectory
 			std::vector<trajectory_msgs::JointTrajectoryPoint> working_trajectory_array;
 			//std::cout << prev_plan_res.trajectory.joint_trajectory.points.begin();
+			std::cout<<"Copying trajectories"<<std::endl;
 			std::copy(prev_plan_res.trajectory.joint_trajectory.points.begin(), prev_plan_res.trajectory.joint_trajectory.points.begin() + trajectory_start_point, working_trajectory_array.begin());
 			std::copy(response_ptr->trajectory.joint_trajectory.points.begin(), response_ptr->trajectory.joint_trajectory.points.begin() + new_trajectory_length, working_trajectory_array.begin() + trajectory_start_point);
 			// Loop through the full working trajectory and find the new starting point (updated for how far the robot has traversed)
@@ -717,14 +734,16 @@ int main(int argc, char** argv)
 				// Check if the planning has taken so long that the manipulator has already reached the new trajectory, stop trying to fix the trajectory and restart
 				if ((j > trajectory_start_point) && (new_plan_origin_found == 0))
 				{
-					// If there wasn't enough time to plan the trajectory, increase the planning time to the total time that it took to plan + 5%
-					planning_time_offset = (ros::Time::now() - plan_start).toSec() * 1.05;
+					std::cout<<"Planning time insufficient, increasing"<<std::endl;
+					// If there wasn't enough time to plan the trajectory, increase the planning time to the total time that it took to plan + the increase rate
+					planning_time_offset = (ros::Time::now() - plan_start).toSec() * (1.0 + planning_time_offset_increase_rate);
 					ROS_INFO("Failed to plan in time, new planning_time_offset:%s", planning_time_offset);
 					break;
 				}
 				// If a starting point in the old trajectory has been found, set it as the new starting point for the final, stitched and cut trajectory
 				if ((new_plan_origin_found == 0) && (working_trajectory_array[j].time_from_start.toSec() > ((ros::Time::now() - plan_start).toSec() + stitching_time_offset)))
 				{
+					std::cout<<"New starting point found, adjusting trajectory time stamps to match"<<std::endl;
 					// Record the cut point
 					new_plan_origin = j;
 					new_plan_origin_found = 1;
@@ -748,6 +767,7 @@ int main(int argc, char** argv)
 			// Check if the plan was successfully stitched together
 			if (new_plan_origin_found)
 			{
+				std::cout<<"Plan successfully stitched"<<std::endl;
 				// Update the trajectory
 				std::copy(working_trajectory_array.begin()+new_plan_origin, working_trajectory_array.end(), response_ptr->trajectory.joint_trajectory.points.begin());
 				/////////////// Visualize the result
@@ -755,7 +775,7 @@ int main(int argc, char** argv)
 				moveit_msgs::DisplayTrajectory display_trajectory;
 
 				/* Visualize the trajectory */
-				ROS_INFO("Visualizing the trajectory");
+				ROS_INFO("Visualizing the new trajectory");
 				moveit_msgs::MotionPlanResponse response;
 				plan_res.getMessage(response);
 
@@ -767,6 +787,7 @@ int main(int argc, char** argv)
 				visual_tools.trigger();
 				///////////////
 				// Update and Execute the plan
+				std::cout<<"Executing new trajectory"<<std::endl;
 				my_plan.trajectory_ = response.trajectory;
 				moveitSuccess = move_group.plan(my_plan);
 				move_group.asyncExecute(my_plan);
@@ -776,8 +797,9 @@ int main(int argc, char** argv)
 			}
 			else
 			{
-				// If there wasn't enough time to stitch the trajectories together, increase the stitching time to the total time that it took to stitch + 5%
-				stitching_time_offset = ((ros::Time::now() - plan_start).toSec() - planning_time_offset) * 1.05;
+				// If there wasn't enough time to stitch the trajectories together, increase the stitching time to the total time that it took to stitch + the increase rate
+				std::cout<<"Stitching time insufficient, increasing"<<std::endl;
+				stitching_time_offset = ((ros::Time::now() - plan_start).toSec() - planning_time_offset) * (1.0 + stitching_time_offset_increase_rate);
 				ROS_INFO("Failed to stitch in time, new stitching_time_offset:%s", stitching_time_offset);
 			}
 			new_plan_origin_found = 0;
@@ -885,11 +907,17 @@ int main(int argc, char** argv)
 			desired_cartesian_forces(1) = impedance_position_gain(1) * position_error(1) + impedance_derivative_gain(1) * velocity_error(1);
 			desired_cartesian_forces(2) = impedance_position_gain(2) * position_error(2) + impedance_derivative_gain(2) * velocity_error(2);
 			// Convert desired cartesian forces to joint efforts
-			Eigen::MatrixXd jacobian_worker(3,6);
+			Eigen::MatrixXd jacobian_worker(6,group->size());
 			jacobian_worker = wristJacobian.transpose();
-			desired_torques.x = jacobian_worker(0,0) * desired_cartesian_forces(0) + jacobian_worker(0,1) * desired_cartesian_forces(0) + jacobian_worker(0,2) * desired_cartesian_forces(2) + jacobian_worker(0,3) * desired_cartesian_forces(3) + jacobian_worker(0,4) * desired_cartesian_forces(4) + jacobian_worker(0,5) * desired_cartesian_forces(5);
-			desired_torques.y = jacobian_worker(1,0) * desired_cartesian_forces(0) + jacobian_worker(1,1) * desired_cartesian_forces(0) + jacobian_worker(1,2) * desired_cartesian_forces(2) + jacobian_worker(1,3) * desired_cartesian_forces(3) + jacobian_worker(1,4) * desired_cartesian_forces(4) + jacobian_worker(1,5) * desired_cartesian_forces(5);
-			desired_torques.z = jacobian_worker(2,0) * desired_cartesian_forces(0) + jacobian_worker(2,1) * desired_cartesian_forces(0) + jacobian_worker(2,2) * desired_cartesian_forces(2) + jacobian_worker(2,3) * desired_cartesian_forces(3) + jacobian_worker(2,4) * desired_cartesian_forces(4) + jacobian_worker(2,5) * desired_cartesian_forces(5);
+
+			for (unsigned int it = 0; it < group->size(); it++)
+			{
+				desired_torques.effort.push_back(
+			jacobian_worker(0,it) * desired_cartesian_forces(0) + jacobian_worker(1,it) * desired_cartesian_forces(1) + jacobian_worker(2,it) * desired_cartesian_forces(2) + jacobian_worker(3,it) * desired_cartesian_forces(3) + jacobian_worker(4,it) * desired_cartesian_forces(4) + jacobian_worker(5,it) * desired_cartesian_forces(5));
+			}
+
+			// desired_torques.y = jacobian_worker(1,0) * desired_cartesian_forces(0) + jacobian_worker(1,1) * desired_cartesian_forces(0) + jacobian_worker(1,2) * desired_cartesian_forces(2) + jacobian_worker(1,3) * desired_cartesian_forces(3) + jacobian_worker(1,4) * desired_cartesian_forces(4) + jacobian_worker(1,5) * desired_cartesian_forces(5);
+			// desired_torques.z = jacobian_worker(2,0) * desired_cartesian_forces(0) + jacobian_worker(2,1) * desired_cartesian_forces(0) + jacobian_worker(2,2) * desired_cartesian_forces(2) + jacobian_worker(2,3) * desired_cartesian_forces(3) + jacobian_worker(2,4) * desired_cartesian_forces(4) + jacobian_worker(2,5) * desired_cartesian_forces(5);
 			// Send the desired joint torques to the motors
 			desired_efforts_pub.publish(desired_torques);
 		}
