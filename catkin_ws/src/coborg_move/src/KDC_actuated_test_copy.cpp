@@ -139,10 +139,10 @@ double plan_execution_start_delay = 0.4;
 ros::Time plan_start;
 ros::Time plan_end;
 std::string end_effector_name = "end_link/INPUT_INTERFACE";
-double planning_time_offset_default = 0.5;
+double planning_time_offset_default = 0.1;
 double planning_time_offset = planning_time_offset_default;
 double planning_time_offset_increase_rate = 0.05;
-double stitching_time_offset_default = 0.5;
+double stitching_time_offset_default = 0.1;
 double stitching_time_offset = stitching_time_offset_default;
 double stitching_time_offset_increase_rate = 0.05;
 ros::Time stitch_plan_start;
@@ -405,6 +405,7 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 				// Let the main_state_machine node know that the robot is ready
 				status.data = 3;
 				state_input_pub_ptr->publish(status);
+				num_attempts = 0;
 				return;
 			}
 		}
@@ -515,7 +516,8 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 	if (msg->feedback.state == "IDLE")
 	{
 		// Check if any time has passed
-		if (ros::Time::now() - plan_start > ros::Duration(plan_execution_start_delay))
+		// if (ros::Time::now() - plan_start > ros::Duration(plan_execution_start_delay))
+		if(true)
 		{
 			std::cout<<"row::Time::now() is: "<<ros::Time::now()<<std::endl;
 			std::cout<<"plan_start is: "<<plan_start<<std::endl;
@@ -637,7 +639,7 @@ int main(int argc, char** argv)
 	planning_scene::PlanningScenePtr psm(new planning_scene::PlanningScene(robot_model));
 	psmPtr = &psm;
 	/* listen for planning scene messages on topic /XXX and apply them to the internal planning scene
-						the internal planning scene accordingly */
+						the internal pla0.018115nning scene accordingly */
 	// psm->startSceneMonitor();
 	/* listens to changes of world geometry, collision objects, and (optionally) octomaps
 								world geometry, collision objects and optionally octomaps */
@@ -706,6 +708,10 @@ int main(int argc, char** argv)
 	ros::Subscriber hebi_joints_sub = node_handle.subscribe("/hebi_joints", 1, hebiJointsCallback);
 
 	std::cout<<"Publishers and subscribers initialized"<<std::endl;
+
+	std::cout<<"Moving to home"<<std::endl;
+	
+
 	std::cout<<"Looping and ready"<<std::endl;
 	while (ros::ok())
 	{
@@ -748,7 +754,6 @@ int main(int argc, char** argv)
 					break;
 				}
 			}
-			exit(1); /////////////////////////////
 			// If desired_plan_start_time is greater than the time to finish the path, don't bother planning a new one
 			if (!trajectory_start_point_success)
 			{
@@ -857,7 +862,7 @@ int main(int argc, char** argv)
 				// moveit_plans_pub_ptr->publish(my_plan);
 				move_group.asyncExecute(my_plan);
 				prev_plan_res = response;
-				ROS_INFO("Plan successfully executed.  Time to plan: %s", (ros::Time::now() - plan_start).toSec());
+				ROS_INFO("Plan successfully executing.  Time to plan: %s", (ros::Time::now() - plan_start).toSec());
 				plan_start = ros::Time::now();
 			}
 			else
