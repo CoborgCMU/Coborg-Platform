@@ -44,15 +44,16 @@ geometry_msgs::Pose poseMotionDetection(const geometry_msgs::Pose& pose_msg)
         try
         {
             ros::Time currTime = ros::Time::now();
-            globalListener->waitForTransform("/motor1/INPUT_INTERFACE","/t265_odom_frame", currTime, ros::Duration(3.0));
-            globalListener->lookupTransform("/motor1/INPUT_INTERFACE","/t265_odom_frame", currTime, transform);
+            globalListener->waitForTransform("/t265_odom_frame", "/motor1/INPUT_INTERFACE",currTime, ros::Duration(3.0));
+            globalListener->lookupTransform("/t265_odom_frame", "/motor1/INPUT_INTERFACE",currTime, transform);
 
             target_pose.position.x = -(transform.getOrigin().getX()) + pose_msg.position.x;
             target_pose.position.y = -(transform.getOrigin().getY()) + pose_msg.position.y;
-            target_pose.position.z = -(transform.getOrigin().getZ()) + pose_msg.position.z;
+            target_pose.position.z = (transform.getOrigin().getZ()) + pose_msg.position.z;
 
+            ROS_INFO("Motor1 Transform are: x: %f, y: %f: z: %f", transform.getOrigin().getX(), transform.getOrigin().getY(), transform.getOrigin().getZ());
 
-            ROS_INFO("Motor1 Goal Transforms are: x: %f, y: %f: z: %f", target_pose.position.x,target_pose.position.y, target_pose.position.z);
+            // ROS_INFO("Motor1 Goal Transforms are: x: %f, y: %f: z: %f", target_pose.position.x,target_pose.position.y, target_pose.position.z);
 
             // *prevTransform = transform;
             // robot arm can now move to updated goal pose
@@ -87,7 +88,7 @@ void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_m
                 // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
                 goal.x = -transform.getOrigin().getX() + goal_msg->x;
                 goal.y = -transform.getOrigin().getY() + goal_msg->y;
-                goal.z = -transform.getOrigin().getZ() + goal_msg->z;
+                goal.z = transform.getOrigin().getZ() + goal_msg->z;
 
                 // std::cout << "[RESOLVED RATE] - goal callback received and transformed to t265_odom frame." << std::endl;
                 ROS_INFO("T265 Goal Transforms are: x: %f, y: %f: z: %f", goal.x,goal.y, goal.z);
@@ -127,7 +128,7 @@ int main(int argc, char **argv)
     {
         try
         {
-            globalListener->lookupTransform("/motor1/INPUT_INTERFACE", "t265_odom_frame", ros::Time(0), tempTrans);
+            globalListener->lookupTransform("t265_odom_frame", "/motor1/INPUT_INTERFACE", ros::Time(0), tempTrans);
             transformReceived = true;
         }
         catch (tf::TransformException ex)
