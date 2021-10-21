@@ -724,16 +724,12 @@ int main(int argc, char** argv)
 			std::cout<<"ros::Time::now().toSec() is: "<<ros::Time::now().toSec()<<std::endl;
 			std::cout<<"plan_start.toSec() is: "<<plan_start.toSec()<<std::endl;
 			std::cout<<"prev_plan_res.trajectory.joint_trajectory.points.size() is: "<<prev_plan_res.trajectory.joint_trajectory.points.size()<<std::endl;
-			std::cout<<"sizeof(prev_plan_res.trajectory.joint_trajectory.points) is: "<<sizeof(prev_plan_res.trajectory.joint_trajectory.points)<<std::endl;
-			std::cout<<"sizeof(prev_plan_res.trajectory.joint_trajectory.points[0]) is: "<<sizeof(prev_plan_res.trajectory.joint_trajectory.points[0])<<std::endl;
-			std::cout<<"sizeof(prev_plan_res.trajectory.joint_trajectory.points) / sizeof(prev_plan_res.trajectory.joint_trajectory.points[0]) is: "<<sizeof(prev_plan_res.trajectory.joint_trajectory.points) / sizeof(prev_plan_res.trajectory.joint_trajectory.points[0])<<std::endl;
-			// std::cout<<" is: "<<<<std::endl;
 			///////////////////////////////////////
 			desired_plan_start_time = planning_time_offset + stitching_time_offset + ros::Time::now().toSec() - plan_start.toSec();
 			// Loop through the previously planned path until you find the point in the path corresponding to the desired time
 			trajectory_start_point_success = 0;
 			std::cout<<"Searching old plan for breakaway point"<<std::endl;
-			for (unsigned int i = 0; i < (sizeof(prev_plan_res.trajectory.joint_trajectory.points) / sizeof(prev_plan_res.trajectory.joint_trajectory.points[0])); ++i)
+			for (unsigned int i = 0; i < (prev_plan_res.trajectory.joint_trajectory.points.size()); ++i)
 			{
 				std::cout<<"The time_from_start.toSec() of point "<<i<<" is: "<<prev_plan_res.trajectory.joint_trajectory.points[i].time_from_start.toSec()<<std::endl; /////////////////////////
 				if (prev_plan_res.trajectory.joint_trajectory.points[i].time_from_start.toSec() > desired_plan_start_time)
@@ -788,7 +784,7 @@ int main(int argc, char** argv)
 			// Stitch the new response (response.trajectory.joint_trajectory.points) onto the beginning of the old one
 			stitch_plan_start = ros::Time::now();
 			// Record the memory size of the arrays
-			int new_trajectory_length = sizeof(response_ptr->trajectory.joint_trajectory.points) / sizeof(response_ptr->trajectory.joint_trajectory.points[0]);
+			int new_trajectory_length = response_ptr->trajectory.joint_trajectory.points.size();
 			// Create a working array to hold the stitched trajectory
 			std::vector<trajectory_msgs::JointTrajectoryPoint> working_trajectory_array;
 			//std::cout << prev_plan_res.trajectory.joint_trajectory.points.begin();
