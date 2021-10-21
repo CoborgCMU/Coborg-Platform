@@ -91,7 +91,7 @@ ros::Publisher* state_input_pub_ptr;
 ros::Publisher* display_publisher_ptr;
 // ros::Publisher* moveit_plans_pub_ptr;
 // Planning Initializations
-int state = 0;
+int state = 6;
 std_msgs::Int32 status;
 const std::string PLANNING_GROUP = "dof_4_lowerlonger_arm";
 // Initialize Goal and Transform Variables
@@ -188,6 +188,7 @@ double naive_pull_offset = 0.1;
 Eigen::Isometry3d naive_pull_starting_pose;
 Eigen::Isometry3d naive_pull_current_pose;
 // Initialize Return to Home Variables
+std::vector<double> joint_group_positions = { 0.0, -1.8, -2.2, -2.4 };
 
 // Define Functions
 // Function to update global goal to local and fill in goal_pose message
@@ -369,6 +370,7 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		std::cout<<"Added kinematic constraints"<<std::endl;
 		ROS_INFO_STREAM(pose_goal);
 		plan_req.group_name = PLANNING_GROUP;
+		(*psmPtr)->setCurrentState(*(*robot_state_ptr));
 		// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
 		// std::cout<<"Locked planning scene monitor"<<std::endl;
 		/* Now, call the pipeline and check whether planning was successful. */
@@ -389,6 +391,7 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 			plan_req.goal_constraints.push_back(pose_goal);
 			// // Lock the visual planner
 			// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+			move_group_ptr->setStartStateToCurrentState();
 			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
 			if ( sqrt(pow(goal_tolerance_pose[0],2)+pow(goal_tolerance_pose[1],2)+pow(goal_tolerance_pose[2],2)) > goal_tolerance_pose_adjusted_threshold)
 			{
@@ -448,7 +451,6 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
 		std::cout<<"plan_res.planning_time_ is: "<<plan_res.planning_time_<<std::endl;
 		std::cout<<"*(response.trajectory) is: "<<response.trajectory<<std::endl;
-		// exit(1);
 		// moveit_plans_pub_ptr->publish(my_plan);
 		// move_group_ptr->execute(my_plan);
 		move_group_ptr->asyncExecute(my_plan);
@@ -709,9 +711,6 @@ int main(int argc, char** argv)
 
 	std::cout<<"Publishers and subscribers initialized"<<std::endl;
 
-	std::cout<<"Moving to home"<<std::endl;
-	
-
 	std::cout<<"Looping and ready"<<std::endl;
 	while (ros::ok())
 	{
@@ -723,13 +722,10 @@ int main(int argc, char** argv)
 			std::cout<<"Beginning new planning trajectory (state == 2)"<<std::endl;
 			////////////////////////////////
 			std::cout<<"///////////////////////////////"<<std::endl;
-			std::cout<<"prev_plan_res.trajectory is: "<<prev_plan_res.trajectory<<std::endl;
-			// std::cout<<"prev_plan_res.trajectory.points[0] is: "<<prev_plan_res.trajectory.points[0]<<std::endl;
-			std::cout<<"planning_time_offset is: "<<planning_time_offset<<std::endl;
-			std::cout<<"stitching_time_offset is: "<<stitching_time_offset<<std::endl;
 			std::cout<<"ros::Time::now().toSec() is: "<<ros::Time::now().toSec()<<std::endl;
 			std::cout<<"plan_start.toSec() is: "<<plan_start.toSec()<<std::endl;
 			std::cout<<"prev_plan_res.trajectory.joint_trajectory.points.size() is: "<<prev_plan_res.trajectory.joint_trajectory.points.size()<<std::endl;
+			std::cout<<"prev_plan_res.trajectory.joint_trajectory is: "<<prev_plan_res.trajectory.joint_trajectory<<std::endl;
 			///////////////////////////////////////
 			desired_plan_start_time = planning_time_offset + stitching_time_offset + ros::Time::now().toSec() - plan_start.toSec();
 			// Loop through the previously planned path until you find the point in the path corresponding to the desired time
@@ -749,6 +745,7 @@ int main(int argc, char** argv)
 					plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
 					plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[i].positions;
 					plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[i].velocities;
+					plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[i].effort;
 					std::cout<<"Breakaway point found"<<std::endl;
 					// Stop looping
 					break;
@@ -770,6 +767,7 @@ int main(int argc, char** argv)
 			plan_req.group_name = PLANNING_GROUP;
 			plan_req.goal_constraints.clear();
 			plan_req.goal_constraints.push_back(pose_goal);
+
 			// Lock the visual planner
 			{
 				// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
@@ -794,8 +792,20 @@ int main(int argc, char** argv)
 			std::vector<trajectory_msgs::JointTrajectoryPoint> working_trajectory_array;
 			//std::cout << prev_plan_res.trajectory.joint_trajectory.points.begin();
 			std::cout<<"Copying trajectories"<<std::endl;
-			std::copy(prev_plan_res.trajectory.joint_trajectory.points.begin(), prev_plan_res.trajectory.joint_trajectory.points.begin() + trajectory_start_point, working_trajectory_array.begin());
-			std::copy(response_ptr->trajectory.joint_trajectory.points.begin(), response_ptr->trajectory.joint_trajectory.points.begin() + new_trajectory_length, working_trajectory_array.begin() + trajectory_start_point);
+			try
+			{
+				std::copy(prev_plan_res.trajectory.joint_trajectory.points.begin(), prev_plan_res.trajectory.joint_trajectory.points.begin() + trajectory_start_point, working_trajectory_array.begin());
+				std::copy(response_ptr->trajectory.joint_trajectory.points.begin(), response_ptr->trajectory.joint_trajectory.points.begin() + new_trajectory_length, working_trajectory_array.begin() + trajectory_start_point);
+			}
+			catch(...)
+			{
+				std::cout<<"Copying trajectories failed"<<std::endl;
+				std::cout<<"prev_plan_res.trajectory.joint_trajectory.points[0] is: "<<prev_plan_res.trajectory.joint_trajectory.points[0]<<std::endl;
+				std::cout<<"trajectory_start_point is: "<<trajectory_start_point<<std::endl;
+				std::cout<<"response_ptr->trajectory.joint_trajectory.points[0] is: "<<response_ptr->trajectory.joint_trajectory.points[0]<<std::endl;
+				std::cout<<"new_trajectory_length is: "<<new_trajectory_length<<std::endl;
+				exit(0);
+			}
 			// Loop through the full working trajectory and find the new starting point (updated for how far the robot has traversed)
 			// Update the time stamps accordingly
 			for (unsigned int j = 0; j < (trajectory_start_point + new_trajectory_length); ++j)
@@ -1030,7 +1040,6 @@ int main(int argc, char** argv)
 			state_input_pub.publish(status);
 			ROS_INFO("Planning to return home");
 			// Set home joint positions
-			std::vector<double> joint_group_positions = { -1.91986, -2.37365, -2.51327 };
 			// Set a joint target in MoveIt
 			move_group.setJointValueTarget(joint_group_positions);
 			// Check whether planning was successful
