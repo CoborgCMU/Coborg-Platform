@@ -1,9 +1,10 @@
 // Usage:
 // Run "source devel/setup.bash" on every terminal
 // Run "catkin_make"
-// Run "roscore" in a separate terminal
-// In a separate terminal, run "roslaunch coborg_arm demo.launch"
-// Run "roslaunch coborg_move KDC_actuated_test_launch.launch" in a separate terminal
+// In a separate terminal, run "roscore"
+// In a separate terminal, run "roslaunch main_state_machine actuated_mani_main.launch"
+// In a separate terminal, run "roslaunch coborg_move KDC_find_hebi_moveit_planner.launch"
+// In a separate terminal, run "roslaunch coborg_move KDC_actuated_test_launch.launch"
 // Optional topic echoes
 	// Publisher topics
 	// In a separate terminal, run "rostopic echo /state_input"
@@ -63,6 +64,11 @@
 // 5 naive pull
 // 6 return to home
 
+////////  REMOVE  /////////
+int num_attempts = 0;
+int num_max_attempts = 20;
+///////////////////////////
+
 // Initialize variables
 // HEBI Initializations
 // Eigen::Vector3d motor_joints;
@@ -83,6 +89,7 @@ moveit_msgs::MotionPlanResponse* response_ptr;
 // ROS Initializations
 ros::Publisher* state_input_pub_ptr;
 ros::Publisher* display_publisher_ptr;
+// ros::Publisher* moveit_plans_pub_ptr;
 // Planning Initializations
 int state = 0;
 std_msgs::Int32 status;
@@ -128,7 +135,7 @@ moveit_msgs::MotionPlanResponse prev_plan_res;
 geometry_msgs::PoseStamped goal_pose;
 moveit::planning_interface::MoveItErrorCode moveitSuccess;
 moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-double plan_execution_start_delay = 0.1;
+double plan_execution_start_delay = 0.4;
 ros::Time plan_start;
 ros::Time plan_end;
 std::string end_effector_name = "end_link/INPUT_INTERFACE";
@@ -318,6 +325,12 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 			catch(...){
 				std::cout<<"Current ROS time is: "<<ros::Time::now()<<std::endl;
 				std::cout<<"Message time is: "<<goal_time<<std::endl;
+				if (goal_time.toSec() < 1.0)
+				{
+					/////////////// REMOVE once goal getter sends good frames
+					state = 1;
+					return;
+				}
 				ros::Duration(3).sleep();
 			}
 		}																	
@@ -340,7 +353,10 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		Eigen::VectorXd goal_normal_homogeneous_worker(4);
 		goal_normal_homogeneous_worker << goal_normal(0)*goal_offset, goal_normal(1)*goal_offset, goal_normal(2)*goal_offset, 1;
 		Eigen::VectorXd homogeneous_global_goal(4);
-		homogeneous_global_goal = odom_tf_goal_homogeneous_matrix * (homogeneous_goal - goal_normal_homogeneous_worker);
+		Eigen::VectorXd homogeneous_goal_worker(4);
+		homogeneous_goal_worker = homogeneous_goal - goal_normal_homogeneous_worker;
+		homogeneous_goal_worker(3) = 1.0;
+		homogeneous_global_goal = odom_tf_goal_homogeneous_matrix * (homogeneous_goal_worker);
 		global_goal << homogeneous_global_goal(0), homogeneous_global_goal(1), homogeneous_global_goal(2);
 		// Update the relative goal based on the robot's global position
 		update_rel_goal();
@@ -376,6 +392,14 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
 			if ( sqrt(pow(goal_tolerance_pose[0],2)+pow(goal_tolerance_pose[1],2)+pow(goal_tolerance_pose[2],2)) > goal_tolerance_pose_adjusted_threshold)
 			{
+				///////// REMOVE or change functionality to work with Yuqing's goal node ///////////
+				if (num_attempts < num_max_attempts)
+				{
+					std::cout<<"Couldn't sufficiently plan for point, grabbing new goal"<<std::endl;
+					state = 1;
+					num_attempts += 1;
+					return;
+				}
 				state = 0;
 				ROS_INFO("Couldn't find a suitable path, returning to waiting");
 				// Let the main_state_machine node know that the robot is ready
@@ -384,6 +408,7 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 				return;
 			}
 		}
+		num_attempts = 0;
 		/////////////// Visualize the result
 		moveit_msgs::DisplayTrajectory display_trajectory;
 		/* Visualize the trajectory */
@@ -401,9 +426,32 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		///////////////
 		// Set the trajectory and execute the plan
 		my_plan.trajectory_ = response.trajectory;
-		moveitSuccess = move_group_ptr->plan(my_plan);
+		// moveitSuccess = move_group_ptr->plan(my_plan);
+		std::cout<<"//////////////////////"<<std::endl;
+		std::cout<<"odom_tf_goal_homogeneous_matrix is: "<<odom_tf_goal_homogeneous_matrix<<std::endl;
+		std::cout<<"goal_normal_homogeneous_worker is: "<<goal_normal_homogeneous_worker<<std::endl;
+		std::cout<<"homogeneous_global_goal is: "<<homogeneous_global_goal<<std::endl;
+		std::cout<<"global_goal is: "<<global_goal<<std::endl;
+		std::cout<<"global_goal_normal is: "<<global_goal_normal<<std::endl;
+		std::cout<<"homogeneous_goal is: "<<homogeneous_goal<<std::endl;
+		std::cout<<"goal_normal is: "<<goal_normal<<std::endl;
+		std::cout<<"goal_normal_x_axis is: "<<goal_normal_x_axis<<std::endl;
+		std::cout<<"goal_normal_y_axis is: "<<goal_normal_y_axis<<std::endl;
+		std::cout<<"goal_normal_z_axis is: "<<goal_normal_z_axis<<std::endl;
+		std::cout<<"goal_normal_rotation_matrix is: "<<goal_normal_rotation_matrix<<std::endl;
+		std::cout<<"odom_tf_goal_translation is: "<<odom_tf_goal_translation<<std::endl;
+		std::cout<<"odom_tf_goal_rotation_matrix is: "<<odom_tf_goal_rotation_matrix<<std::endl;
+		std::cout<<"odom_tf_goal_homogeneous_matrix is: "<<odom_tf_goal_homogeneous_matrix<<std::endl;
+		std::cout<<"my_plan.planning_time_ is: "<<my_plan.planning_time_<<std::endl;
+		std::cout<<"my_plan.start_state_ is: "<<my_plan.start_state_<<std::endl;
+		std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
+		std::cout<<"plan_res.planning_time_ is: "<<plan_res.planning_time_<<std::endl;
+		std::cout<<"*(response.trajectory) is: "<<response.trajectory<<std::endl;
+		// exit(1);
+		// moveit_plans_pub_ptr->publish(my_plan);
+		// move_group_ptr->execute(my_plan);
 		move_group_ptr->asyncExecute(my_plan);
-		ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "standby");
+		// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "standby");
 		prev_plan_res = response;
 		plan_start = ros::Time::now();
 		state = 2;
@@ -461,6 +509,8 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 // MoveIt callback for trajectory finishes
 void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeedback::ConstPtr& msg)
 {
+	std::cout<<"execute_trajectory_feedback_callback called"<<std::endl;
+	std::cout<<"msg->feedback.state is: "<<msg->feedback.state<<std::endl;
 	// Check if the trajectory has finished
 	if (msg->feedback.state == "IDLE")
 	{
@@ -641,6 +691,8 @@ int main(int argc, char** argv)
 	ros::Publisher desired_efforts_pub = node_handle.advertise<sensor_msgs::JointState>("/desired_hebi_efforts", 1);
 	ros::Publisher display_publisher = node_handle_ptr->advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
 	display_publisher_ptr = &display_publisher;
+	// ros::Publisher moveit_plans_pub = node_handle.advertise<moveit_msgs::MotionPlanRequest>("/moveit_plans", 1);
+	// moveit_plans_pub_ptr = &moveit_plans_pub;
 	ros::Duration(0.5).sleep();
 
 	// Publish initial state (waiting)
@@ -663,12 +715,27 @@ int main(int argc, char** argv)
 			// prev_plan_res contains the current, time-stamped RRT plan
 			// Determine how far into the future of the current plan to begin the next plan
 			std::cout<<"Beginning new planning trajectory (state == 2)"<<std::endl;
+			////////////////////////////////
+			std::cout<<"///////////////////////////////"<<std::endl;
+			std::cout<<"prev_plan_res.trajectory is: "<<prev_plan_res.trajectory<<std::endl;
+			// std::cout<<"prev_plan_res.trajectory.points[0] is: "<<prev_plan_res.trajectory.points[0]<<std::endl;
+			std::cout<<"planning_time_offset is: "<<planning_time_offset<<std::endl;
+			std::cout<<"stitching_time_offset is: "<<stitching_time_offset<<std::endl;
+			std::cout<<"ros::Time::now().toSec() is: "<<ros::Time::now().toSec()<<std::endl;
+			std::cout<<"plan_start.toSec() is: "<<plan_start.toSec()<<std::endl;
+			std::cout<<"prev_plan_res.trajectory.joint_trajectory.points.size() is: "<<prev_plan_res.trajectory.joint_trajectory.points.size()<<std::endl;
+			std::cout<<"sizeof(prev_plan_res.trajectory.joint_trajectory.points) is: "<<sizeof(prev_plan_res.trajectory.joint_trajectory.points)<<std::endl;
+			std::cout<<"sizeof(prev_plan_res.trajectory.joint_trajectory.points[0]) is: "<<sizeof(prev_plan_res.trajectory.joint_trajectory.points[0])<<std::endl;
+			std::cout<<"sizeof(prev_plan_res.trajectory.joint_trajectory.points) / sizeof(prev_plan_res.trajectory.joint_trajectory.points[0]) is: "<<sizeof(prev_plan_res.trajectory.joint_trajectory.points) / sizeof(prev_plan_res.trajectory.joint_trajectory.points[0])<<std::endl;
+			// std::cout<<" is: "<<<<std::endl;
+			///////////////////////////////////////
 			desired_plan_start_time = planning_time_offset + stitching_time_offset + ros::Time::now().toSec() - plan_start.toSec();
 			// Loop through the previously planned path until you find the point in the path corresponding to the desired time
 			trajectory_start_point_success = 0;
 			std::cout<<"Searching old plan for breakaway point"<<std::endl;
 			for (unsigned int i = 0; i < (sizeof(prev_plan_res.trajectory.joint_trajectory.points) / sizeof(prev_plan_res.trajectory.joint_trajectory.points[0])); ++i)
 			{
+				std::cout<<"The time_from_start.toSec() of point "<<i<<" is: "<<prev_plan_res.trajectory.joint_trajectory.points[i].time_from_start.toSec()<<std::endl; /////////////////////////
 				if (prev_plan_res.trajectory.joint_trajectory.points[i].time_from_start.toSec() > desired_plan_start_time)
 				{
 					// Set the start of the plan to be equal to the corresponding point
@@ -685,6 +752,7 @@ int main(int argc, char** argv)
 					break;
 				}
 			}
+			exit(1); /////////////////////////////
 			// If desired_plan_start_time is greater than the time to finish the path, don't bother planning a new one
 			if (!trajectory_start_point_success)
 			{
@@ -790,6 +858,7 @@ int main(int argc, char** argv)
 				std::cout<<"Executing new trajectory"<<std::endl;
 				my_plan.trajectory_ = response.trajectory;
 				moveitSuccess = move_group.plan(my_plan);
+				// moveit_plans_pub_ptr->publish(my_plan);
 				move_group.asyncExecute(my_plan);
 				prev_plan_res = response;
 				ROS_INFO("Plan successfully executed.  Time to plan: %s", (ros::Time::now() - plan_start).toSec());
@@ -965,6 +1034,7 @@ int main(int argc, char** argv)
 			move_group.setJointValueTarget(joint_group_positions);
 			// Check whether planning was successful
 			moveitSuccess = move_group.plan(my_plan);
+			// moveit_plans_pub_ptr->publish(my_plan);
 			// Execute move
 			move_group.execute(my_plan);
 			// Let the main_state_machine node know that the robot is executing
