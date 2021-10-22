@@ -3,6 +3,7 @@
 #include <ros/console.h>
 #include <ros/package.h>
 #include <gb_visual_detection_3d_msgs/goal_msg.h>
+#include <goal_getter/GoalPose.h>
 #include <vector>
 #include <cmath>
 #include <math.h>
@@ -15,6 +16,7 @@
 #include "std_msgs/Int16.h"
 #include "std_msgs/Int32.h"
 #include "geometry_msgs/PointStamped.h"
+#include "geometry_msgs/PoseStamped.h"
 
 #define HZ 5
 double tf_time_offset = 0.1;
@@ -34,19 +36,16 @@ public:
         state_input_pub_ = nh_.advertise<std_msgs::Int32>("state_input", 1);
         
 
-        goal_pub_ = nh_.advertise<geometry_msgs::PointStamped>("goal", 1);
-
-        // TODO: publishers for manipulation node
+        goal_pub_ = nh_.advertise<goal_getter::GoalPose>("goal", 1);
 
         curr_state_ = 0;  // main state
-        goalSetPose << 0.0,0.0,0.0;
-        measuredNormal << 0.0,0.0,0.0;
+        goalSetPoint << 0.0,0.0,0.0;
     }
 
     void step(){
         // process the goals
         if (curr_state_ == 2 && !goal_received){
-            processGoal(goalSetPose, measuredNormal);  // goalSetPose: relative to /t265_odom_frame
+            processGoal(goalSetPoint, goal_normal);  // goalSetPoint: relative to /t265_odom_frame
             goal_received = true;
         }
 
@@ -54,11 +53,9 @@ public:
         std::cout << "Goal is: " <<  goal_point << std::endl;    
 
         if (curr_state_ ==2 || curr_state_==3){
-            if (goalSetPose(0)!=0.0){
-                // keep publishing the point (relative to the world)
-                convertGoalPoint(goal_point, goalSetPose);
-            
-                // TODO: surface normal
+            if (goalSetPoint(0)!=0.0){
+                // convert to /world frame and keep publishing the point
+                convertToWorld(goal_point, goal_normal, goalSetPoint);
             }
         }
 
@@ -77,56 +74,77 @@ private:
         }
     }
 
+    void updateNormal(geometry_msgs::PoseStamped& goal_normal_pose, Eigen::Vector3f& goal_normal_vec){
+        Eigen::Vector3f goal_normal_x_axis = goal_normal_vec;
+        // Set the z axis temporarily to a random variable
+        Eigen::Vector3f goal_normal_z_axis;
+        goal_normal_z_axis << 1, 1, 1;
+        // Set the y axis to be perpendicular to the x axis and the temporary z axis
+        Eigen::Vector3f goal_normal_y_axis = goal_normal_x_axis.cross(goal_normal_z_axis.normalized());
+        // If the x and temporary z axes happened to be the same, the y axis will be 0, so retry with a new temporary vector
+        Eigen::Vector3f zero;
+        if (goal_normal_y_axis == zero.setZero())
+        {
+            // Set the z axis to a different, temporary random variable
+            goal_normal_z_axis << 0, 1, 1;
+            // Set the y axis to be perpendicular to the x axis and the new temporary z axis
+            goal_normal_y_axis = goal_normal_x_axis.cross(goal_normal_z_axis.normalized());
+        }
+        // Set the z axis to be perpendicular to the xaxis and the y axis
+        goal_normal_z_axis = goal_normal_x_axis.cross(goal_normal_y_axis.normalized());
+        // Fill in the rotation matrix with the normalized x, y, and z axes
+        Eigen::Matrix3f goal_normal_rotation_matrix;
+        goal_normal_rotation_matrix << goal_normal_x_axis.normalized(), goal_normal_y_axis.normalized(), goal_normal_z_axis.normalized();
+        // Convert the rotation matrix to a quaternion
+        Eigen::Quaternionf goal_normal_quaternion(goal_normal_rotation_matrix);
+        // Fill geometry pose message with goal orientation information
+        goal_normal_pose.pose.orientation.x = goal_normal_quaternion.x();
+        goal_normal_pose.pose.orientation.y = goal_normal_quaternion.y();
+        goal_normal_pose.pose.orientation.z = goal_normal_quaternion.z();
+        goal_normal_pose.pose.orientation.w = goal_normal_quaternion.w();
+    }
 
-    Eigen::MatrixXf generalPositionUpdate(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg, double &prevTime)
+    void convertToOdom(geometry_msgs::PointStamped& goal_point, geometry_msgs::PoseStamped& goal_normal, const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg, double &prevTime)
     {
         if (ros::Time::now().toSec() - prevTime > tf_time_offset)
         {   
-            Eigen::MatrixXf transformedGoalNormal(2,3);  // first row is goal, second is surface normal
-            geometry_msgs::PointStamped goal_point;
+            // Update point stamp
             goal_point.header.frame_id = goal_msg -> header.frame_id;
             goal_point.header.stamp = goal_msg -> header.stamp;
-            prevTime = goal_msg -> header.stamp.toSec();
             goal_point.point.x = goal_msg -> x;
             goal_point.point.y = goal_msg -> y;
             goal_point.point.z = goal_msg -> z;
 
-            // geometry_msgs::PointStamped goal_normal;
-            // goal_normal.header.frame_id = goal_msg -> header.frame_id;
-            // goal_normal.header.stamp = goal_msg -> header.stamp;
-            // goal_normal.point.x = goal_msg -> normal_x;
-            // goal_normal.point.y = goal_msg -> normal_y;
-            // goal_normal.point.z = goal_msg -> normal_z;
+            prevTime = goal_msg -> header.stamp.toSec();
 
+            // update surface normal pose stamp
+            goal_normal.header.frame_id = goal_msg -> header.frame_id;
+            goal_normal.header.stamp = goal_msg -> header.stamp;
+            goal_normal.pose.position.x = goal_msg -> x;
+            goal_normal.pose.position.y = goal_msg -> y;
+            goal_normal.pose.position.z = goal_msg -> z;
+
+            Eigen::Vector3f goal_normal_vec;
+            goal_normal_vec(0) = goal_msg -> normal_x;
+            goal_normal_vec(1) = goal_msg -> normal_y;
+            goal_normal_vec(2) = goal_msg -> normal_z;
+
+            updateNormal(goal_normal, goal_normal_vec);
 
             try{
                 tfListener_.transformPoint("/t265_odom_frame", goal_point, goal_point);
-                transformedGoalNormal(0,0) = goal_point.point.x;
-                transformedGoalNormal(0,1) = goal_point.point.y;
-                transformedGoalNormal(0,2) = goal_point.point.z;
-
-                // globalListener->transformPoint("/world", goal_normal, goal_normal);
-                // transformedGoalNormal(1,0) = goal_normal.point.x;
-                // transformedGoalNormal(1,1) = goal_normal.point.y;
-                // transformedGoalNormal(1,2) = goal_normal.point.z;
+                tfListener_.transformPose("/t265_odom_frame", goal_normal, goal_normal);
 
                 prevTime = ros::Time::now().toSec();
-                return transformedGoalNormal; 
-
             }
             catch (tf::TransformException ex){
                 ROS_ERROR("%s", ex.what());
-                Eigen::MatrixXf nullVect;
-                return nullVect;
-
             }
-
         }
-
     }
 
-    void processGoal(Eigen::Vector3d& goalSetPose, Eigen::Vector3d& measuredNormal){
-        // convert goal from camera frame to /t265_odom_frame and take care of edge cases
+    void processGoal(Eigen::Vector3d& goalSetPoint, geometry_msgs::PoseStamped& goal_normal){
+        // convert goal from /camera frame to /t265_odom_frame and take care of edge cases
 
         ros::Duration(1.0).sleep();
         boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1;
@@ -154,93 +172,98 @@ private:
                 break;
         }
         
-        
-        goalSetPose(0) = 0;
-        goalSetPose(1) = 0;
-        goalSetPose(2) = 0;
+        goalSetPoint(0) = 0;
+        goalSetPoint(1) = 0;
+        goalSetPoint(2) = 0;
         int totalCameras = 0;
+
+        geometry_msgs::PointStamped goal_point_cam1;
+        geometry_msgs::PoseStamped goal_normal_cam1;
+        geometry_msgs::PointStamped goal_point_cam2;
+        geometry_msgs::PoseStamped goal_normal_cam2;
 
         if (goalpose_cam1 != NULL)
         {
             ROS_INFO("Cam 01 Position Received.");
-            // tf transform to cam1_link -> world frame
-            Eigen::MatrixXf cam1_goalSetPose = generalPositionUpdate(goalpose_cam1, cam1_prevTime);
+            // tf transform to cam1_link -> odom frame
+            convertToOdom(goal_point_cam1, goal_normal_cam1, goalpose_cam1, cam1_prevTime);
             
-            
-            if (cam1_goalSetPose(0,0) != 0 && cam1_goalSetPose(0,0)<=1.5)
+            if (goal_point_cam1.point.x != 0 && goal_point_cam1.point.x<=1.5)
             {
-                double transformed_x = cam1_goalSetPose(0,0); // placeholder
-                double transformed_y = cam1_goalSetPose(0,1); // placeholder
-                double transformed_z = cam1_goalSetPose(0,2); // placeholder
+                double transformed_x = goal_point_cam1.point.x; // placeholder
+                double transformed_y = goal_point_cam1.point.y; // placeholder
+                double transformed_z = goal_point_cam1.point.z; // placeholder
 
                 // add to goal pose
-                goalSetPose(0) += transformed_x;
-                goalSetPose(1) += transformed_y;
-                goalSetPose(2) += transformed_z;
+                goalSetPoint(0) += transformed_x;
+                goalSetPoint(1) += transformed_y;
+                goalSetPoint(2) += transformed_z;
                 totalCameras++;
             }
-
         }
 
         if (goalpose_cam2 != NULL)
         {
             ROS_INFO("Cam 02 Position Received.");
-            // tf transform to cam2_link frame -> world frame
-            Eigen::MatrixXf cam2_goalSetPose = generalPositionUpdate(goalpose_cam2, cam2_prevTime);
-            if (cam2_goalSetPose(0,0) != 0 && cam2_goalSetPose(0,0)<=1.5)
+            // tf transform to cam2_link frame -> odom frame
+            convertToOdom(goal_point_cam2, goal_normal_cam2, goalpose_cam2, cam2_prevTime);
+
+            if (goal_point_cam2.point.x != 0 && goal_point_cam2.point.x<=1.5)
             {
-                double transformed_x = cam2_goalSetPose(0,0); // placeholder
-                double transformed_y = cam2_goalSetPose(0,1); // placeholder
-                double transformed_z = cam2_goalSetPose(0,2); // placeholder
+                double transformed_x = goal_point_cam2.point.x; // placeholder
+                double transformed_y = goal_point_cam2.point.y; // placeholder
+                double transformed_z = goal_point_cam2.point.z; // placeholder
 
                 // add to goal pose
-                goalSetPose(0) += transformed_x;
-                goalSetPose(1) += transformed_y;
-                goalSetPose(2) += transformed_z;
+                goalSetPoint(0) += transformed_x;
+                goalSetPoint(1) += transformed_y;
+                goalSetPoint(2) += transformed_z;
                 totalCameras++;
             }
-
         }
 
-        goalSetPose(0) /= totalCameras;
-        goalSetPose(1) /= totalCameras;
-        goalSetPose(2) /= totalCameras;
+        goalSetPoint(0) /= totalCameras;
+        goalSetPoint(1) /= totalCameras;
+        goalSetPoint(2) /= totalCameras;
 
-        ROS_INFO_STREAM("Goal Position Reading: \n" << goalSetPose << "\n");
+        ROS_INFO_STREAM("Goal Position Reading: \n" << goalSetPoint << "\n");
 
-        measuredNormal << 0.0,0.0,0.0;
         if (goalpose_cam1!=NULL){
-            // transform to normal frame
-
-            measuredNormal[0] += goalpose_cam1->normal_x;
-            measuredNormal[1] += goalpose_cam1->normal_y;
-            measuredNormal[2] += goalpose_cam1->normal_z;
+            goal_normal_cam1.pose.position.x = goalSetPoint(0);
+            goal_normal_cam1.pose.position.y = goalSetPoint(1);
+            goal_normal_cam1.pose.position.z = goalSetPoint(2);
+            goal_normal = goal_normal_cam1;
         }
 
         if (goalpose_cam2!= NULL){
-            measuredNormal[0] += goalpose_cam2->normal_x;
-            measuredNormal[1] += goalpose_cam2->normal_y;
-            measuredNormal[2] += goalpose_cam2->normal_z;
+            goal_normal_cam2.pose.position.x = goalSetPoint(0);
+            goal_normal_cam2.pose.position.y = goalSetPoint(1);
+            goal_normal_cam2.pose.position.z = goalSetPoint(2);
+            goal_normal = goal_normal_cam2;
         }
     }
 
-    void convertGoalPoint(geometry_msgs::PointStamped& goal_point, Eigen::Vector3d& goalSetPose){
-        // convert goal position from /t265_odom_frame to /world
+    void convertToWorld(geometry_msgs::PointStamped& goal_point, geometry_msgs::PoseStamped& goal_normal, Eigen::Vector3d& goalSetPoint){
+        // convert goal position/surface normal from /t265_odom_frame to /world
 
         if (ros::Time::now().toSec() - prevTime.toSec() > tf_time_offset)
         {   
             // transform it to point stamp
-            // goal_point.header.stamp = ros::Time::now();
             goal_point.header.frame_id = "/t265_odom_frame";
             goal_point.header.stamp = prevTime;
-            goal_point.point.x = goalSetPose(0);
-            goal_point.point.y = goalSetPose(1);
-            goal_point.point.z = goalSetPose(2);
+            goal_point.point.x = goalSetPoint(0);
+            goal_point.point.y = goalSetPoint(1);
+            goal_point.point.z = goalSetPoint(2);
             std::cout << "Time is  "<< prevTime << std::endl;
             // transform it to /world
             try{
                 tfListener_.transformPoint("/world", goal_point, goal_point);
-                goal_pub_.publish(goal_point);
+                tfListener_.transformPose("/world", goal_normal, goal_normal);
+
+                goal_getter::GoalPose goal_msg;
+                goal_msg.goal_point = goal_point;
+                goal_msg.goal_normal = goal_normal;
+                goal_pub_.publish(goal_msg);
                 prevTime = ros::Time::now();
             }
             catch (tf::TransformException ex){
@@ -256,9 +279,9 @@ private:
     tf::TransformListener tfListener_;
     int curr_state_;
     std_msgs::Int32 commandReceived_;
-    Eigen::Vector3d goalSetPose;
-    Eigen::Vector3d measuredNormal;
+    Eigen::Vector3d goalSetPoint;
     bool goal_received = false;
+    geometry_msgs::PoseStamped goal_normal;
     geometry_msgs::PointStamped goal_point;
 };
 

@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
    FILES
+   GoalPose.msg
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -53,7 +54,6 @@ target_link_libraries(goal_getter
   ${catkin_LIBRARIES}
 )
 
-# add_executable(goal_getter src/goal_getter.cpp)
-# # add_dependencies(goal_getter ${catkin_EXPORTED_TARGETS})
-# # add_dependencies(goal_getter goal_getter_generate_messages_cpp)
+add_dependencies(goal_getter ${catkin_EXPORTED_TARGETS})
+add_dependencies(goal_getter goal_getter_generate_messages_cpp)
 # target_link_libraries(goal_getter ${catkin_LIBRARIES} ${Boost_LIBRARIES})
