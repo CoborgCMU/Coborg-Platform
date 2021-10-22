@@ -380,6 +380,8 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		std::cout<<"Calling planning pipeline to generate plan"<<std::endl;
 		/* Now, call the pipeline and check whether planning was successful. */
 		/* Check that the planning was successful */
+		moveit_msgs::MotionPlanResponse response;
+		response_ptr = &response;
 		while (true)
 		{
 			std::cout<<"Adding pose goal"<<std::endl;
@@ -424,9 +426,17 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 				goal_tolerance_pose[2] = goal_tolerance_pose[2] + goal_tolerance_pose_adjustment;
 				continue;
 			}
-			else
+			plan_res.getMessage(response);
+			// moveit_msgs::RobotTrajectory trajectory_worker;
+			// trajectory_worker = response.trajectory;
+			// trajectory_worker.joint_trajectory = response.trajectory.joint_trajectory;
+			if((*psmPtr)->isPathValid(plan_req.start_state, response.trajectory, PLANNING_GROUP))
 			{
 				break;
+			}
+			else
+			{
+				continue;
 			}
 		}
 		num_attempts = 0;
@@ -434,10 +444,6 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		moveit_msgs::DisplayTrajectory display_trajectory;
 		/* Visualize the trajectory */
 		ROS_INFO("Visualizing the trajectory");
-		moveit_msgs::MotionPlanResponse response;
-		response_ptr = &response;
-		plan_res.getMessage(response);
-
 		display_trajectory.trajectory_start = response.trajectory_start;
 		display_trajectory.trajectory.clear();
 		display_trajectory.trajectory.push_back(response.trajectory);
@@ -810,6 +816,8 @@ int main(int argc, char** argv)
 			}
 			// Loop through the full working trajectory and find the new starting point (updated for how far the robot has traversed)
 			// Update the time stamps accordingly
+			std::cout<<"Finding new starting point and updating time stamps"<<std::endl;
+			new_plan_origin_found = 0;
 			for (unsigned int j = 0; j < (trajectory_start_point + new_trajectory_length); ++j)
 			{
 				// Check if the planning has taken so long that the manipulator has already reached the new trajectory, stop trying to fix the trajectory and restart
