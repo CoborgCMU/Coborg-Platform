@@ -142,6 +142,7 @@ double plan_execution_start_delay = 0.4;
 ros::Time plan_start;
 ros::Time plan_end;
 std::string end_effector_name = "end_link/INPUT_INTERFACE";
+unsigned int stitching_loop_number = 0; // REMOVE
 double planning_time_offset_default = 0.1;
 double planning_time_offset = planning_time_offset_default;
 double planning_time_offset_increase_rate = 0.05;
@@ -722,16 +723,13 @@ int main(int argc, char** argv)
 		// Check if the robot is executing trajectories to target
 		if (state == 2)
 		{
+			stitching_loop_number += 1;
 			// prev_plan_res contains the current, time-stamped RRT plan
 			// Determine how far into the future of the current plan to begin the next plan
 			std::cout<<"Beginning new planning trajectory (state == 2)"<<std::endl;
-			////////////////////////////////
-			std::cout<<"///////////////////////////////"<<std::endl;
 			std::cout<<"ros::Time::now().toSec() is: "<<ros::Time::now().toSec()<<std::endl;
 			std::cout<<"plan_start.toSec() is: "<<plan_start.toSec()<<std::endl;
 			std::cout<<"prev_plan_res.trajectory.joint_trajectory.points.size() is: "<<prev_plan_res.trajectory.joint_trajectory.points.size()<<std::endl;
-			std::cout<<"prev_plan_res.trajectory.joint_trajectory is: "<<prev_plan_res.trajectory.joint_trajectory<<std::endl;
-			///////////////////////////////////////
 			desired_plan_start_time = planning_time_offset + stitching_time_offset + ros::Time::now().toSec() - plan_start.toSec();
 			// Loop through the previously planned path until you find the point in the path corresponding to the desired time
 			trajectory_start_point_success = 0;
@@ -802,7 +800,15 @@ int main(int argc, char** argv)
 			std::cout<<"Copying trajectories"<<std::endl;
 			try
 			{
+				std::cout<<"First copy"<<std::endl;
+				std::cout<<"Waiting"<<std::endl;
+				std::cout<<"Slept"<<std::endl;
+				std::cout<<"prev_plan_res.trajectory.joint_trajectory is: "<<prev_plan_res.trajectory.joint_trajectory<<std::endl;
+				std::cout<<"trajectory_start_point is: "<<trajectory_start_point<<std::endl;
+				std::cout<<"stitching_loop_number is: "<<stitching_loop_number<<std::endl;
+				// std::cout<<"working_trajectory_array is: "<<working_trajectory_array<<std::endl;
 				std::copy(prev_plan_res.trajectory.joint_trajectory.points.begin(), prev_plan_res.trajectory.joint_trajectory.points.begin() + trajectory_start_point, working_trajectory_array.begin());
+				std::cout<<"Second copy"<<std::endl;
 				std::copy(response_ptr->trajectory.joint_trajectory.points.begin(), response_ptr->trajectory.joint_trajectory.points.begin() + new_trajectory_length, working_trajectory_array.begin() + trajectory_start_point);
 			}
 			catch(...)
