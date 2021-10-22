@@ -94,6 +94,7 @@ ros::Publisher* display_publisher_ptr;
 int state = 6;
 std_msgs::Int32 status;
 const std::string PLANNING_GROUP = "dof_4_lowerlonger_arm";
+std::string move_group_planner_id = "RRTConnect";
 // Initialize Goal and Transform Variables
 tf::TransformListener* listener_ptr;
 tf::StampedTransform odom_tf_goal;
@@ -115,7 +116,6 @@ Eigen::Matrix4d odom_tf_goal_homogeneous_matrix;
 Eigen::Vector3d global_goal;
 Eigen::Vector3d global_goal_normal;
 std::vector<double> goal_tolerance_pose_default {0.05, 0.05, 0.05};
-// std::vector<double> goal_tolerance_pose_default {0.2, 0.2, 0.2};
 std::vector<double> goal_tolerance_pose = goal_tolerance_pose_default;
 std::vector<double> goal_tolerance_angle_default {10, 0.79, 0.79};
 std::vector<double> goal_tolerance_angle = goal_tolerance_angle_default;
@@ -128,7 +128,11 @@ Eigen::Matrix3d odom_tf_current_rotation_matrix;
 Eigen::Matrix4d odom_tf_current_homogeneous_matrix;
 // Initialize Planning Variables
 std::string moveit_planner = "RRTConnect";
-double moveit_planning_time = 2.0;
+double moveit_planning_time_initial_goal = 2.0;
+double moveit_planning_time_return_home = 2.0;
+unsigned int num_attempts_initial_goal = 5;
+unsigned int num_attempts_stitching = 1;
+unsigned int num_attempts_return_home = 5;
 planning_interface::MotionPlanRequest plan_req;
 planning_interface::MotionPlanResponse plan_res;
 moveit_msgs::MotionPlanResponse prev_plan_res;
@@ -362,6 +366,9 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		// Update the relative goal based on the robot's global position
 		update_rel_goal();
 		// Plan RRT Connect Path and send it for execution
+		// Set move group planning constraints
+		move_group_ptr->setNumPlanningAttempts(num_attempts_initial_goal);
+		move_group_ptr->setPlanningTime(moveit_planning_time_initial_goal);
 		// Reset tolerances
 		goal_tolerance_pose = goal_tolerance_pose_default;
 		goal_tolerance_angle = goal_tolerance_angle_default;
@@ -369,29 +376,71 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
 		std::cout<<"Added kinematic constraints"<<std::endl;
 		ROS_INFO_STREAM(pose_goal);
-		plan_req.group_name = PLANNING_GROUP;
-		(*psmPtr)->setCurrentState(*(*robot_state_ptr));
 		// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
 		// std::cout<<"Locked planning scene monitor"<<std::endl;
-		/* Now, call the pipeline and check whether planning was successful. */
-		planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
-		std::cout<<"Called planning pipeline to generate plan"<<std::endl;
+		std::cout<<"Calling planning pipeline to generate plan"<<std::endl;
 		/* Now, call the pipeline and check whether planning was successful. */
 		/* Check that the planning was successful */
-		while (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
+		while (true)
 		{
-			ROS_ERROR("Could not compute plan successfully, increasing tolerances");
-			// Increment goal tolerance and break out if tolerances are too large
-			goal_tolerance_pose[0] = goal_tolerance_pose[0] + goal_tolerance_pose_adjustment;
-			goal_tolerance_pose[1] = goal_tolerance_pose[1] + goal_tolerance_pose_adjustment;
-			goal_tolerance_pose[2] = goal_tolerance_pose[2] + goal_tolerance_pose_adjustment;
+			std::cout<<"Adding pose goal"<<std::endl;
 			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
 			plan_req.group_name = PLANNING_GROUP;
 			plan_req.goal_constraints.clear();
 			plan_req.goal_constraints.push_back(pose_goal);
+			// Update current state
+			//////////////
+			// Stitching Method
+			// std::vector<double> current_joint_values;
+			// current_joint_values = move_group_ptr->getCurrentJointValues();
+			// plan_req.start_state.joint_state.position = current_joint_values;
+			// std::cout<<"Printing current joint values"<<std::endl;
+			// std::cout<<"current_joint_values is: "<<std::endl;
+			// for(int ii=0; ii < current_joint_values.size(); ii++)
+			// {
+			// 	std::cout<<current_joint_values.at(ii)<<" ";
+			// }
+			// std::cout<<std::endl<<"plan_req start state joint positions is: "<<std::endl;
+			// for(int ii=0; ii < current_joint_values.size(); ii++)
+			// {
+			// 	std::cout<<plan_req.start_state.joint_state.position.at(ii)<<" ";
+			// }
+			///////////////
+			// Stitching Method - prev_plan_res
+			std::cout<<"Adding prev_plan name"<<std::endl;
+			plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+			std::cout<<"Adding prev_plan position"<<std::endl;
+			std::cout<<"prev_plan_res.trajectory.joint_trajectory.points.size() is: "<<prev_plan_res.trajectory.joint_trajectory.points.size()<<std::endl;
+			std::cout<<"prev_plan_res.trajectory.joint_trajectory is: "<<prev_plan_res.trajectory.joint_trajectory<<std::endl;
+			plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+			std::cout<<"Adding prev_plan velocity"<<std::endl;
+			plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
+			std::cout<<"Adding prev_plan effort"<<std::endl;
+			plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+			///////////////
+			// Google Groups Code
+			// std::vector<double> group_variable_values1;
+			// move_group_ptr->getCurrentState()->copyJointGroupPositions(move_group_ptr->getCurrentState()->getRobotModel()->getJointModelGroup(move_group_ptr->getName()), group_variable_values1);
+			// robot_state::RobotState start_state(move_group_ptr->getCurrentState());
+			// const robot_state::JointModelGroup *joint_model_group = start_state.getJointModelGroup(move_group_ptr->getName());
+			// start_state.setJointGroupPositions(joint_model_group, group_variable_values1);
+			// move_group_ptr->setStartState(start_state);
+			////////////
+			// Jason's code
+			// (*psmPtr)->setCurrentState(*(*robot_state_ptr));
+			////////////
+			////////////////////////////////////////////////////
 			// // Lock the visual planner
 			// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
-			move_group_ptr->setStartStateToCurrentState();
+			// Update current state
+			// Google Groups Code
+			// std::vector<double> group_variable_values1;
+			// move_group_ptr->getCurrentState()->copyJointGroupPositions(move_group_ptr->getCurrentState()->getRobotModel()->getJointModelGroup(move_group_ptr->getName()), group_variable_values1);
+			// robot_state::RobotState start_state(move_group_ptr->getCurrentState());
+			// const robot_state::JointModelGroup *joint_model_group = start_state.getJointModelGroup(move_group_ptr->getName());
+			// start_state.setJointGroupPositions(joint_model_group, group_variable_values1);
+			// move_group_ptr->setStartState(start_state);
+			std::cout<<"Generating plan"<<std::endl;
 			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
 			if ( sqrt(pow(goal_tolerance_pose[0],2)+pow(goal_tolerance_pose[1],2)+pow(goal_tolerance_pose[2],2)) > goal_tolerance_pose_adjusted_threshold)
 			{
@@ -410,6 +459,19 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 				state_input_pub_ptr->publish(status);
 				num_attempts = 0;
 				return;
+			}
+			if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
+			{
+				ROS_ERROR("Could not compute plan successfully, increasing tolerances");
+				// Increment goal tolerance and break out if tolerances are too large
+				goal_tolerance_pose[0] = goal_tolerance_pose[0] + goal_tolerance_pose_adjustment;
+				goal_tolerance_pose[1] = goal_tolerance_pose[1] + goal_tolerance_pose_adjustment;
+				goal_tolerance_pose[2] = goal_tolerance_pose[2] + goal_tolerance_pose_adjustment;
+				continue;
+			}
+			else
+			{
+				break;
 			}
 		}
 		num_attempts = 0;
@@ -450,7 +512,8 @@ void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr&
 		std::cout<<"my_plan.start_state_ is: "<<my_plan.start_state_<<std::endl;
 		std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
 		std::cout<<"plan_res.planning_time_ is: "<<plan_res.planning_time_<<std::endl;
-		std::cout<<"*(response.trajectory) is: "<<response.trajectory<<std::endl;
+		std::cout<<"response.trajectory is: "<<response.trajectory<<std::endl;
+		// exit(1);
 		// moveit_plans_pub_ptr->publish(my_plan);
 		// move_group_ptr->execute(my_plan);
 		move_group_ptr->asyncExecute(my_plan);
@@ -630,9 +693,8 @@ int main(int argc, char** argv)
 	move_group_ptr = &move_group;
 	std::cout<<"Move_group initialized"<<std::endl;
 	// Adjust MoveIt Planner settings
-	move_group.setPlannerId("RRTConnect");
-	move_group.setPlanningTime(moveit_planning_time);
-	std::cout<<"Move_group settings created"<<std::endl;
+	move_group.setPlannerId(move_group_planner_id);
+	std::cout<<"Move_group planner set"<<std::endl;
 	// Load robot model
 	robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
 	robot_model::RobotModelPtr robot_model = robot_model_loader.getModel();
@@ -761,6 +823,9 @@ int main(int argc, char** argv)
 			// Update the relative goal based on the robot's global position
 			update_rel_goal();
 			// Plan RRT Connect Path and send it for execution
+			// Set move group planning constraints
+			move_group.setNumPlanningAttempts(num_attempts_stitching);
+			move_group.setPlanningTime(planning_time_offset);
 			// Set kinematic constraints
 			std::cout<<"Updating current goal"<<std::endl;
 			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
@@ -868,6 +933,7 @@ int main(int argc, char** argv)
 				// Update and Execute the plan
 				std::cout<<"Executing new trajectory"<<std::endl;
 				my_plan.trajectory_ = response.trajectory;
+				
 				moveitSuccess = move_group.plan(my_plan);
 				// moveit_plans_pub_ptr->publish(my_plan);
 				move_group.asyncExecute(my_plan);
@@ -1039,14 +1105,42 @@ int main(int argc, char** argv)
 			status.data = 1;
 			state_input_pub.publish(status);
 			ROS_INFO("Planning to return home");
-			// Set home joint positions
-			// Set a joint target in MoveIt
-			move_group.setJointValueTarget(joint_group_positions);
-			// Check whether planning was successful
-			moveitSuccess = move_group.plan(my_plan);
+			// Set move group planning constraints
+			move_group.setNumPlanningAttempts(num_attempts_return_home);
+			move_group.setPlanningTime(moveit_planning_time_return_home);
+			//////////// Previous return home commands
+			// // Update current state
+			// move_group.getCurrentState();
+			// // Set home joint positions as the target
+			// move_group.setJointValueTarget(joint_group_positions);
+			// // Check whether planning was successful
+			// moveitSuccess = move_group.plan(my_plan);
+			////////////////////////////////////////////
+			///////////// Planning pipeline return home commands
+			robot_state::RobotState goal_state(robot_model);
+			goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
+			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
+			std::cout<<"joint_goal is: "<<std::endl;
+			ROS_INFO_STREAM(joint_goal);
+			plan_req.group_name = PLANNING_GROUP;
+			plan_req.goal_constraints.clear();
+			plan_req.goal_constraints.push_back(joint_goal);
+			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+			////////////////////////////////////////////
+			// Store plan
+			moveit_msgs::MotionPlanResponse response;
+			response_ptr = &response;
+			plan_res.getMessage(response);
+			std::cout<<"response.trajectory.joint_trajectory.points.size() is: "<<response.trajectory.joint_trajectory.points.size()<<std::endl;
+			std::cout<<"response.trajectory.joint_trajectory is: "<<response.trajectory.joint_trajectory<<std::endl;
 			// moveit_plans_pub_ptr->publish(my_plan);
+			// Set the trajectory and execute the plan
+			my_plan.trajectory_ = response.trajectory;
 			// Execute move
 			move_group.execute(my_plan);
+			prev_plan_res = response;
+			std::cout<<"prev_plan_res.trajectory.joint_trajectory.points.size() is: "<<prev_plan_res.trajectory.joint_trajectory.points.size()<<std::endl;
+			std::cout<<"prev_plan_res.trajectory.joint_trajectory is: "<<prev_plan_res.trajectory.joint_trajectory<<std::endl;
 			// Let the main_state_machine node know that the robot is executing
 			status.data = 2;
 			state_input_pub.publish(status);
