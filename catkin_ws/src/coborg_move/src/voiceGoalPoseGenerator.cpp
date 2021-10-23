@@ -180,7 +180,7 @@ Eigen::Vector3d generalPositionUpdate(const gb_visual_detection_3d_msgs::goal_ms
         tf::Quaternion tempQuaternion;
         // this is wrong (normal x is not a radian)
         tempQuaternion.setRPY(camRoll, camPitch, camYaw);
-        tempPoseStamped.pose.orientation.x = tempQuaternion.x;
+        // tempPoseStamped.pose.orientation.x = tempQuaternion.x;
         tf::quaternionTFToMsg(tempQuaternion, tempPoseStamped.pose.orientation);
         
 
