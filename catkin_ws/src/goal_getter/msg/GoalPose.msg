@@ -1,2 +1,1 @@
-geometry_msgs/PointStamped goal_point
 geometry_msgs/PoseStamped goal_normal
