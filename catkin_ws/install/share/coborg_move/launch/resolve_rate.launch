@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="coborg_move" type="resolved_rate" name="resolved_rate" output="screen" />
+</launch>

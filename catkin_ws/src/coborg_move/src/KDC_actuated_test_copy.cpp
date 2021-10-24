@@ -143,7 +143,7 @@ ros::Time plan_start;
 ros::Time plan_end;
 std::string end_effector_name = "end_link/INPUT_INTERFACE";
 unsigned int stitching_loop_number = 0; // REMOVE
-double planning_time_offset_default = 0.1;
+double planning_time_offset_default = 0.3;
 double planning_time_offset = planning_time_offset_default;
 double planning_time_offset_increase_rate = 0.05;
 double stitching_time_offset_default = 0.1;
@@ -192,7 +192,8 @@ double naive_pull_offset = 0.1;
 Eigen::Isometry3d naive_pull_starting_pose;
 Eigen::Isometry3d naive_pull_current_pose;
 // Initialize Return to Home Variables
-std::vector<double> joint_group_positions = { 0.0, -1.8, -2.2, -2.4 };
+std::vector<double> joint_group_positions = { 0.0, -1.8, -1.9, -2.1 };
+// std::vector<double> joint_group_positions = { 0.0, -1.8, -2.2, -2.4 };
 
 // Define Functions
 // Function to update global goal to local and fill in goal_pose message
@@ -792,24 +793,49 @@ int main(int argc, char** argv)
 			std::cout<<"Plan generated successfully"<<std::endl;
 			// Stitch the new response (response.trajectory.joint_trajectory.points) onto the beginning of the old one
 			stitch_plan_start = ros::Time::now();
+			// Store plan
+			moveit_msgs::MotionPlanResponse response;
+			response_ptr = &response;
+			plan_res.getMessage(response);
 			// Record the memory size of the arrays
+			// int new_trajectory_length = response_ptr->trajectory.joint_trajectory.points.size();
 			int new_trajectory_length = response_ptr->trajectory.joint_trajectory.points.size();
 			// Create a working array to hold the stitched trajectory
-			std::vector<trajectory_msgs::JointTrajectoryPoint> working_trajectory_array;
+			std::cout<<"trajectory_start_point is: "<<trajectory_start_point<<std::endl;
+			std::cout<<"new_trajectory_length is: "<<new_trajectory_length<<std::endl;
+			// std::cout<<"response_ptr->trajectory.joint_trajectory is: "<<response_ptr->trajectory.joint_trajectory<<std::endl;
+			// std::vector<trajectory_msgs::JointTrajectoryPoint> working_trajectory_array(trajectory_start_point + new_trajectory_length);
+			// int const working_length = trajectory_start_point + new_trajectory_length;
+			// std::array<trajectory_msgs::JointTrajectoryPoint, working_length> working_trajectory_array;
 			//std::cout << prev_plan_res.trajectory.joint_trajectory.points.begin();
 			std::cout<<"Copying trajectories"<<std::endl;
+			trajectory_msgs::JointTrajectoryPoint working_trajectory_array [1 + trajectory_start_point + new_trajectory_length];
 			try
 			{
 				std::cout<<"First copy"<<std::endl;
-				std::cout<<"Waiting"<<std::endl;
-				std::cout<<"Slept"<<std::endl;
 				std::cout<<"prev_plan_res.trajectory.joint_trajectory is: "<<prev_plan_res.trajectory.joint_trajectory<<std::endl;
 				std::cout<<"trajectory_start_point is: "<<trajectory_start_point<<std::endl;
 				std::cout<<"stitching_loop_number is: "<<stitching_loop_number<<std::endl;
-				// std::cout<<"working_trajectory_array is: "<<working_trajectory_array<<std::endl;
-				std::copy(prev_plan_res.trajectory.joint_trajectory.points.begin(), prev_plan_res.trajectory.joint_trajectory.points.begin() + trajectory_start_point, working_trajectory_array.begin());
+				std::cout<<"trajectory_start_point is: "<<trajectory_start_point<<std::endl;
+				std::cout<<"new_trajectory_length is: "<<new_trajectory_length<<std::endl;
+				// std::cout<<"working_trajectory_array.size() is: "<<working_trajectory_array.size()<<std::endl;
+				// std::copy(response_ptr->trajectory.joint_trajectory.points, response_ptr->trajectory.joint_trajectory.points + trajectory_start_point, working_trajectory_array);
+				// std::copy(response_ptr->trajectory.joint_trajectory.points, response_ptr->trajectory.joint_trajectory.points + new_trajectory_length, working_trajectory_array + trajectory_start_point + 1);
+				// std::copy(response_ptr->trajectory.joint_trajectory.points.begin(), response_ptr->trajectory.joint_trajectory.points.begin() + trajectory_start_point, working_trajectory_array.begin());
+				// trajectory_msgs::JointTrajectoryPoint working_trajectory_array[];
+				for (unsigned int ii = 0; ii<= trajectory_start_point; ii++)
+				{
+					std::cout<<"First copy ii: "<<ii<<std::endl;
+					working_trajectory_array[ii] = prev_plan_res.trajectory.joint_trajectory.points[ii];
+				}
 				std::cout<<"Second copy"<<std::endl;
-				std::copy(response_ptr->trajectory.joint_trajectory.points.begin(), response_ptr->trajectory.joint_trajectory.points.begin() + new_trajectory_length, working_trajectory_array.begin() + trajectory_start_point);
+				for (unsigned int ii = 0; ii < new_trajectory_length; ii++)
+				{
+					std::cout<<"Second copy ii: "<<ii<<std::endl;
+					working_trajectory_array[trajectory_start_point + ii + 1] = response.trajectory.joint_trajectory.points[ii];
+				}
+				// std::copy(response_ptr->trajectory.joint_trajectory.points.begin(), response_ptr->trajectory.joint_trajectory.points.begin() + new_trajectory_length, working_trajectory_array.begin() + trajectory_start_point + 1);
+				// std::copy(response_ptr->trajectory.joint_trajectory.points.begin(), response_ptr->trajectory.joint_trajectory.points.back(), working_trajectory_array.begin() + trajectory_start_point + 1);
 			}
 			catch(...)
 			{
@@ -845,6 +871,11 @@ int main(int argc, char** argv)
 					// Record the time difference
 					stitching_plan_time_diff = -working_trajectory_array[j].time_from_start;
 					working_trajectory_array[j].time_from_start = ros::Duration(0.0);
+					// Update the response start state
+					response.trajectory_start.joint_state.position = working_trajectory_array[j].positions;
+					response.trajectory_start.joint_state.velocity = working_trajectory_array[j].velocities;
+					response.trajectory_start.joint_state.effort = working_trajectory_array[j].effort;
+
 				}
 				// If a starting point was found in a previous loop, update the time from start of this point
 				else if (new_plan_origin_found == 1)
@@ -864,15 +895,21 @@ int main(int argc, char** argv)
 			{
 				std::cout<<"Plan successfully stitched"<<std::endl;
 				// Update the trajectory
-				std::copy(working_trajectory_array.begin()+new_plan_origin, working_trajectory_array.end(), response_ptr->trajectory.joint_trajectory.points.begin());
+				trajectory_msgs::JointTrajectoryPoint response_worker [trajectory_start_point + new_trajectory_length - new_plan_origin];
+				for (unsigned int ii = new_plan_origin; ii < trajectory_start_point + new_trajectory_length; ii++)
+				{
+					response_worker[ii - new_plan_origin] = working_trajectory_array[ii];
+				}
+				// response.trajectory.joint_trajectory.points = working_trajectory_array[new_plan_origin:-1];
+
+				// std::copy(working_trajectory_array.begin()+new_plan_origin, working_trajectory_array.end(), response_ptr->trajectory.joint_trajectory.points.begin());
+				
 				/////////////// Visualize the result
 				//ros::Publisher display_publisher = node_handle.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
 				moveit_msgs::DisplayTrajectory display_trajectory;
 
 				/* Visualize the trajectory */
 				ROS_INFO("Visualizing the new trajectory");
-				moveit_msgs::MotionPlanResponse response;
-				plan_res.getMessage(response);
 
 				display_trajectory.trajectory_start = response.trajectory_start;
 				display_trajectory.trajectory.clear();
