@@ -522,8 +522,9 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 {
 	std::cout<<"execute_trajectory_feedback_callback called"<<std::endl;
 	std::cout<<"msg->feedback.state is: "<<msg->feedback.state<<std::endl;
+	std::cout<<"msg->status.text is: "<<msg->status.text<<std::endl;
 	// Check if the trajectory has finished
-	if (msg->feedback.state == "IDLE")
+	if (msg->feedback.state == "IDLE" and msg->status.text == "Solution was found and executed.")
 	{
 		// Check if any time has passed
 		// if (ros::Time::now() - plan_start > ros::Duration(plan_execution_start_delay))
@@ -857,6 +858,10 @@ int main(int argc, char** argv)
 				{
 					std::cout<<"Planning time insufficient, increasing"<<std::endl;
 					// If there wasn't enough time to plan the trajectory, increase the planning time to the total time that it took to plan + the increase rate
+					std::cout<<"ros::Time::now() is: "<<ros::Time::now()<<std::endl;
+					std::cout<<"plan_start is: "<<plan_start<<std::endl;
+					std::cout<<"(ros::Time::now() - plan_start).toSec() is: "<<(ros::Time::now() - plan_start).toSec()<<std::endl;
+					std::cout<<"(ros::Time::now() - plan_start).toSec() * (1.0 + planning_time_offset_increase_rate) is: "<<(ros::Time::now() - plan_start).toSec() * (1.0 + planning_time_offset_increase_rate)<<std::endl;
 					planning_time_offset = (ros::Time::now() - plan_start).toSec() * (1.0 + planning_time_offset_increase_rate);
 					ROS_INFO("Failed to plan in time, new planning_time_offset:%s", planning_time_offset);
 					break;
