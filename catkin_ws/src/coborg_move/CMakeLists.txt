@@ -232,6 +232,28 @@ target_link_libraries(resolved_rate
   ${catkin_LIBRARIES}
 )
 
+
+add_executable(KDC_actuated_manipulation_node src/KDC_actuated_manipulation_node.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(KDC_actuated_manipulation_node
+  ${catkin_LIBRARIES}
+)
+
+add_executable(KDC_find_hebi_moveit_planner src/KDC_find_hebi_moveit_planner.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(KDC_find_hebi_moveit_planner
+  ${catkin_LIBRARIES}
+)
+
+add_executable(KDC_actuated_test_copy src/KDC_actuated_test_copy.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(KDC_actuated_test_copy
+  ${catkin_LIBRARIES}
+)
+
 #############
 ## Install ##
 #############

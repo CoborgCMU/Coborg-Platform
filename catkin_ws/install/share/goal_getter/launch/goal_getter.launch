@@ -1,0 +1,6 @@
+<launch>
+    <!-- Start up Main State Machine -->
+    <node pkg="goal_getter" name="goal_getter" type="goal_getter" output="screen" launch_prefix="xterm -e"/> 
+    <!-- </node> -->
+
+</launch>

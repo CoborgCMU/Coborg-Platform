@@ -1,0 +1,15 @@
+<launch>
+
+    <!-- removed code to run rs_d400_and_t265.launch-->
+    <include file="$(find dof_4_lowerlonger_arm)/launch/demo.launch" />
+
+
+    <!-- <node pkg="tf" type="static_transform_publisher" name="t265_coborg_tf" args="0.2794 -0.4999 -0.67305 0 0 0 /t265_link /world 100" /> -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="t265_coborg_tf" args="0.2794 -0.4999 -0.67305 0 0 0 /t265_link /world 100" /> -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="motor1_to_world" args="0 0.03 0.2984 0 0 0 /world /ms1/INPUT_INTERFACE 100" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="motor1_to_lowercam" args="-0.22225 -0.08255 0.19685 0.645772 -0.733038 0 /ms1/INPUT_INTERFACE /cam1_link 100" />
+    <!-- <node pkg="tf" type="static_transform_publisher" name="lowercam_to_intermediate" args="0 0 0 -0.645772 0.733038 0 /cam1_link /intermediate_link 100" /> -->
+
+
+
+</launch>
