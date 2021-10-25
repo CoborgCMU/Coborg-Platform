@@ -171,7 +171,7 @@ private:
         while(true){
             try
             {
-                goalpose_cam1 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam1", ros::Duration(0.25));
+                goalpose_cam1 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam1", ros::Duration(0.5));
             }
             catch(std::exception e)
             {
@@ -180,7 +180,7 @@ private:
             
             try
             {
-                goalpose_cam2 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam2", ros::Duration(0.25));
+                goalpose_cam2 = ros::topic::waitForMessage<gb_visual_detection_3d_msgs::goal_msg>("/goal_cam2", ros::Duration(0.5));
             }
             catch(std::exception e)
             {
@@ -233,7 +233,7 @@ private:
             }
 
             // wait for at least 5 msgs from cam1 or cam2
-            if (numMsgCam1==5 || numMsgCam2==5)
+            if (numMsgCam1==3 || numMsgCam2==3)
                 break;
         }      
         
