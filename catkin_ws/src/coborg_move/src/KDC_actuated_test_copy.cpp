@@ -722,8 +722,10 @@ int main(int argc, char** argv)
 	std::cout<<"Looping and ready"<<std::endl;
 	while (ros::ok())
 	{
+		ros::Duration(0.4).sleep(); // REMOVE
 		// Check if the robot is executing trajectories to target
-		if (state == 2)
+		// if (state == 2)
+		if (state == 69)
 		{
 			stitching_loop_number += 1;
 			// prev_plan_res contains the current, time-stamped RRT plan
@@ -851,6 +853,9 @@ int main(int argc, char** argv)
 			// Update the time stamps accordingly
 			std::cout<<"Finding new starting point and updating time stamps"<<std::endl;
 			new_plan_origin_found = 0;
+			////////////// // Naive Method
+			ros::Duration trajectory_start_time;
+			//////////////
 			for (unsigned int j = 0; j < (trajectory_start_point + new_trajectory_length); ++j)
 			{
 				// Check if the planning has taken so long that the manipulator has already reached the new trajectory, stop trying to fix the trajectory and restart
@@ -874,19 +879,28 @@ int main(int argc, char** argv)
 					new_plan_origin = j;
 					new_plan_origin_found = 1;
 					// Record the time difference
+					//////////// // Naive Method
+					trajectory_start_time = working_trajectory_array[j].time_from_start;
+					////////////
 					stitching_plan_time_diff = -working_trajectory_array[j].time_from_start;
 					working_trajectory_array[j].time_from_start = ros::Duration(0.0);
+					//////////
+					// stitching_plan_time_diff = ros::Time::now() - plan_start;
+					// working_trajectory_array[j].time_from_start = working_trajectory_array[j] - stitching_plan_time_diff;
+					//////////
 					// Update the response start state
 					response.trajectory_start.joint_state.position = working_trajectory_array[j].positions;
 					response.trajectory_start.joint_state.velocity = working_trajectory_array[j].velocities;
 					response.trajectory_start.joint_state.effort = working_trajectory_array[j].effort;
-
 				}
 				// If a starting point was found in a previous loop, update the time from start of this point
 				else if (new_plan_origin_found == 1)
 				{
 					// Subtract the time already elapsed to get the new time from start
 					working_trajectory_array[j].time_from_start = working_trajectory_array[j].time_from_start + ros::Duration(stitching_plan_time_diff);
+					//////////
+					// working_trajectory_array[j].time_from_start = working_trajectory_array[j].time_from_start - stitching_plan_time_diff);
+					//////////
 					// Check to see if we're at the pivot point between the old and new trajectories
 					if (j == trajectory_start_point)
 					{
@@ -926,9 +940,22 @@ int main(int argc, char** argv)
 				// Update and Execute the plan
 				std::cout<<"Executing new trajectory"<<std::endl;
 				my_plan.trajectory_ = response.trajectory;
-				
-				moveitSuccess = move_group.plan(my_plan);
+				// my_plan.start_state_ = response.trajectory_start;
+				//////////////////// // Naive Method
+				ros::console::shutdown();
+				std::cout.clear();
+				std::cout<<"/////////////////////////////////"<<std::endl;
+				std::cout<<"stitching_loop_number is: "<<stitching_loop_number<<std::endl;
+				std::cout<<"plan_start is: "<<plan_start<<std::endl;
+				std::cout<<"ros::Time::now() is: "<<ros::Time::now()<<std::endl;
+				std::cout<<"trajectory_start_time is: "<<trajectory_start_time<<std::endl;
+				std::cout<<"plan_start - ros::Time::now() + trajectory_start_time is: "<<(plan_start - ros::Time::now() + trajectory_start_time)<<std::endl;
+				std::cout.setstate(std::ios_base::failbit);
+				ros::Duration(plan_start - ros::Time::now() + trajectory_start_time - ros::Duration(0.03)).sleep();
+				////////////////////
+				// moveitSuccess = move_group.plan(my_plan);
 				// moveit_plans_pub_ptr->publish(my_plan);
+				move_group.stop();
 				move_group.asyncExecute(my_plan);
 				prev_plan_res = response;
 				ROS_INFO("Plan successfully executing.  Time to plan: %s", (ros::Time::now() - plan_start).toSec());
