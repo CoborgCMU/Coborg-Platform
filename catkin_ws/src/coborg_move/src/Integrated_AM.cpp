@@ -77,7 +77,6 @@ std::shared_ptr<hebi::Group> group;
 std::vector<std::string> families = {"01-base", "02-shoulder","03-elbow","04-wrist"};
 std::vector<std::string> names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 // MoveIt Global Pointers
-// planning_scene::PlanningSceneConstPtr* psmPtr;
 planning_scene::PlanningScenePtr* psmPtr;
 planning_pipeline::PlanningPipelinePtr planning_pipeline_global_ptr;
 moveit_visual_tools::MoveItVisualTools* visual_tools_ptr;
@@ -88,32 +87,31 @@ moveit_msgs::MotionPlanResponse* response_ptr;
 // ROS Initializations
 ros::Publisher* state_input_pub_ptr;
 ros::Publisher* display_publisher_ptr;
-// ros::Publisher* moveit_plans_pub_ptr;
 // Planning Initializations
 int state = 6;
 std_msgs::Int32 status;
 const std::string PLANNING_GROUP = "dof_4_lowerlonger_arm";
 std::string move_group_planner_id = "RRTConnect";
 // Initialize Goal and Transform Variables
-tf::TransformListener* listener_ptr;
-tf::StampedTransform odom_tf_goal;
-double tf_delay_threshold = 0.1;
-ros::Time most_recent_transform;
-std::string goal_frame_name = "/world";
-std::string global_origin_frame_name = "/t265_odom_frame";
-std::string default_camera_frame_name = "/d400_link";
-ros::Time goal_time;
-Eigen::Vector4d homogeneous_goal;
-Eigen::Vector3d goal_normal;
-Eigen::Vector3d goal_normal_x_axis;
-Eigen::Vector3d goal_normal_y_axis;
-Eigen::Vector3d goal_normal_z_axis;
-Eigen::Matrix3d goal_normal_rotation_matrix;
-Eigen::Vector3d odom_tf_goal_translation;
-Eigen::Matrix3d odom_tf_goal_rotation_matrix;
-Eigen::Matrix4d odom_tf_goal_homogeneous_matrix;
-Eigen::Vector3d global_goal;
-Eigen::Vector3d global_goal_normal;
+// tf::TransformListener* listener_ptr;
+// tf::StampedTransform odom_tf_goal;
+// double tf_delay_threshold = 0.1;
+// ros::Time most_recent_transform;
+// std::string goal_frame_name = "/world";
+// std::string global_origin_frame_name = "/t265_odom_frame";
+// std::string default_camera_frame_name = "/d400_link";
+// ros::Time goal_time;
+// Eigen::Vector4d homogeneous_goal;
+// Eigen::Vector3d goal_normal;
+// Eigen::Vector3d goal_normal_x_axis;
+// Eigen::Vector3d goal_normal_y_axis;
+// Eigen::Vector3d goal_normal_z_axis;
+// Eigen::Matrix3d goal_normal_rotation_matrix;
+// Eigen::Vector3d odom_tf_goal_translation;
+// Eigen::Matrix3d odom_tf_goal_rotation_matrix;
+// Eigen::Matrix4d odom_tf_goal_homogeneous_matrix;
+// Eigen::Vector3d global_goal;
+// Eigen::Vector3d global_goal_normal;
 std::vector<double> goal_tolerance_pose_default {0.05, 0.05, 0.05};
 std::vector<double> goal_tolerance_pose = goal_tolerance_pose_default;
 std::vector<double> goal_tolerance_angle_default {10, 0.79, 0.79};
@@ -121,10 +119,10 @@ std::vector<double> goal_tolerance_angle = goal_tolerance_angle_default;
 double goal_tolerance_pose_adjustment = 0.025;
 double goal_tolerance_pose_adjusted_threshold = 0.1;
 float goal_offset = 0.15;
-tf::StampedTransform odom_tf_current;
-Eigen::Vector3d odom_tf_current_translation;
-Eigen::Matrix3d odom_tf_current_rotation_matrix;
-Eigen::Matrix4d odom_tf_current_homogeneous_matrix;
+// tf::StampedTransform odom_tf_current;
+// Eigen::Vector3d odom_tf_current_translation;
+// Eigen::Matrix3d odom_tf_current_rotation_matrix;
+// Eigen::Matrix4d odom_tf_current_homogeneous_matrix;
 // Initialize Planning Variables
 std::string moveit_planner = "RRTConnect";
 double moveit_planning_time_initial_goal = 2.0;
@@ -196,82 +194,6 @@ std::vector<double> joint_group_positions = { 0.0, -1.8, -1.9, -2.1 };
 // std::vector<double> joint_group_positions = { 0.0, -1.8, -2.2, -2.4 };
 
 // Define Functions
-// Function to update global goal to local and fill in goal_pose message
-void update_rel_goal()
-{
-	std::cout<<"Localizing global goal"<<std::endl;
-	// Get the current transform from the ODOM frame to the world frame
-	// TODO record message time as global variabl
-	ros::Time currTime = ros::Time::now();
-	if (currTime.toSec() - most_recent_transform.toSec() > tf_delay_threshold)
-	{
-		// lookup transform
-		listener_ptr -> waitForTransform(goal_frame_name, global_origin_frame_name, currTime, ros::Duration(3.0));
-		listener_ptr -> lookupTransform(goal_frame_name, global_origin_frame_name, currTime, odom_tf_current);
-		most_recent_transform = ros::Time::now();
-		std::cout<<"Local transform received"<<std::endl;
-	}
-	else
-	{
-		std::cout<<"Failed to find recent transform"<<std::endl;
-		// fail case
-		return;
-	}
-	
-	odom_tf_current_translation << odom_tf_current.getOrigin().getX(), odom_tf_current.getOrigin().getY(), odom_tf_current.getOrigin().getZ();
-	// Store the tf::Quaternion
-	tf::Quaternion tfQuat;
-	tfQuat = odom_tf_current.getRotation();
-	// Convert the tf::Quaternion to an Eigen vector
-	Eigen::VectorXd odom_tf_current_quaternion_worker(4);
-	odom_tf_current_quaternion_worker << tfQuat.x(), tfQuat.y(), tfQuat.z(), tfQuat.w();
-	// Convert the Eigen vector to an Eigen quaternion
-	Eigen::Quaterniond odom_tf_current_quaternion(odom_tf_current_quaternion_worker(3),odom_tf_current_quaternion_worker(0),odom_tf_current_quaternion_worker(1),odom_tf_current_quaternion_worker(2));
-	Eigen::Quaterniond odom_tf_current_quaternion_normalized;
-	odom_tf_current_quaternion_normalized = odom_tf_current_quaternion.normalized();
-	odom_tf_current_rotation_matrix = odom_tf_current_quaternion_normalized.toRotationMatrix();
-	odom_tf_current_homogeneous_matrix << odom_tf_current_rotation_matrix, odom_tf_current_translation, (double)0, (double)0, (double)0, (double)1;
-	// Use the transform to convert the received global goal to the current, local goal in the world frame
-	goal_normal = odom_tf_current_rotation_matrix * global_goal_normal;
-	Eigen::Vector4d global_goal_homogeneous_worker;
-	global_goal_homogeneous_worker << global_goal, 1;
-	homogeneous_goal = odom_tf_current_homogeneous_matrix * global_goal_homogeneous_worker;
-	// Fill geometry pose message with goal location information
-	goal_pose.header.frame_id = goal_frame_name;
-	goal_pose.pose.position.x = homogeneous_goal(0);
-	goal_pose.pose.position.y = homogeneous_goal(1);
-	goal_pose.pose.position.z = homogeneous_goal(2);
-	// Create goal rotation matrix from x-axis (goal_normal) and two random, perpendicular axes
-	// Set x axis to be aligned with the norm so that the end-effector pushes against the plate
-	goal_normal_x_axis = goal_normal.normalized();
-	// Set the z axis temporarily to a random variable
-	goal_normal_z_axis << 1, 1, 1;
-	// Set the y axis to be perpendicular to the x axis and the temporary z axis
-	goal_normal_y_axis = goal_normal_x_axis.cross(goal_normal_z_axis.normalized());
-	// If the x and temporary z axes happened to be the same, the y axis will be 0, so retry with a new temporary vector
-	Eigen::Vector3d zero;
-	if (goal_normal_y_axis == zero.setZero())
-	{
-		// Set the z axis to a different, temporary random variable
-		goal_normal_z_axis << 0, 1, 1;
-		// Set the y axis to be perpendicular to the x axis and the new temporary z axis
-		goal_normal_y_axis = goal_normal_x_axis.cross(goal_normal_z_axis.normalized());
-	}
-	// Set the z axis to be perpendicular to the xaxis and the y axis
-	goal_normal_z_axis = goal_normal_x_axis.cross(goal_normal_y_axis.normalized());
-	// Fill in the rotation matrix with the normalized x, y, and z axes
-	goal_normal_rotation_matrix << goal_normal_x_axis.normalized(), goal_normal_y_axis.normalized(), goal_normal_z_axis.normalized();
-	// Convert the rotation matrix to a quaternion
-	Eigen::Matrix3f goal_normal_rotation_matrix_worker;
-	Eigen::Quaternionf goal_normal_quaternion(goal_normal_rotation_matrix_worker);
-	// Fill geometry pose message with goal orientation information
-	goal_pose.pose.orientation.x = goal_normal_quaternion.x();
-	goal_pose.pose.orientation.y = goal_normal_quaternion.y();
-	goal_pose.pose.orientation.z = goal_normal_quaternion.z();
-	goal_pose.pose.orientation.w = goal_normal_quaternion.w();
-	std::cout<<"Local goal updated"<<std::endl;
-	return;
-}
 void update_impedance_goal()
 {
 	// Get the current transform from the ODOM frame to the world frame
@@ -300,6 +222,16 @@ void update_impedance_goal()
 }
 
 // Define subscriber callbacks
+// Local Goal Update
+void goal_callback(const geometry_msgs::Pose& msg)
+{
+    pose_goal = *msg;
+    if (state == 1)
+    {
+        state = -1;
+    }
+    return;
+}
 // Camera goal callback
 void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& msg)
 {
@@ -712,17 +644,123 @@ int main(int argc, char** argv)
 	state_input_pub.publish(status);
 
 	// Initialize Subscribers
-	ros::Subscriber camera_goal_sub = node_handle.subscribe("/goal_cam2", 1, camera_goal_callback);
+	// ros::Subscriber camera_goal_sub = node_handle.subscribe("/goal_cam2", 1, camera_goal_callback);
 	ros::Subscriber state_output_sub = node_handle.subscribe("/state_output", 1, state_output_callback);
 	ros::Subscriber execute_action_sub = node_handle.subscribe("/execute_trajectory/feedback", 5, execute_trajectory_feedback_callback);
 	ros::Subscriber hebi_joints_sub = node_handle.subscribe("/hebi_joints", 1, hebiJointsCallback);
+	ros::Subscriber goal_sub = node_handle.subscribe("/goal", 1, goal_callback);
 
 	std::cout<<"Publishers and subscribers initialized"<<std::endl;
 
 	std::cout<<"Looping and ready"<<std::endl;
 	while (ros::ok())
 	{
-		ros::Duration(0.4).sleep(); // REMOVE
+        // Check if the robot has been commanded to move and has received an updated local goal
+        if (state == -1)
+        {
+            // Plan RRT Connect Path and send it for execution
+            // Set move group planning constraints
+            move_group_ptr->setNumPlanningAttempts(num_attempts_initial_goal);
+            move_group_ptr->setPlanningTime(moveit_planning_time_initial_goal);
+            // Reset tolerances
+            goal_tolerance_pose = goal_tolerance_pose_default;
+            goal_tolerance_angle = goal_tolerance_angle_default;
+            // planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+            // std::cout<<"Locked planning scene monitor"<<std::endl;
+            std::cout<<"Calling planning pipeline to generate plan"<<std::endl;
+            /* Now, call the pipeline and check whether planning was successful. */
+            /* Check that the planning was successful */
+            moveit_msgs::MotionPlanResponse response;
+            response_ptr = &response;
+            while (true)
+            {
+                std::cout<<"Adding pose goal"<<std::endl;
+                moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
+                plan_req.group_name = PLANNING_GROUP;
+                plan_req.goal_constraints.clear();
+                plan_req.goal_constraints.push_back(pose_goal);
+                // Update current state to be the last planned state
+                std::cout<<"Updating start state"<<std::endl;
+                plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+                plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+                plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
+                plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+                // // Lock the visual planner
+                // planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+                std::cout<<"Generating plan"<<std::endl;
+                planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+                if ( sqrt(pow(goal_tolerance_pose[0],2)+pow(goal_tolerance_pose[1],2)+pow(goal_tolerance_pose[2],2)) > goal_tolerance_pose_adjusted_threshold)
+                {
+                    if (num_attempts < num_max_attempts)
+                    {
+                        std::cout<<"Couldn't sufficiently plan for point, trying again"<<std::endl;
+                        num_attempts += 1;
+                        break;
+                    }
+                    state = 0;
+                    ROS_INFO("Couldn't find a suitable path, returning to waiting");
+                    // Let the main_state_machine node know that the robot is ready
+                    status.data = 3;
+                    state_input_pub_ptr->publish(status);
+                    num_attempts = 0;
+                    break;
+                }
+                if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
+                {
+                    ROS_ERROR("Could not compute plan successfully, increasing tolerances");
+                    // Increment goal tolerance and break out if tolerances are too large
+                    goal_tolerance_pose[0] = goal_tolerance_pose[0] + goal_tolerance_pose_adjustment;
+                    goal_tolerance_pose[1] = goal_tolerance_pose[1] + goal_tolerance_pose_adjustment;
+                    goal_tolerance_pose[2] = goal_tolerance_pose[2] + goal_tolerance_pose_adjustment;
+                    continue;
+                }
+                plan_res.getMessage(response);
+                // moveit_msgs::RobotTrajectory trajectory_worker;
+                // trajectory_worker = response.trajectory;
+                // trajectory_worker.joint_trajectory = response.trajectory.joint_trajectory;
+                if((*psmPtr)->isPathValid(plan_req.start_state, response.trajectory, PLANNING_GROUP))
+                {
+                    break;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            num_attempts = 0;
+            // Continue through outer while loop
+            if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
+            {
+                continue;
+            }
+            /////////////// Visualize the result
+            moveit_msgs::DisplayTrajectory display_trajectory;
+            /* Visualize the trajectory */
+            ROS_INFO("Visualizing the trajectory");
+            display_trajectory.trajectory_start = response.trajectory_start;
+            display_trajectory.trajectory.clear();
+            display_trajectory.trajectory.push_back(response.trajectory);
+            display_publisher_ptr->publish(display_trajectory);
+            visual_tools_ptr->publishTrajectoryLine(display_trajectory.trajectory.back(), joint_model_group);
+            visual_tools_ptr->trigger();
+            ///////////////
+            // Set the trajectory and execute the plan
+            my_plan.trajectory_ = response.trajectory;
+            // moveitSuccess = move_group_ptr->plan(my_plan);
+            std::cout<<"my_plan.planning_time_ is: "<<my_plan.planning_time_<<std::endl;
+            std::cout<<"my_plan.start_state_ is: "<<my_plan.start_state_<<std::endl;
+            std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
+            std::cout<<"plan_res.planning_time_ is: "<<plan_res.planning_time_<<std::endl;
+            // moveit_plans_pub_ptr->publish(my_plan);
+            move_group_ptr->execute(my_plan);
+            // ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "standby");
+            prev_plan_res = response;
+            plan_start = ros::Time::now();
+            state = 2;
+            status.data = 2;
+            state_input_pub_ptr->publish(status);
+            ROS_INFO("Moving to target");
+        }
 		// Check if the robot is executing trajectories to target
 		// if (state == 2)
 		if (state == 69)
