@@ -130,12 +130,12 @@
   <joint name="base_base" type="fixed">
     <parent link="world"/>
     <child link="motor1/INPUT_INTERFACE"/>
-    <origin rpy="0 0 0" xyz="0 0.03 0.2984"/>
+    <origin rpy="0 0 0" xyz="0 0.05 0.3184"/>
   </joint>
   <joint name="base_s" type="fixed">
     <parent link="world"/>
     <child link="ms1/INPUT_INTERFACE"/>
-    <origin rpy="0 0 0" xyz="0 0.03 0.2984"/>
+    <origin rpy="0 0 0" xyz="0 0.05 0.3184"/>
   </joint>
   <joint name="shoulder" type="fixed">
     <parent link="world"/>
@@ -175,12 +175,12 @@
       <inertia ixx="0.00015" ixy="0.0000341" ixz="0.0000118" iyy="0.000255" iyz="0.00000229" izz="0.000350"/>
     </inertial>
   </link>
-  <joint name="motor1/X5_9" type="continuous">
+  <joint name="motor1/X5_9" type="revolute">
     <parent link="motor1/INPUT_INTERFACE"/>
     <child link="right_arm1/INPUT_INTERFACE"/>
     <origin rpy="0 0 0" xyz="0 0 0.031"/>
     <axis xyz="0 0 1"/>
-    <limit effort="13.0" velocity="14"/>
+    <limit effort="13.0" velocity="14" lower="-2.1" upper="1.9"/>
     <dynamics damping="0.1" friction="0.1"/>
   </joint>
   <gazebo reference="motor1/INPUT_INTERFACE">
@@ -203,6 +203,7 @@
     </sensor>
   </gazebo>
   <link name="ms1/INPUT_INTERFACE">
+    <!-- shifts the mount -->
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -213,7 +214,8 @@
       </material>
     </visual>
     <visual>
-      <origin rpy="0 1.57075 0" xyz="-0.2 0.02 0"/>
+      <!-- shifts the bar -->
+      <origin rpy="0 1.57075 0" xyz="-0.2 0 -0.02"/>
       <geometry>
         <cylinder length="0.3746" radius=".016"/>
       </geometry>
@@ -333,12 +335,12 @@
       <inertia ixx="0.00015" ixy="0.0000341" ixz="0.0000118" iyy="0.000255" iyz="0.00000229" izz="0.000350"/>
     </inertial>
   </link>
-  <joint name="motor2/X5_9" type="continuous">
+  <joint name="motor2/X5_9" type="revolute">
     <parent link="motor2/INPUT_INTERFACE"/>
     <child link="right_arm2/INPUT_INTERFACE"/>
     <origin rpy="0 0 0" xyz="0 0 0.031"/>
     <axis xyz="0 0 1"/>
-    <limit effort="13.0" velocity="14"/>
+    <limit effort="13.0" velocity="14" lower="-2.4" upper="2.4"/>
     <dynamics damping="0.1" friction="0.1"/>
   </joint>
   <gazebo reference="motor2/INPUT_INTERFACE">

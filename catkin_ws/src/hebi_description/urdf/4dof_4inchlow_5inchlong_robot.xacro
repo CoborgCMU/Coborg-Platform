@@ -5,7 +5,7 @@
   <!-- *************************** XACRO MACROS *************************** -->
 
   <xacro:include filename="./x_library.xacro"/>
-  <xacro:include filename="./shoulder.xacro"/>
+  <xacro:include filename="./shoulder_testcopy.xacro"/>
   <xacro:include filename="./leftarm_top.xacro"/>
   <xacro:include filename="./sensor.xacro" />
 
@@ -133,13 +133,13 @@
   <joint name="base_base" type="fixed">
     <parent link="world"/>
     <child link="motor1/INPUT_INTERFACE"/>
-    <origin xyz="0 0.03 0.2984" rpy="0 0 0"/>
+    <origin xyz="0 0.05 0.3184" rpy="0 0 0"/>
   </joint>
 
   <joint name="base_s" type="fixed">
     <parent link="world"/>
     <child link="ms1/INPUT_INTERFACE" />
-    <origin xyz="0 0.03 0.2984" rpy="0 0 0" />
+    <origin xyz="0 0.05 0.3184" rpy="0 0 0" />
   </joint>
 
   <joint name="shoulder" type="fixed">
