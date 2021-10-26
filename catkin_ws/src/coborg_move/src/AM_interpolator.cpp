@@ -54,12 +54,12 @@ double time_step = 1.0/HZ;
 unsigned int state = 0;
 
 // Subscriber Callback
-void new_trajectory_callback(const moveit_msgs::RobotTrajectory::ConstPtr& msg)
+void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& msg)
 {
     if state == 0
     {
-        prev_trajectory = *msg;
-        new_trajectory = *msg;
+        prev_trajectory = msg->trajectory;
+        new_trajectory = msg->trajectory;
         positions.fill(0);
         cur_pos = 0;
         working_pos = 0;
@@ -82,7 +82,7 @@ void new_trajectory_callback(const moveit_msgs::RobotTrajectory::ConstPtr& msg)
     else
     {
         prev_trajectory = new_trajectory;
-        new_trajectory = *msg;
+        new_trajectory = msg->trajectory;
         bool divergence_point_found = 0;
         // Find the divergence point of the two trajectories
         for (unsigned int ii = 0; ii < prev_trajectory.JointTrajectory.JointTrajectoryPoint.size(); ii++)
@@ -129,6 +129,7 @@ int main(int argc, char** argv)
     ros::Rate loop_rate(HZ);
 
 	// Initialize Publishers
+    ros::Publisher trajectory_feedback_pub = node_handle.advertise<std_msgs::String>("/interpolator_success", 1, true);
 	ros::Publisher joint_state_pub = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states", 1, true);
 	ros::Duration(0.5).sleep();
 
@@ -155,6 +156,8 @@ int main(int argc, char** argv)
             if (cur_pos > positions.size())
             {
                 next_point.header.seq = 0;
+                std_msgs::String success = "Success":
+                trajectory_feedback_pub.publish(success);
                 std::cout<<"Finished trajectory"<<std::endl;
                 state = 0;
             }
