@@ -13,9 +13,9 @@
 #include "std_msgs/Int16.h"
 #include "std_msgs/Int32.h"
 // #include "geometry_msgs/TransformStamped.h"
-#include "geometry_msgs/PoseStamped.h"
+// #include "geometry_msgs/PoseStamped.h"
 // #include "gb_visual_detection_3d_msgs/goal_msg.h" // Change to darknet_ros_3d/goal_message when switching to arm branch
-// #include <moveit_msgs/DisplayTrajectory.h>
+#include <moveit_msgs/DisplayTrajectory.h>
 // #include <moveit_msgs/PlanningScene.h>
 // #include <moveit/move_group_interface/move_group_interface.h>
 // #include <moveit/robot_model_loader/robot_model_loader.h>
@@ -23,7 +23,7 @@
 // #include <moveit/planning_interface/planning_interface.h>
 // #include <moveit/planning_scene/planning_scene.h>
 // #include <moveit/kinematic_constraints/utils.h>
-// #include <moveit_msgs/DisplayRobotState.h>
+#include <moveit_msgs/DisplayRobotState.h>
 // #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <sensor_msgs/JointState.h>
 
@@ -34,13 +34,72 @@
 // #include "hebi_cpp_api/group_feedback.hpp"
 // #include "hebi_cpp_api/trajectory.hpp"
 
-// Global Variable Declarations
-std::vector<sensor_msgs::JointState> current_trajectory;
-const int HZ = 10;
+// States
+// 0 == waiting
+// 1 == executing
 
-// Subscriber Callbacks
-void new_trajectory_callback(const sensor_msgs::JointState::ConstPtr& msg)
+// Global Variable Declarations
+std::string name[4] = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
+std::string frame_id = "/world";
+moveit_msgs::RobotTrajectory new_trajectory;
+moveit_msgs::RobotTrajectory prev_trajectory;
+sensor_msgs::JointState next_point;
+double positions[][name.size()];
+unsigned int cur_pos = 0;
+unsigned int working_pos = 0;
+// double* cur_pos_ptr;
+// unsigned int cur_step = sizeof(positions[0]);
+const int HZ = 20;
+double time_step = 1.0/HZ;
+unsigned int state = 0;
+
+// Subscriber Callback
+void new_trajectory_callback(const moveit_msgs::RobotTrajectory::ConstPtr& msg)
 {
+    if state == 0
+    {
+        prev_trajectory = *msg;
+        new_trajectory = *msg;
+        positions.fill(0);
+        cur_pos = 0;
+        working_pos = 0;
+        for (unsigned int ii = 1; ii < new_trajectory.JointTrajectory.JointTrajectoryPoint.size(); ii++)
+        {
+            // Store the position indice of the point in the acceleration parameter
+            new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].accelerations = working_pos;
+            unsigned int num_pts = (new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].time_from_start - new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].time_from_start[ii-1]).toSec()/time_step;
+            for (unsigned int jj = 0; jj < num_pts; j++)
+            {
+                for (unsigned int kk = 0; kk < positions[0].size(); kk++)
+                {
+                    positions[working_pos][kk] = ((new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].positions[kk] - new_trajectory.JointTrajectory.JointTrajectoryPoint[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.JointTrajectory.JointTrajectoryPoint[ii-1].positions[kk];
+                }
+                working_pos += 1;
+            }
+        }
+        state = 1;
+    }
+    else
+    {
+        prev_trajectory = new_trajectory;
+        new_trajectory = *msg;
+        bool divergence_point_found = 0;
+        // Find the divergence point of the two trajectories
+        for (unsigned int ii = 0; ii < new_trajectory.JointTrajectory.JointTrajectoryPoint.size(); ii++)
+        {
+            // Check whether the first point of the new trajectory overlaps a point of the old trajectory
+            // Also ensure that this point hasn't already been executed
+            if (std::equal(std::begin(prev_trajectory.JointTrajectory.JointTrajectoryPoint[ii].positions), std::end(prev_trajectory.JointTrajectory.JointTrajectoryPoint[ii].positions), std::begin(new_trajectory.JointTrajectory.JointTrajectoryPoint[0].positions)) && prev_trajectory.JointTrajectory.JointTrajectoryPoint[ii].accelerations > cur_pos)
+            {
+                divergence_point_found = 1;
+                break;
+            }
+        }
+        if (divergence_point_found == 1)
+        {
+            
+        }
+    }
     return;
 }
 
@@ -56,19 +115,36 @@ int main(int argc, char** argv)
     ros::Rate loop_rate(HZ);
 
 	// Initialize Publishers
-	ros::Publisher joint_state_pub = node_handle_ptr->advertise<sensor_msgs::JointState::ConstPtr>("/move_group/fake_controller_joint_states", 1, true);
+	ros::Publisher joint_state_pub = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states", 1, true);
 	ros::Duration(0.5).sleep();
 
 	// Initialize Subscribers
 	ros::Subscriber new_trajectory_sub = node_handle.subscribe("/new_trajectory", 1, new_trajectory_callback);
 
 	std::cout<<"Publishers and subscribers initialized"<<std::endl;
+
+    // Initialize next_point message
+    next_point.name = name;
+    next_point.header.frame_id = frame_id;
 	std::cout<<"Looping and ready"<<std::endl;
 
     while (ros::ok())
     {
         ros::spinOnce();
-        joint_state_pub.publish(current_trajectory[0]);
+        if (state == 1)
+        {
+            // Fill in JointState message
+            next_point.header.seq += 1;
+            next_point.header.time_stamp = ros::Time::now();
+            next_point.position = positions[cur_pos];
+            cur_pos += 1;
+            joint_state_pub.publish(next_point);
+            if (cur_pos > positions.size())
+            {
+                std::cout<<"Finished trajectory"<<std::endl;
+                state = 0;
+            }
+        }
         loop_rate.sleep();
     }
     return 0;
