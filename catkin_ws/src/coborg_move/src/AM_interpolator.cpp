@@ -156,7 +156,8 @@ int main(int argc, char** argv)
             if (cur_pos > positions.size())
             {
                 next_point.header.seq = 0;
-                std_msgs::String success = "Success":
+                std_msgs::Int32 success;
+                success.data = 1;
                 trajectory_feedback_pub.publish(success);
                 std::cout<<"Finished trajectory"<<std::endl;
                 state = 0;

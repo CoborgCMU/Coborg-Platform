@@ -451,17 +451,17 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 	}
 }
 // Interpolator callback for trajectory finishes
-void interpolator_success_callback(const std::string& msg)
+void interpolator_success_callback(const std_msgs::Int32::ConstPtr& msg)
 {
-	if (msg->data == "Success" && use_stitching)
+	if (msg->data == 1 && use_stitching)
 	{
 		state = 3;
 		ROS_INFO("Successfully reached target offset; extending");
 		ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
-		// Update the normal vector
-		update_rel_goal();
-		// Set the desired end-effector velocity
-		desired_velocity << goal_normal * naive_push_speed, 0, 0, 0;
+		// // Update the normal vector
+		// update_rel_goal();
+		// // Set the desired end-effector velocity
+		// desired_velocity << goal_normal * naive_push_speed, 0, 0, 0;
 	}
 }
 // MoveIt callback for trajectory finishes
@@ -480,7 +480,7 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			std::cout<<"row::Time::now() is: "<<ros::Time::now()<<std::endl;
 			std::cout<<"plan_start is: "<<plan_start<<std::endl;
 			// Check if the robot was moving to a target
-			else if (state == 2)
+			if (state == 2)
 			{
 				state = 3;
 				ROS_INFO("Successfully reached target offset; extending");
