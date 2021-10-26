@@ -140,6 +140,7 @@ double plan_execution_start_delay = 0.4;
 ros::Time plan_start;
 ros::Time plan_end;
 std::string end_effector_name = "end_link/INPUT_INTERFACE";
+bool use_stitching = 0;
 unsigned int stitching_loop_number = 0; // REMOVE
 double planning_time_offset_default = 0.3;
 double planning_time_offset = planning_time_offset_default;
@@ -449,6 +450,20 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 		}
 	}
 }
+// Interpolator callback for trajectory finishes
+void interpolator_success_callback(const std::string& msg)
+{
+	if (msg->data == "Success" && use_stitching)
+	{
+		state = 3;
+		ROS_INFO("Successfully reached target offset; extending");
+		ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
+		// Update the normal vector
+		update_rel_goal();
+		// Set the desired end-effector velocity
+		desired_velocity << goal_normal * naive_push_speed, 0, 0, 0;
+	}
+}
 // MoveIt callback for trajectory finishes
 void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeedback::ConstPtr& msg)
 {
@@ -465,7 +480,7 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			std::cout<<"row::Time::now() is: "<<ros::Time::now()<<std::endl;
 			std::cout<<"plan_start is: "<<plan_start<<std::endl;
 			// Check if the robot was moving to a target
-			if (state == 2)
+			else if (state == 2)
 			{
 				state = 3;
 				ROS_INFO("Successfully reached target offset; extending");
@@ -637,6 +652,7 @@ int main(int argc, char** argv)
 	display_publisher_ptr = &display_publisher;
 	// ros::Publisher moveit_plans_pub = node_handle.advertise<moveit_msgs::MotionPlanRequest>("/moveit_plans", 1);
 	// moveit_plans_pub_ptr = &moveit_plans_pub;
+	ros::Publisher new_trajectory_pub = node_handle_ptr->advertise<moveit_msgs::RobotTrajectory>("/new_trajectory", 1, true);
 	ros::Duration(0.5).sleep();
 
 	// Publish initial state (waiting)
@@ -649,6 +665,7 @@ int main(int argc, char** argv)
 	ros::Subscriber execute_action_sub = node_handle.subscribe("/execute_trajectory/feedback", 5, execute_trajectory_feedback_callback);
 	ros::Subscriber hebi_joints_sub = node_handle.subscribe("/hebi_joints", 1, hebiJointsCallback);
 	ros::Subscriber goal_sub = node_handle.subscribe("/goal", 1, goal_callback);
+	ros::Subscriber interpolator_success_sub = node_handle.subscribe("/interpolator_success", 1, interpolator_success_callback);
 
 	std::cout<<"Publishers and subscribers initialized"<<std::endl;
 
@@ -761,9 +778,8 @@ int main(int argc, char** argv)
             state_input_pub_ptr->publish(status);
             ROS_INFO("Moving to target");
         }
-		// Check if the robot is executing trajectories to target
-		// if (state == 2)
-		if (state == 69)
+		// Check if the robot is executing trajectories to target and stitching is in use
+		if (state == 2 && use_stitching)
 		{
 			stitching_loop_number += 1;
 			// prev_plan_res contains the current, time-stamped RRT plan
@@ -986,12 +1002,13 @@ int main(int argc, char** argv)
 				std::cout<<"trajectory_start_time is: "<<trajectory_start_time<<std::endl;
 				std::cout<<"plan_start - ros::Time::now() + trajectory_start_time is: "<<(plan_start - ros::Time::now() + trajectory_start_time)<<std::endl;
 				std::cout.setstate(std::ios_base::failbit);
-				ros::Duration(plan_start - ros::Time::now() + trajectory_start_time - ros::Duration(0.03)).sleep();
+				new_trajectory_pub.publish(response);
+				// ros::Duration(plan_start - ros::Time::now() + trajectory_start_time - ros::Duration(0.03)).sleep();
 				////////////////////
 				// moveitSuccess = move_group.plan(my_plan);
 				// moveit_plans_pub_ptr->publish(my_plan);
-				move_group.stop();
-				move_group.asyncExecute(my_plan);
+				// move_group.stop();
+				// move_group.asyncExecute(my_plan);
 				prev_plan_res = response;
 				ROS_INFO("Plan successfully executing.  Time to plan: %s", (ros::Time::now() - plan_start).toSec());
 				plan_start = ros::Time::now();
