@@ -196,36 +196,36 @@ std::vector<double> joint_group_positions = { 0.0, -1.8, -1.9, -2.1 };
 // Define Functions
 void update_impedance_goal()
 {
-	// Get the current transform from the ODOM frame to the world frame
-	listener_ptr -> lookupTransform(goal_frame_name, global_origin_frame_name, ros::Time::now(), odom_tf_current_impedance);
-	odom_tf_current_translation_impedance << odom_tf_current_impedance.getOrigin().getX(), odom_tf_current_impedance.getOrigin().getY(), odom_tf_current_impedance.getOrigin().getZ();
-	// Store the tf::Quaternion
-	tf::Quaternion tfQuat_impedance;
-	tfQuat_impedance = odom_tf_current_impedance.getRotation();
-	// Convert the tf::Quaternion to an Eigen vector
-	Eigen::VectorXd odom_tf_current_quaternion_impedance_worker(4);
-	odom_tf_current_quaternion_impedance_worker << tfQuat_impedance.x(), tfQuat_impedance.y(), tfQuat_impedance.z(), tfQuat_impedance.w();
-	// Convert the Eigen vector to an Eigen quaternion
-	Eigen::Quaterniond odom_tf_current_quaternion_impedance(odom_tf_current_quaternion_impedance_worker(3),odom_tf_current_quaternion_impedance_worker(0),odom_tf_current_quaternion_impedance_worker(1),odom_tf_current_quaternion_impedance_worker(2));
-	Eigen::Quaterniond odom_tf_current_quaternion_impedance_normalized;
-	odom_tf_current_quaternion_impedance_normalized = odom_tf_current_quaternion_impedance.normalized();
-	odom_tf_current_rotation_matrix_impedance = odom_tf_current_quaternion_impedance_normalized.toRotationMatrix();	
-	odom_tf_current_homogeneous_matrix_impedance << odom_tf_current_rotation_matrix_impedance, odom_tf_current_translation_impedance, 0, 0, 0, 1;
-	// Use the transform to convert the received global impedance goal to the current, local goal in the world frame
-	goal_normal = odom_tf_current_rotation_matrix_impedance * global_goal_normal;
-	// Translate the global goal into homogeneous coordinates
-	Eigen::VectorXd impedance_global_goal_homogeneous_worker(4);
-	impedance_global_goal_homogeneous_worker << impedance_global_goal(0,2), 1;
-	// Transform the global impedance goal into the local frame
-	impedance_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_global_goal_homogeneous_worker)(0,2);
-	return;
+	// // Get the current transform from the ODOM frame to the world frame
+	// listener_ptr -> lookupTransform(goal_frame_name, global_origin_frame_name, ros::Time::now(), odom_tf_current_impedance);
+	// odom_tf_current_translation_impedance << odom_tf_current_impedance.getOrigin().getX(), odom_tf_current_impedance.getOrigin().getY(), odom_tf_current_impedance.getOrigin().getZ();
+	// // Store the tf::Quaternion
+	// tf::Quaternion tfQuat_impedance;
+	// tfQuat_impedance = odom_tf_current_impedance.getRotation();
+	// // Convert the tf::Quaternion to an Eigen vector
+	// Eigen::VectorXd odom_tf_current_quaternion_impedance_worker(4);
+	// odom_tf_current_quaternion_impedance_worker << tfQuat_impedance.x(), tfQuat_impedance.y(), tfQuat_impedance.z(), tfQuat_impedance.w();
+	// // Convert the Eigen vector to an Eigen quaternion
+	// Eigen::Quaterniond odom_tf_current_quaternion_impedance(odom_tf_current_quaternion_impedance_worker(3),odom_tf_current_quaternion_impedance_worker(0),odom_tf_current_quaternion_impedance_worker(1),odom_tf_current_quaternion_impedance_worker(2));
+	// Eigen::Quaterniond odom_tf_current_quaternion_impedance_normalized;
+	// odom_tf_current_quaternion_impedance_normalized = odom_tf_current_quaternion_impedance.normalized();
+	// odom_tf_current_rotation_matrix_impedance = odom_tf_current_quaternion_impedance_normalized.toRotationMatrix();	
+	// odom_tf_current_homogeneous_matrix_impedance << odom_tf_current_rotation_matrix_impedance, odom_tf_current_translation_impedance, 0, 0, 0, 1;
+	// // Use the transform to convert the received global impedance goal to the current, local goal in the world frame
+	// goal_normal = odom_tf_current_rotation_matrix_impedance * global_goal_normal;
+	// // Translate the global goal into homogeneous coordinates
+	// Eigen::VectorXd impedance_global_goal_homogeneous_worker(4);
+	// impedance_global_goal_homogeneous_worker << impedance_global_goal(0,2), 1;
+	// // Transform the global impedance goal into the local frame
+	// impedance_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_global_goal_homogeneous_worker)(0,2);
+	// return;
 }
 
 // Define subscriber callbacks
 // Local Goal Update
-void goal_callback(const geometry_msgs::Pose& msg)
+void goal_callback(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
-    pose_goal = *msg;
+    goal_pose = *msg;
     if (state == 1)
     {
         state = -1;
@@ -233,176 +233,176 @@ void goal_callback(const geometry_msgs::Pose& msg)
     return;
 }
 // Camera goal callback
-void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& msg)
-{
-	std::cout<<"Current state is: "<<state<<std::endl;
-	if (state == 1)
-	{
-		std::cout<<"Goal Message Received"<<std::endl;
-		// Block other camera inputs
-		state = -1;
-		// Reset the planning and stitching time offsets from the previous action
-		planning_time_offset = planning_time_offset_default;
-		stitching_time_offset = stitching_time_offset_default;
-		// Set the time from the message header
-		goal_time = msg->header.stamp;
-		// Convert the received goal to eigen
-		std::cout<<"Populating goals"<<std::endl;
-		goal_normal << msg->normal_x, msg->normal_y, msg->normal_z;
-		homogeneous_goal << msg->x, msg->y, msg->z, 1.0;
-		// Get the transform from the local frame to the ODOM frame
-		std::cout<<"Listening to transform"<<std::endl;
-		while(true){
-			try{
-				listener_ptr -> waitForTransform(global_origin_frame_name, msg->header.frame_id, goal_time, ros::Duration(3.0));
-				std::cout<<"Waited for transform"<<std::endl;
-				listener_ptr -> lookupTransform(global_origin_frame_name, msg->header.frame_id, goal_time, odom_tf_goal);
-				std::cout<<"Looked up transform"<<std::endl;
-				break;
-			}
-			catch(...){
-				std::cout<<"Current ROS time is: "<<ros::Time::now()<<std::endl;
-				std::cout<<"Message time is: "<<goal_time<<std::endl;
-				if (goal_time.toSec() < 1.0)
-				{
-					/////////////// REMOVE once goal getter sends good frames
-					state = 1;
-					return;
-				}
-				ros::Duration(3).sleep();
-			}
-		}																	
-		std::cout<<"Populating odom_tf_goal_translation"<<std::endl;
-		odom_tf_goal_translation << odom_tf_goal.getOrigin().getX(), odom_tf_goal.getOrigin().getY(), odom_tf_goal.getOrigin().getZ();
-		// Store the tf::Quaternion
-		tf::Quaternion tfQuat_initial;
-		tfQuat_initial = odom_tf_goal.getRotation();
-		// Convert the tf::Quaternion to an Eigen vector
-		Eigen::VectorXd odom_tf_goal_quaternion_worker(4);
-		odom_tf_goal_quaternion_worker << tfQuat_initial.x(), tfQuat_initial.y(), tfQuat_initial.z(), tfQuat_initial.w();
-		// Convert the Eigen vector to an Eigen quaternion
-		Eigen::Quaterniond odom_tf_goal_quaternion(odom_tf_goal_quaternion_worker(3),odom_tf_goal_quaternion_worker(0),odom_tf_goal_quaternion_worker(1),odom_tf_goal_quaternion_worker(2));
-		Eigen::Quaterniond odom_tf_goal_quaternion_normalized;
-		odom_tf_goal_quaternion_normalized = odom_tf_goal_quaternion.normalized();
-		odom_tf_goal_rotation_matrix = odom_tf_goal_quaternion_normalized.toRotationMatrix();
-		odom_tf_goal_homogeneous_matrix << odom_tf_goal_rotation_matrix, odom_tf_goal_translation, 0, 0, 0, 1;
-		// Use the transform to convert the received goal to a global goal
-		global_goal_normal = odom_tf_goal_rotation_matrix * goal_normal;
-		Eigen::VectorXd goal_normal_homogeneous_worker(4);
-		goal_normal_homogeneous_worker << goal_normal(0)*goal_offset, goal_normal(1)*goal_offset, goal_normal(2)*goal_offset, 1;
-		Eigen::VectorXd homogeneous_global_goal(4);
-		Eigen::VectorXd homogeneous_goal_worker(4);
-		homogeneous_goal_worker = homogeneous_goal - goal_normal_homogeneous_worker;
-		homogeneous_goal_worker(3) = 1.0;
-		homogeneous_global_goal = odom_tf_goal_homogeneous_matrix * (homogeneous_goal_worker);
-		global_goal << homogeneous_global_goal(0), homogeneous_global_goal(1), homogeneous_global_goal(2);
-		// Update the relative goal based on the robot's global position
-		update_rel_goal();
-		// Plan RRT Connect Path and send it for execution
-		// Set move group planning constraints
-		move_group_ptr->setNumPlanningAttempts(num_attempts_initial_goal);
-		move_group_ptr->setPlanningTime(moveit_planning_time_initial_goal);
-		// Reset tolerances
-		goal_tolerance_pose = goal_tolerance_pose_default;
-		goal_tolerance_angle = goal_tolerance_angle_default;
-		// Set kinematic constraints
-		moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
-		std::cout<<"Added kinematic constraints"<<std::endl;
-		ROS_INFO_STREAM(pose_goal);
-		// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
-		// std::cout<<"Locked planning scene monitor"<<std::endl;
-		std::cout<<"Calling planning pipeline to generate plan"<<std::endl;
-		/* Now, call the pipeline and check whether planning was successful. */
-		/* Check that the planning was successful */
-		moveit_msgs::MotionPlanResponse response;
-		response_ptr = &response;
-		while (true)
-		{
-			std::cout<<"Adding pose goal"<<std::endl;
-			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
-			plan_req.group_name = PLANNING_GROUP;
-			plan_req.goal_constraints.clear();
-			plan_req.goal_constraints.push_back(pose_goal);
-			// Update current state to be the last planned state
-			std::cout<<"Updating start state"<<std::endl;
-			plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
-			plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
-			plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
-			plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
-			// // Lock the visual planner
-			// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
-			std::cout<<"Generating plan"<<std::endl;
-			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
-			if ( sqrt(pow(goal_tolerance_pose[0],2)+pow(goal_tolerance_pose[1],2)+pow(goal_tolerance_pose[2],2)) > goal_tolerance_pose_adjusted_threshold)
-			{
-				///////// REMOVE or change functionality to work with Yuqing's goal node ///////////
-				if (num_attempts < num_max_attempts)
-				{
-					std::cout<<"Couldn't sufficiently plan for point, grabbing new goal"<<std::endl;
-					state = 1;
-					num_attempts += 1;
-					return;
-				}
-				state = 0;
-				ROS_INFO("Couldn't find a suitable path, returning to waiting");
-				// Let the main_state_machine node know that the robot is ready
-				status.data = 3;
-				state_input_pub_ptr->publish(status);
-				num_attempts = 0;
-				return;
-			}
-			if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
-			{
-				ROS_ERROR("Could not compute plan successfully, increasing tolerances");
-				// Increment goal tolerance and break out if tolerances are too large
-				goal_tolerance_pose[0] = goal_tolerance_pose[0] + goal_tolerance_pose_adjustment;
-				goal_tolerance_pose[1] = goal_tolerance_pose[1] + goal_tolerance_pose_adjustment;
-				goal_tolerance_pose[2] = goal_tolerance_pose[2] + goal_tolerance_pose_adjustment;
-				continue;
-			}
-			plan_res.getMessage(response);
-			// moveit_msgs::RobotTrajectory trajectory_worker;
-			// trajectory_worker = response.trajectory;
-			// trajectory_worker.joint_trajectory = response.trajectory.joint_trajectory;
-			if((*psmPtr)->isPathValid(plan_req.start_state, response.trajectory, PLANNING_GROUP))
-			{
-				break;
-			}
-			else
-			{
-				continue;
-			}
-		}
-		num_attempts = 0;
-		/////////////// Visualize the result
-		moveit_msgs::DisplayTrajectory display_trajectory;
-		/* Visualize the trajectory */
-		ROS_INFO("Visualizing the trajectory");
-		display_trajectory.trajectory_start = response.trajectory_start;
-		display_trajectory.trajectory.clear();
-		display_trajectory.trajectory.push_back(response.trajectory);
-		display_publisher_ptr->publish(display_trajectory);
-		visual_tools_ptr->publishTrajectoryLine(display_trajectory.trajectory.back(), joint_model_group);
-		visual_tools_ptr->trigger();
-		///////////////
-		// Set the trajectory and execute the plan
-		my_plan.trajectory_ = response.trajectory;
-		// moveitSuccess = move_group_ptr->plan(my_plan);
-		std::cout<<"my_plan.planning_time_ is: "<<my_plan.planning_time_<<std::endl;
-		std::cout<<"my_plan.start_state_ is: "<<my_plan.start_state_<<std::endl;
-		std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
-		std::cout<<"plan_res.planning_time_ is: "<<plan_res.planning_time_<<std::endl;
-		// moveit_plans_pub_ptr->publish(my_plan);
-		move_group_ptr->asyncExecute(my_plan);
-		// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "standby");
-		prev_plan_res = response;
-		plan_start = ros::Time::now();
-		state = 2;
-		status.data = 2;
-		state_input_pub_ptr->publish(status);
-		ROS_INFO("Moving to target");
-	}
-}
+// void camera_goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& msg)
+// {
+// 	std::cout<<"Current state is: "<<state<<std::endl;
+// 	if (state == 1)
+// 	{
+// 		std::cout<<"Goal Message Received"<<std::endl;
+// 		// Block other camera inputs
+// 		state = -1;
+// 		// Reset the planning and stitching time offsets from the previous action
+// 		planning_time_offset = planning_time_offset_default;
+// 		stitching_time_offset = stitching_time_offset_default;
+// 		// Set the time from the message header
+// 		goal_time = msg->header.stamp;
+// 		// Convert the received goal to eigen
+// 		std::cout<<"Populating goals"<<std::endl;
+// 		goal_normal << msg->normal_x, msg->normal_y, msg->normal_z;
+// 		homogeneous_goal << msg->x, msg->y, msg->z, 1.0;
+// 		// Get the transform from the local frame to the ODOM frame
+// 		std::cout<<"Listening to transform"<<std::endl;
+// 		while(true){
+// 			try{
+// 				listener_ptr -> waitForTransform(global_origin_frame_name, msg->header.frame_id, goal_time, ros::Duration(3.0));
+// 				std::cout<<"Waited for transform"<<std::endl;
+// 				listener_ptr -> lookupTransform(global_origin_frame_name, msg->header.frame_id, goal_time, odom_tf_goal);
+// 				std::cout<<"Looked up transform"<<std::endl;
+// 				break;
+// 			}
+// 			catch(...){
+// 				std::cout<<"Current ROS time is: "<<ros::Time::now()<<std::endl;
+// 				std::cout<<"Message time is: "<<goal_time<<std::endl;
+// 				if (goal_time.toSec() < 1.0)
+// 				{
+// 					/////////////// REMOVE once goal getter sends good frames
+// 					state = 1;
+// 					return;
+// 				}
+// 				ros::Duration(3).sleep();
+// 			}
+// 		}																	
+// 		std::cout<<"Populating odom_tf_goal_translation"<<std::endl;
+// 		odom_tf_goal_translation << odom_tf_goal.getOrigin().getX(), odom_tf_goal.getOrigin().getY(), odom_tf_goal.getOrigin().getZ();
+// 		// Store the tf::Quaternion
+// 		tf::Quaternion tfQuat_initial;
+// 		tfQuat_initial = odom_tf_goal.getRotation();
+// 		// Convert the tf::Quaternion to an Eigen vector
+// 		Eigen::VectorXd odom_tf_goal_quaternion_worker(4);
+// 		odom_tf_goal_quaternion_worker << tfQuat_initial.x(), tfQuat_initial.y(), tfQuat_initial.z(), tfQuat_initial.w();
+// 		// Convert the Eigen vector to an Eigen quaternion
+// 		Eigen::Quaterniond odom_tf_goal_quaternion(odom_tf_goal_quaternion_worker(3),odom_tf_goal_quaternion_worker(0),odom_tf_goal_quaternion_worker(1),odom_tf_goal_quaternion_worker(2));
+// 		Eigen::Quaterniond odom_tf_goal_quaternion_normalized;
+// 		odom_tf_goal_quaternion_normalized = odom_tf_goal_quaternion.normalized();
+// 		odom_tf_goal_rotation_matrix = odom_tf_goal_quaternion_normalized.toRotationMatrix();
+// 		odom_tf_goal_homogeneous_matrix << odom_tf_goal_rotation_matrix, odom_tf_goal_translation, 0, 0, 0, 1;
+// 		// Use the transform to convert the received goal to a global goal
+// 		global_goal_normal = odom_tf_goal_rotation_matrix * goal_normal;
+// 		Eigen::VectorXd goal_normal_homogeneous_worker(4);
+// 		goal_normal_homogeneous_worker << goal_normal(0)*goal_offset, goal_normal(1)*goal_offset, goal_normal(2)*goal_offset, 1;
+// 		Eigen::VectorXd homogeneous_global_goal(4);
+// 		Eigen::VectorXd homogeneous_goal_worker(4);
+// 		homogeneous_goal_worker = homogeneous_goal - goal_normal_homogeneous_worker;
+// 		homogeneous_goal_worker(3) = 1.0;
+// 		homogeneous_global_goal = odom_tf_goal_homogeneous_matrix * (homogeneous_goal_worker);
+// 		global_goal << homogeneous_global_goal(0), homogeneous_global_goal(1), homogeneous_global_goal(2);
+// 		// Update the relative goal based on the robot's global position
+// 		update_rel_goal();
+// 		// Plan RRT Connect Path and send it for execution
+// 		// Set move group planning constraints
+// 		move_group_ptr->setNumPlanningAttempts(num_attempts_initial_goal);
+// 		move_group_ptr->setPlanningTime(moveit_planning_time_initial_goal);
+// 		// Reset tolerances
+// 		goal_tolerance_pose = goal_tolerance_pose_default;
+// 		goal_tolerance_angle = goal_tolerance_angle_default;
+// 		// Set kinematic constraints
+// 		moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
+// 		std::cout<<"Added kinematic constraints"<<std::endl;
+// 		ROS_INFO_STREAM(pose_goal);
+// 		// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+// 		// std::cout<<"Locked planning scene monitor"<<std::endl;
+// 		std::cout<<"Calling planning pipeline to generate plan"<<std::endl;
+// 		/* Now, call the pipeline and check whether planning was successful. */
+// 		/* Check that the planning was successful */
+// 		moveit_msgs::MotionPlanResponse response;
+// 		response_ptr = &response;
+// 		while (true)
+// 		{
+// 			std::cout<<"Adding pose goal"<<std::endl;
+// 			moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
+// 			plan_req.group_name = PLANNING_GROUP;
+// 			plan_req.goal_constraints.clear();
+// 			plan_req.goal_constraints.push_back(pose_goal);
+// 			// Update current state to be the last planned state
+// 			std::cout<<"Updating start state"<<std::endl;
+// 			plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+// 			plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+// 			plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
+// 			plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+// 			// // Lock the visual planner
+// 			// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
+// 			std::cout<<"Generating plan"<<std::endl;
+// 			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+// 			if ( sqrt(pow(goal_tolerance_pose[0],2)+pow(goal_tolerance_pose[1],2)+pow(goal_tolerance_pose[2],2)) > goal_tolerance_pose_adjusted_threshold)
+// 			{
+// 				///////// REMOVE or change functionality to work with Yuqing's goal node ///////////
+// 				if (num_attempts < num_max_attempts)
+// 				{
+// 					std::cout<<"Couldn't sufficiently plan for point, grabbing new goal"<<std::endl;
+// 					state = 1;
+// 					num_attempts += 1;
+// 					return;
+// 				}
+// 				state = 0;
+// 				ROS_INFO("Couldn't find a suitable path, returning to waiting");
+// 				// Let the main_state_machine node know that the robot is ready
+// 				status.data = 3;
+// 				state_input_pub_ptr->publish(status);
+// 				num_attempts = 0;
+// 				return;
+// 			}
+// 			if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
+// 			{
+// 				ROS_ERROR("Could not compute plan successfully, increasing tolerances");
+// 				// Increment goal tolerance and break out if tolerances are too large
+// 				goal_tolerance_pose[0] = goal_tolerance_pose[0] + goal_tolerance_pose_adjustment;
+// 				goal_tolerance_pose[1] = goal_tolerance_pose[1] + goal_tolerance_pose_adjustment;
+// 				goal_tolerance_pose[2] = goal_tolerance_pose[2] + goal_tolerance_pose_adjustment;
+// 				continue;
+// 			}
+// 			plan_res.getMessage(response);
+// 			// moveit_msgs::RobotTrajectory trajectory_worker;
+// 			// trajectory_worker = response.trajectory;
+// 			// trajectory_worker.joint_trajectory = response.trajectory.joint_trajectory;
+// 			if((*psmPtr)->isPathValid(plan_req.start_state, response.trajectory, PLANNING_GROUP))
+// 			{
+// 				break;
+// 			}
+// 			else
+// 			{
+// 				continue;
+// 			}
+// 		}
+// 		num_attempts = 0;
+// 		/////////////// Visualize the result
+// 		moveit_msgs::DisplayTrajectory display_trajectory;
+// 		/* Visualize the trajectory */
+// 		ROS_INFO("Visualizing the trajectory");
+// 		display_trajectory.trajectory_start = response.trajectory_start;
+// 		display_trajectory.trajectory.clear();
+// 		display_trajectory.trajectory.push_back(response.trajectory);
+// 		display_publisher_ptr->publish(display_trajectory);
+// 		visual_tools_ptr->publishTrajectoryLine(display_trajectory.trajectory.back(), joint_model_group);
+// 		visual_tools_ptr->trigger();
+// 		///////////////
+// 		// Set the trajectory and execute the plan
+// 		my_plan.trajectory_ = response.trajectory;
+// 		// moveitSuccess = move_group_ptr->plan(my_plan);
+// 		std::cout<<"my_plan.planning_time_ is: "<<my_plan.planning_time_<<std::endl;
+// 		std::cout<<"my_plan.start_state_ is: "<<my_plan.start_state_<<std::endl;
+// 		std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
+// 		std::cout<<"plan_res.planning_time_ is: "<<plan_res.planning_time_<<std::endl;
+// 		// moveit_plans_pub_ptr->publish(my_plan);
+// 		move_group_ptr->asyncExecute(my_plan);
+// 		// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "standby");
+// 		prev_plan_res = response;
+// 		plan_start = ros::Time::now();
+// 		state = 2;
+// 		status.data = 2;
+// 		state_input_pub_ptr->publish(status);
+// 		ROS_INFO("Moving to target");
+// 	}
+// }
 // State machine commands callback
 void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 {
@@ -436,12 +436,12 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 			ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
 			status.data = 1;
 			state_input_pub_ptr->publish(status);
-			// Update the normal vector
-			update_rel_goal();
-			// Set the desired end-effector velocity
-			desired_velocity << -goal_normal * naive_push_speed, 0, 0, 0;
-			// Grab the starting end-effector pose
-			naive_pull_starting_pose = (*robot_state_ptr)->getGlobalLinkTransform(end_effector_name);
+			// // Update the normal vector
+			// update_rel_goal();
+			// // Set the desired end-effector velocity
+			// desired_velocity << -goal_normal * naive_push_speed, 0, 0, 0;
+			// // Grab the starting end-effector pose
+			// naive_pull_starting_pose = (*robot_state_ptr)->getGlobalLinkTransform(end_effector_name);
 			// Let the main_state_machine node know that the robot is executing
 			ROS_INFO("Leaving target");
 			status.data = 2;
@@ -471,9 +471,9 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 				ROS_INFO("Successfully reached target offset; extending");
 				ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
 				// Update the normal vector
-				update_rel_goal();
-				// Set the desired end-effector velocity
-				desired_velocity << goal_normal * naive_push_speed, 0, 0, 0;
+				// update_rel_goal();
+				// // Set the desired end-effector velocity
+				// desired_velocity << goal_normal * naive_push_speed, 0, 0, 0;
 			}
 			// Check if the robot was returning to home
 			else if (state == 6)
@@ -517,10 +517,10 @@ int main(int argc, char** argv)
 	spinner.start();
 
     // ROS-dependent initializations
-	most_recent_transform = ros::Time::now();
+	// most_recent_transform = ros::Time::now();
 	// Global variable pointer attachments
-    tf::TransformListener listener;
-    listener_ptr = &listener;
+    // tf::TransformListener listener;
+    // listener_ptr = &listener;
 	
 	//code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
 	// connect to HEBI joints on network through UDP connection
@@ -803,8 +803,6 @@ int main(int argc, char** argv)
 				continue;
 			}
 			// Use RRT to plan a path from the beginning point just extracted to the current goal point, updated based on the t_265 localization
-			// Update the relative goal based on the robot's global position
-			update_rel_goal();
 			// Plan RRT Connect Path and send it for execution
 			// Set move group planning constraints
 			move_group.setNumPlanningAttempts(num_attempts_stitching);
@@ -1010,150 +1008,150 @@ int main(int argc, char** argv)
 		// Check if the robot is naively moving toward the target (admittance control)
 		if (state == 3)
 		{
-			// Update the Jacobian
-			robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
-			// Get the joint forces
-			if (group->getNextFeedback(group_feedback))
-			{
-				motor_torques = group_feedback.getEffort();
-			}
-			// Update the end-effector force
-			end_effector_force = wristJacobian * motor_torques;
-			// Check to see if the force on the end-effector is below the threshold
-			if (sqrt(pow(end_effector_force(0),2)+pow(end_effector_force(1),2)+pow(end_effector_force(2),2)) < naive_push_force_threshold)
-			{
-				// Update the joint velocities
-				joint_velocities = wristJacobian.inverse() * desired_velocity;
-				groupCommand.setVelocity(joint_velocities);
-				group->sendCommand(groupCommand);
-			}
-			// If it exceeds the threshold, set up impedance control
-			else
-			{
-				// Stop the end-effector
-				joint_velocities.setZero();
-				groupCommand.setVelocity(joint_velocities);
-				group->sendCommand(groupCommand);
-				// Update the goal_normal
-				update_rel_goal();
-				// Use the transform to convert the received global impedance goal to the current, local goal in the world frame
-				goal_normal = odom_tf_current_rotation_matrix * global_goal_normal;
-				// Translate the global goal into homogeneous coordinates
-				Eigen::VectorXd impedance_global_goal_worker(4);
-				impedance_global_goal_worker << impedance_global_goal(0,2), 1;
-				// Transform the global impedance goal into the local frame
-				impedance_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_global_goal_worker)(0,2);
-				// Set the current local goal
-				// Set the desired stabilization position as a point some distance into the target and 0 velocity
-				// Get the current end-effector position and add an offset to it along the normal
-				Eigen::Vector3d current_end_effector_position_worker;
-				Eigen::MatrixXd identity_worker(3,3);
-				identity_worker << MatrixXd::Identity(3,3);
-				identity_worker = impedance_goal_offset * identity_worker;
-				Eigen::Vector3d goal_offset_worker;
-				goal_offset_worker = identity_worker * goal_normal;
-				current_end_effector_position_worker = (robot_state->getGlobalLinkTransform(end_effector_name)).translation();
-				impedance_goal(0) = current_end_effector_position_worker.x() + goal_offset_worker(0);
-				impedance_goal(1) = current_end_effector_position_worker.y() + goal_offset_worker(1);
-				impedance_goal(2) = current_end_effector_position_worker.z() + goal_offset_worker(2);
-				// Convert the loccal goal to a global goal
-				// Get the transform from the local frame to the ODOM frame
-				listener_ptr -> lookupTransform(global_origin_frame_name, "world", ros::Time::now(), odom_tf_goal);
-				odom_tf_goal_translation << odom_tf_goal.getOrigin().getX(), odom_tf_goal.getOrigin().getY(), odom_tf_goal.getOrigin().getZ();
-				// Store the tf::Quaternion
-				tf::Quaternion tfQuat;
-				tfQuat = odom_tf_goal.getRotation();
-				// Convert the tf::Quaternion to an Eigen vector
-				Eigen::VectorXd odom_tf_goal_quaternion_worker(4);
-				odom_tf_goal_quaternion_worker << tfQuat.x(), tfQuat.y(), tfQuat.z(), tfQuat.w();
-				// Convert the Eigen vector to an Eigen quaternion
-				Eigen::Quaterniond odom_tf_goal_quaternion(odom_tf_goal_quaternion_worker(3),odom_tf_goal_quaternion_worker(0),odom_tf_goal_quaternion_worker(1),odom_tf_goal_quaternion_worker(2));
-				Eigen::Quaterniond odom_tf_goal_quaternion_normalized;
-				odom_tf_goal_quaternion_normalized = odom_tf_goal_quaternion.normalized();
-				odom_tf_goal_rotation_matrix = odom_tf_goal_quaternion_normalized.toRotationMatrix();	
-				odom_tf_goal_homogeneous_matrix << odom_tf_goal_rotation_matrix, odom_tf_goal_translation, 0, 0, 0, 1;
-				// Use the transform to convert the impedance goal to a global goal
-				// Translate the local goal into homogeneous coordinates
-				Eigen::VectorXd impedance_local_goal_worker(4);
-				impedance_local_goal_worker << impedance_goal(0,2), 1;
-				// Transform the local impedance goal into the global frame
-				impedance_global_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_local_goal_worker)(0,2);
-				// Update the state to stabilization
-				state = 4;
-				ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "impedance");
-				ROS_INFO("Running stabilization");
-				// Let the main_state_machine node know that the robot is ready for another command
-				status.data = 3;
-				state_input_pub.publish(status);
-			}
+			// // Update the Jacobian
+			// robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
+			// // Get the joint forces
+			// if (group->getNextFeedback(group_feedback))
+			// {
+			// 	motor_torques = group_feedback.getEffort();
+			// }
+			// // Update the end-effector force
+			// end_effector_force = wristJacobian * motor_torques;
+			// // Check to see if the force on the end-effector is below the threshold
+			// if (sqrt(pow(end_effector_force(0),2)+pow(end_effector_force(1),2)+pow(end_effector_force(2),2)) < naive_push_force_threshold)
+			// {
+			// 	// Update the joint velocities
+			// 	joint_velocities = wristJacobian.inverse() * desired_velocity;
+			// 	groupCommand.setVelocity(joint_velocities);
+			// 	group->sendCommand(groupCommand);
+			// }
+			// // If it exceeds the threshold, set up impedance control
+			// else
+			// {
+			// 	// Stop the end-effector
+			// 	joint_velocities.setZero();
+			// 	groupCommand.setVelocity(joint_velocities);
+			// 	group->sendCommand(groupCommand);
+			// 	// Update the goal_normal
+			// 	update_rel_goal();
+			// 	// Use the transform to convert the received global impedance goal to the current, local goal in the world frame
+			// 	goal_normal = odom_tf_current_rotation_matrix * global_goal_normal;
+			// 	// Translate the global goal into homogeneous coordinates
+			// 	Eigen::VectorXd impedance_global_goal_worker(4);
+			// 	impedance_global_goal_worker << impedance_global_goal(0,2), 1;
+			// 	// Transform the global impedance goal into the local frame
+			// 	impedance_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_global_goal_worker)(0,2);
+			// 	// Set the current local goal
+			// 	// Set the desired stabilization position as a point some distance into the target and 0 velocity
+			// 	// Get the current end-effector position and add an offset to it along the normal
+			// 	Eigen::Vector3d current_end_effector_position_worker;
+			// 	Eigen::MatrixXd identity_worker(3,3);
+			// 	identity_worker << MatrixXd::Identity(3,3);
+			// 	identity_worker = impedance_goal_offset * identity_worker;
+			// 	Eigen::Vector3d goal_offset_worker;
+			// 	goal_offset_worker = identity_worker * goal_normal;
+			// 	current_end_effector_position_worker = (robot_state->getGlobalLinkTransform(end_effector_name)).translation();
+			// 	impedance_goal(0) = current_end_effector_position_worker.x() + goal_offset_worker(0);
+			// 	impedance_goal(1) = current_end_effector_position_worker.y() + goal_offset_worker(1);
+			// 	impedance_goal(2) = current_end_effector_position_worker.z() + goal_offset_worker(2);
+			// 	// Convert the loccal goal to a global goal
+			// 	// Get the transform from the local frame to the ODOM frame
+			// 	listener_ptr -> lookupTransform(global_origin_frame_name, "world", ros::Time::now(), odom_tf_goal);
+			// 	odom_tf_goal_translation << odom_tf_goal.getOrigin().getX(), odom_tf_goal.getOrigin().getY(), odom_tf_goal.getOrigin().getZ();
+			// 	// Store the tf::Quaternion
+			// 	tf::Quaternion tfQuat;
+			// 	tfQuat = odom_tf_goal.getRotation();
+			// 	// Convert the tf::Quaternion to an Eigen vector
+			// 	Eigen::VectorXd odom_tf_goal_quaternion_worker(4);
+			// 	odom_tf_goal_quaternion_worker << tfQuat.x(), tfQuat.y(), tfQuat.z(), tfQuat.w();
+			// 	// Convert the Eigen vector to an Eigen quaternion
+			// 	Eigen::Quaterniond odom_tf_goal_quaternion(odom_tf_goal_quaternion_worker(3),odom_tf_goal_quaternion_worker(0),odom_tf_goal_quaternion_worker(1),odom_tf_goal_quaternion_worker(2));
+			// 	Eigen::Quaterniond odom_tf_goal_quaternion_normalized;
+			// 	odom_tf_goal_quaternion_normalized = odom_tf_goal_quaternion.normalized();
+			// 	odom_tf_goal_rotation_matrix = odom_tf_goal_quaternion_normalized.toRotationMatrix();	
+			// 	odom_tf_goal_homogeneous_matrix << odom_tf_goal_rotation_matrix, odom_tf_goal_translation, 0, 0, 0, 1;
+			// 	// Use the transform to convert the impedance goal to a global goal
+			// 	// Translate the local goal into homogeneous coordinates
+			// 	Eigen::VectorXd impedance_local_goal_worker(4);
+			// 	impedance_local_goal_worker << impedance_goal(0,2), 1;
+			// 	// Transform the local impedance goal into the global frame
+			// 	impedance_global_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_local_goal_worker)(0,2);
+			// 	// Update the state to stabilization
+			// 	state = 4;
+			// 	ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "impedance");
+			// 	ROS_INFO("Running stabilization");
+			// 	// Let the main_state_machine node know that the robot is ready for another command
+			// 	status.data = 3;
+			// 	state_input_pub.publish(status);
+			// }
 		}
 		// Check if the robot is stabilizing (impedance control)
 		if (state == 4)
 		{
-			update_impedance_goal();
-			// Get the joint velocities
-			jointVelocityVect << hebiJointAngVelocities.at(0), hebiJointAngVelocities.at(1), hebiJointAngVelocities.at(2);
-			// compute fwd kinematics from hebi joints
-			robot_state->setJointGroupPositions(joint_model_group, hebiJointAngles);
-			end_effector_state = robot_state->getGlobalLinkTransform(end_effector_name);
-			// Update the Jacobian
-			robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
-			// Calculate the taskspace velocity
-			taskSpaceVelocityVect = wristJacobian * jointVelocityVect;
-			// Compute the errors
-			position_error << impedance_goal(0) - end_effector_state.translation().x(), impedance_goal(1) - end_effector_state.translation().y(), impedance_goal(2) - end_effector_state.translation().z();
-			velocity_error(0) = impedance_goal(3) - taskSpaceVelocityVect(0);
-			velocity_error(1) = impedance_goal(4) - taskSpaceVelocityVect(1);
-			velocity_error(2) = impedance_goal(5) - taskSpaceVelocityVect(2);
-			// Set the desired cartesian forces
-			desired_cartesian_forces(0) = impedance_position_gain(0) * position_error(0) + impedance_derivative_gain(0) * velocity_error(0);
-			desired_cartesian_forces(1) = impedance_position_gain(1) * position_error(1) + impedance_derivative_gain(1) * velocity_error(1);
-			desired_cartesian_forces(2) = impedance_position_gain(2) * position_error(2) + impedance_derivative_gain(2) * velocity_error(2);
-			// Convert desired cartesian forces to joint efforts
-			Eigen::MatrixXd jacobian_worker(6,group->size());
-			jacobian_worker = wristJacobian.transpose();
+			// update_impedance_goal();
+			// // Get the joint velocities
+			// jointVelocityVect << hebiJointAngVelocities.at(0), hebiJointAngVelocities.at(1), hebiJointAngVelocities.at(2);
+			// // compute fwd kinematics from hebi joints
+			// robot_state->setJointGroupPositions(joint_model_group, hebiJointAngles);
+			// end_effector_state = robot_state->getGlobalLinkTransform(end_effector_name);
+			// // Update the Jacobian
+			// robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
+			// // Calculate the taskspace velocity
+			// taskSpaceVelocityVect = wristJacobian * jointVelocityVect;
+			// // Compute the errors
+			// position_error << impedance_goal(0) - end_effector_state.translation().x(), impedance_goal(1) - end_effector_state.translation().y(), impedance_goal(2) - end_effector_state.translation().z();
+			// velocity_error(0) = impedance_goal(3) - taskSpaceVelocityVect(0);
+			// velocity_error(1) = impedance_goal(4) - taskSpaceVelocityVect(1);
+			// velocity_error(2) = impedance_goal(5) - taskSpaceVelocityVect(2);
+			// // Set the desired cartesian forces
+			// desired_cartesian_forces(0) = impedance_position_gain(0) * position_error(0) + impedance_derivative_gain(0) * velocity_error(0);
+			// desired_cartesian_forces(1) = impedance_position_gain(1) * position_error(1) + impedance_derivative_gain(1) * velocity_error(1);
+			// desired_cartesian_forces(2) = impedance_position_gain(2) * position_error(2) + impedance_derivative_gain(2) * velocity_error(2);
+			// // Convert desired cartesian forces to joint efforts
+			// Eigen::MatrixXd jacobian_worker(6,group->size());
+			// jacobian_worker = wristJacobian.transpose();
 
-			for (unsigned int it = 0; it < group->size(); it++)
-			{
-				desired_torques.effort.push_back(
-			jacobian_worker(0,it) * desired_cartesian_forces(0) + jacobian_worker(1,it) * desired_cartesian_forces(1) + jacobian_worker(2,it) * desired_cartesian_forces(2) + jacobian_worker(3,it) * desired_cartesian_forces(3) + jacobian_worker(4,it) * desired_cartesian_forces(4) + jacobian_worker(5,it) * desired_cartesian_forces(5));
-			}
+			// for (unsigned int it = 0; it < group->size(); it++)
+			// {
+			// 	desired_torques.effort.push_back(
+			// jacobian_worker(0,it) * desired_cartesian_forces(0) + jacobian_worker(1,it) * desired_cartesian_forces(1) + jacobian_worker(2,it) * desired_cartesian_forces(2) + jacobian_worker(3,it) * desired_cartesian_forces(3) + jacobian_worker(4,it) * desired_cartesian_forces(4) + jacobian_worker(5,it) * desired_cartesian_forces(5));
+			// }
 
-			// desired_torques.y = jacobian_worker(1,0) * desired_cartesian_forces(0) + jacobian_worker(1,1) * desired_cartesian_forces(0) + jacobian_worker(1,2) * desired_cartesian_forces(2) + jacobian_worker(1,3) * desired_cartesian_forces(3) + jacobian_worker(1,4) * desired_cartesian_forces(4) + jacobian_worker(1,5) * desired_cartesian_forces(5);
-			// desired_torques.z = jacobian_worker(2,0) * desired_cartesian_forces(0) + jacobian_worker(2,1) * desired_cartesian_forces(0) + jacobian_worker(2,2) * desired_cartesian_forces(2) + jacobian_worker(2,3) * desired_cartesian_forces(3) + jacobian_worker(2,4) * desired_cartesian_forces(4) + jacobian_worker(2,5) * desired_cartesian_forces(5);
-			// Send the desired joint torques to the motors
-			desired_efforts_pub.publish(desired_torques);
+			// // desired_torques.y = jacobian_worker(1,0) * desired_cartesian_forces(0) + jacobian_worker(1,1) * desired_cartesian_forces(0) + jacobian_worker(1,2) * desired_cartesian_forces(2) + jacobian_worker(1,3) * desired_cartesian_forces(3) + jacobian_worker(1,4) * desired_cartesian_forces(4) + jacobian_worker(1,5) * desired_cartesian_forces(5);
+			// // desired_torques.z = jacobian_worker(2,0) * desired_cartesian_forces(0) + jacobian_worker(2,1) * desired_cartesian_forces(0) + jacobian_worker(2,2) * desired_cartesian_forces(2) + jacobian_worker(2,3) * desired_cartesian_forces(3) + jacobian_worker(2,4) * desired_cartesian_forces(4) + jacobian_worker(2,5) * desired_cartesian_forces(5);
+			// // Send the desired joint torques to the motors
+			// desired_efforts_pub.publish(desired_torques);
 		}
 		// Check if the robot is naively pulling from part (velocity control)
 		if (state == 5)
 		{
-			// Grab the current end-effector pose
-			naive_pull_current_pose = robot_state->getGlobalLinkTransform(end_effector_name);
-			// Check to see if the end-effector has moved far enough
-			if ((naive_pull_starting_pose.translation() - naive_pull_current_pose.translation()).norm() < naive_pull_offset)
-			{
-				// Update the Jacobian
-				robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
-				// Update the joint velocities
-				joint_velocities = wristJacobian.inverse() * desired_velocity;
-				groupCommand.setVelocity(joint_velocities);
-				group->sendCommand(groupCommand);
-			}
-			// If it has moved far enough away, return it to home
-			else
-			{
-				// Stop the end-effector
-				joint_velocities.setZero();
-				groupCommand.setVelocity(joint_velocities);
-				group->sendCommand(groupCommand);
-				// Update the state to returning to home
-				state = 6;
-				ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "home");
-				// Let the main_state_machine node know that the robot is initializing
-				status.data = 1;
-				state_input_pub.publish(status);
-				ROS_INFO("Pull successful, returning to home");
-			}
+			// // Grab the current end-effector pose
+			// naive_pull_current_pose = robot_state->getGlobalLinkTransform(end_effector_name);
+			// // Check to see if the end-effector has moved far enough
+			// if ((naive_pull_starting_pose.translation() - naive_pull_current_pose.translation()).norm() < naive_pull_offset)
+			// {
+			// 	// Update the Jacobian
+			// 	robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
+			// 	// Update the joint velocities
+			// 	joint_velocities = wristJacobian.inverse() * desired_velocity;
+			// 	groupCommand.setVelocity(joint_velocities);
+			// 	group->sendCommand(groupCommand);
+			// }
+			// // If it has moved far enough away, return it to home
+			// else
+			// {
+			// 	// Stop the end-effector
+			// 	joint_velocities.setZero();
+			// 	groupCommand.setVelocity(joint_velocities);
+			// 	group->sendCommand(groupCommand);
+			// 	// Update the state to returning to home
+			// 	state = 6;
+			// 	ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "home");
+			// 	// Let the main_state_machine node know that the robot is initializing
+			// 	status.data = 1;
+			// 	state_input_pub.publish(status);
+			// 	ROS_INFO("Pull successful, returning to home");
+			// }
 		}
 		// Check if the robot is returning to home
 		if (state == 6)
