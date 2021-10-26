@@ -254,6 +254,13 @@ target_link_libraries(KDC_actuated_test_copy
   ${catkin_LIBRARIES}
 )
 
+add_executable(Integrated_AM src/Integrated_AM.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(Integrated_AM
+  ${catkin_LIBRARIES}
+)
+
 #############
 ## Install ##
 #############
