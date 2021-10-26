@@ -37,16 +37,11 @@
     <virtual_joint name="virtual_joint" type="fixed" parent_frame="world" child_link="world" />
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
     <disable_collisions link1="body" link2="head" reason="Adjacent" />
-    <disable_collisions link1="body" link2="motor1/INPUT_INTERFACE" reason="Adjacent" />
-    <disable_collisions link1="body" link2="motor2/INPUT_INTERFACE" reason="Never" />
-    <disable_collisions link1="body" link2="ms1/INPUT_INTERFACE" reason="Adjacent" />
-    <disable_collisions link1="body" link2="right_arm1/INPUT_INTERFACE" reason="Never" />
     <disable_collisions link1="body" link2="rodL" reason="Adjacent" />
     <disable_collisions link1="body" link2="rodR" reason="Adjacent" />
     <disable_collisions link1="body" link2="shoulder_len" reason="Adjacent" />
     <disable_collisions link1="head" link2="motor1/INPUT_INTERFACE" reason="Adjacent" />
     <disable_collisions link1="head" link2="motor2/INPUT_INTERFACE" reason="Never" />
-    <disable_collisions link1="head" link2="ms1/INPUT_INTERFACE" reason="Adjacent" />
     <disable_collisions link1="head" link2="right_arm1/INPUT_INTERFACE" reason="Never" />
     <disable_collisions link1="head" link2="rodL" reason="Adjacent" />
     <disable_collisions link1="head" link2="rodR" reason="Adjacent" />
@@ -74,7 +69,7 @@
     <disable_collisions link1="motor4/INPUT_INTERFACE" link2="sensor/INPUT_INTERFACE" reason="Adjacent" />
     <disable_collisions link1="ms1/INPUT_INTERFACE" link2="right_arm1/INPUT_INTERFACE" reason="Never" />
     <disable_collisions link1="ms1/INPUT_INTERFACE" link2="right_arm2/INPUT_INTERFACE" reason="User" />
-    <disable_collisions link1="ms1/INPUT_INTERFACE" link2="right_arm3/INPUT_INTERFACE" reason="Default" />
+    <disable_collisions link1="ms1/INPUT_INTERFACE" link2="right_arm3/INPUT_INTERFACE" reason="User" />
     <disable_collisions link1="ms1/INPUT_INTERFACE" link2="rodL" reason="Adjacent" />
     <disable_collisions link1="ms1/INPUT_INTERFACE" link2="rodR" reason="Adjacent" />
     <disable_collisions link1="ms1/INPUT_INTERFACE" link2="sensor/INPUT_INTERFACE" reason="User" />
