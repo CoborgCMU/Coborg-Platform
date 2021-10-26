@@ -66,7 +66,7 @@ void new_trajectory_callback(const moveit_msgs::RobotTrajectory::ConstPtr& msg)
         for (unsigned int ii = 1; ii < new_trajectory.JointTrajectory.JointTrajectoryPoint.size(); ii++)
         {
             // Store the position indice of the point in the acceleration parameter
-            new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].accelerations = working_pos;
+            new_trajectory.JointTrajectory.JointTrajectoryPoint[ii-1].accelerations = working_pos;
             unsigned int num_pts = (new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].time_from_start - new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].time_from_start[ii-1]).toSec()/time_step;
             for (unsigned int jj = 0; jj < num_pts; j++)
             {
@@ -85,19 +85,33 @@ void new_trajectory_callback(const moveit_msgs::RobotTrajectory::ConstPtr& msg)
         new_trajectory = *msg;
         bool divergence_point_found = 0;
         // Find the divergence point of the two trajectories
-        for (unsigned int ii = 0; ii < new_trajectory.JointTrajectory.JointTrajectoryPoint.size(); ii++)
+        for (unsigned int ii = 0; ii < prev_trajectory.JointTrajectory.JointTrajectoryPoint.size(); ii++)
         {
             // Check whether the first point of the new trajectory overlaps a point of the old trajectory
             // Also ensure that this point hasn't already been executed
             if (std::equal(std::begin(prev_trajectory.JointTrajectory.JointTrajectoryPoint[ii].positions), std::end(prev_trajectory.JointTrajectory.JointTrajectoryPoint[ii].positions), std::begin(new_trajectory.JointTrajectory.JointTrajectoryPoint[0].positions)) && prev_trajectory.JointTrajectory.JointTrajectoryPoint[ii].accelerations > cur_pos)
             {
+                working_pos = int(prev_trajectory.JointTrajectory.JointTrajectoryPoint[ii].accelerations);
                 divergence_point_found = 1;
                 break;
             }
         }
         if (divergence_point_found == 1)
         {
-            
+            for (unsigned int ii = 1; ii < new_trajectory.JointTrajectory.JointTrajectoryPoint.size(); ii++)
+            {
+                // Store the position indice of the point in the acceleration parameter
+                new_trajectory.JointTrajectory.JointTrajectoryPoint[ii-1].accelerations = working_pos;
+                unsigned int num_pts = (new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].time_from_start - new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].time_from_start[ii-1]).toSec()/time_step;
+                for (unsigned int jj = 0; jj < num_pts; j++)
+                {
+                    for (unsigned int kk = 0; kk < positions[0].size(); kk++)
+                    {
+                        positions[working_pos][kk] = ((new_trajectory.JointTrajectory.JointTrajectoryPoint[ii].positions[kk] - new_trajectory.JointTrajectory.JointTrajectoryPoint[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.JointTrajectory.JointTrajectoryPoint[ii-1].positions[kk];
+                    }
+                working_pos += 1;
+                }
+            }
         }
     }
     return;
@@ -134,16 +148,17 @@ int main(int argc, char** argv)
         if (state == 1)
         {
             // Fill in JointState message
-            next_point.header.seq += 1;
             next_point.header.time_stamp = ros::Time::now();
             next_point.position = positions[cur_pos];
             cur_pos += 1;
             joint_state_pub.publish(next_point);
             if (cur_pos > positions.size())
             {
+                next_point.header.seq = 0;
                 std::cout<<"Finished trajectory"<<std::endl;
                 state = 0;
             }
+            next_point.header.seq += 1;
         }
         loop_rate.sleep();
     }
