@@ -24,6 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   rviz_visual_tools
   sensor_msgs
   gb_visual_detection_3d_msgs
+  goal_getter
 )
 
 ## System dependencies are found with CMake's conventions
@@ -130,6 +131,7 @@ catkin_package(
   moveit_ros_planning_interface
   sensor_msgs
   gb_visual_detection_3d_msgs
+  goal_getter
 #  DEPENDS system_lib
 )
 
@@ -258,6 +260,13 @@ add_executable(Integrated_AM src/Integrated_AM.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(Integrated_AM
+  ${catkin_LIBRARIES}
+)
+
+add_executable(resolved_rate_integrated src/resolved_rate_integrated.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(resolved_rate_integrated
   ${catkin_LIBRARIES}
 )
 

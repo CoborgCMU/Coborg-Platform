@@ -88,7 +88,7 @@ void goal_callback(const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_m
                 // FORNOW: only goal position is updated b/c 3DoF robot arm cannot solve 6DoF goal every time
                 goal.x = -transform.getOrigin().getX() + goal_msg->x;
                 goal.y = -transform.getOrigin().getY() + goal_msg->y;
-                goal.z = transform.getOrigin().getZ() + goal_msg->z;
+                goal.z = -transform.getOrigin().getZ() + goal_msg->z;
 
                 // std::cout << "[RESOLVED RATE] - goal callback received and transformed to t265_odom frame." << std::endl;
                 ROS_INFO("T265 Goal Transforms are: x: %f, y: %f: z: %f", goal.x,goal.y, goal.z);
@@ -192,7 +192,7 @@ int main(int argc, char **argv)
     float dt = 1.0;
     Eigen::MatrixXd W(group->size(),group->size());
     W.setIdentity();
-    //W(3,3) = 100;
+    //W(3,3) = 10;
 
     std::string cwd("\0", FILENAME_MAX+1);
     std::cout << "Current path: " << getcwd(&cwd[0],cwd.capacity()) << std::endl;
@@ -214,9 +214,9 @@ int main(int argc, char **argv)
     ros::Publisher goal_pub = node.advertise<gb_visual_detection_3d_msgs::goal_msg>("/cam2_goal", 1);
     gb_visual_detection_3d_msgs::goal_msg test_goal;
     // test_goal.header.stamp = ros::Time::now();
-    test_goal.x = 0.3;
-    test_goal.y = 0.1;
-    test_goal.z = 0.2;
+    test_goal.x = 0.45;
+    test_goal.y = 0.2;
+    test_goal.z = 0.1;
     test_goal.normal_x = 1.0;
     test_goal.normal_y = 0.0;
     test_goal.normal_z = 0.0;

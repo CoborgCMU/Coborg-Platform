@@ -20,7 +20,7 @@
 
 
 
-#define HZ 5
+#define HZ 20
 double tf_time_offset = 0.1;
 double cam1_prevTime = 0.0;
 double cam2_prevTime = 0.0;
@@ -117,6 +117,9 @@ private:
         goal_normal_pose.pose.orientation.y = goal_normal_quaternion.y();
         goal_normal_pose.pose.orientation.z = goal_normal_quaternion.z();
         goal_normal_pose.pose.orientation.w = goal_normal_quaternion.w();
+
+    
+
     }
 
     void convertToOdom(geometry_msgs::PoseStamped& goal_normal, const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg, double &prevTimeLocal)
@@ -268,13 +271,18 @@ private:
             goalNormalSetPose.header.stamp = prevTime;
 
 
-            std::cout << "Time is  "<< prevTime << std::endl;
+            // std::cout << "Time is  "<< prevTime << std::endl;
             // transform it to /world
             try{
-                tfListener_.transformPose("/world", goalNormalSetPose, goal_normal);
-
                 goal_getter::GoalPose goal_msg;
+                // goal_msg.goal_normal_motor = goalNormalSetPose;
+
+                tfListener_.transformPose("/world", goalNormalSetPose, goal_normal);
                 goal_msg.goal_normal = goal_normal;
+
+                tfListener_.transformPose("/motor1/INPUT_INTERFACE", goalNormalSetPose, goal_normal_motor1);
+                goal_msg.goal_normal_motor = goal_normal_motor1;
+                
                 goal_pub_.publish(goal_msg);
                 prevTime = ros::Time::now();
                 goal_normal_computed = true;
@@ -310,6 +318,7 @@ private:
     bool goal_received;
     bool goal_normal_computed;
     geometry_msgs::PoseStamped goal_normal;
+    geometry_msgs::PoseStamped goal_normal_motor1;
 };
 
 

@@ -16,6 +16,11 @@
 	// In a separate terminal, run "rostopic echo /execute_trajectory/feedback"
 	// In a separate terminal, run "rostopic echo /hebi_joints"
 
+
+Feng Xiang and Yuqing Qin and Gerry D'Ascoli:
+change /goal message callback to goal_getter::GoalPose
+get the normal goal_msg for normal planning
+
 //Includes
 #include <string>
 #include <math.h>
@@ -47,6 +52,9 @@
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
+#include "hebi_cpp_api/robot_model.hpp"
+
+#include "goal_getter/GoalPose.h"
 
 // TO DO:
 // Update goal_tolerance_angle with the actual tolerance of the end-effector
@@ -193,6 +201,17 @@ Eigen::Isometry3d naive_pull_current_pose;
 // Initialize Return to Home Variables
 std::vector<double> joint_group_positions = { 0.0, -1.8, -1.9, -2.1 };
 // std::vector<double> joint_group_positions = { 0.0, -1.8, -2.2, -2.4 };
+
+// Feng Xiang <-- Loser
+// Initialize Ready Variables
+std::vector<double> joint_group_ready_position = {0.29, -1.02, -2.38, -1.61};
+
+// Resolved Rate Globals
+double tf_offset_time = 0.05;
+double prevGoalCallbackTime = 0.0;
+ros::Time prevPoseMotionDetectTime;
+
+geometry_msgs::PoseStamped motorGoalPoseStamped;
 
 // Define Functions
 void update_impedance_goal()
@@ -667,6 +686,66 @@ int main(int argc, char** argv)
 	ros::Subscriber goal_sub = node_handle.subscribe("/goal", 1, goal_callback);
 	ros::Subscriber interpolator_success_sub = node_handle.subscribe("/interpolator_success", 1, interpolator_success_callback);
 
+	// ----- Set up for resolved rate
+	// inititalize HEBI API
+    std::vector<std::string> families;
+    families = {"01-base","02-shoulder","03-elbow","04-wrist"};
+    std::vector<std::string> names;
+    names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
+
+    // connect to HEBI joints on network through UDP connection
+    std::shared_ptr<hebi::Group> group;
+    for (int num_tries = 0; num_tries < 3; num_tries++) {
+      hebi::Lookup lookup;
+      group = lookup.getGroupFromNames(families, names);
+      if (group) {
+        //print hebi modules to terminal
+        auto entry_list = lookup.getEntryList();
+
+        for(size_t hebi_iter = 0; hebi_iter < entry_list->size(); ++ hebi_iter)
+        {
+            std::cout << (*entry_list)[hebi_iter].family_ << " | " << (*entry_list)[hebi_iter].name_ << std::endl;
+        }
+        break;
+      }
+      ROS_WARN("[RESOLVED RATE] Initialization - Could not find group actuators, trying again...");
+      ros::Duration(1.0).sleep();
+    }
+    //code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
+
+    // error out if HEBI joints are not found on the network
+    if (!group) {
+      ROS_ERROR("[RESOLVED RATE] Initialization - Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+      return -1;
+    }
+    //print names of each HEBI item in the group
+    std::cout << "Total Number of HEBI Members in group: " << group->size() << std::endl;
+
+    Eigen::VectorXd thetas(group->size());
+    Eigen::VectorXd thetadot(group->size());
+
+	float dt = 1.0;
+    Eigen::MatrixXd W(group->size(),group->size());
+    W.setIdentity();
+
+    std::string cwd("\0", FILENAME_MAX+1);
+    std::cout << "Current path: " << getcwd(&cwd[0],cwd.capacity()) << std::endl;
+    std::unique_ptr<hebi::robot_model::RobotModel> model = hebi::robot_model::RobotModel::loadHRDF("dof_4_robot.hrdf");
+    Eigen::Matrix4d baseTransform;
+    baseTransform.setIdentity();
+    model->setBaseFrame(baseTransform);
+	if (model == NULL)
+    {
+        ROS_WARN("[RESOLVED RATE] Initialization - Did NOT find HRDF file of robot arm.");
+    }
+    else
+    {
+        std::cout << "[RESOLVED RATE] Initialization - Found HRDF file of robot arm." << std::endl;
+    }
+    prevPoseMotionDetectTime = ros::Time::now();
+
+
+
 	std::cout<<"Publishers and subscribers initialized"<<std::endl;
 
 	std::cout<<"Looping and ready"<<std::endl;
@@ -675,8 +754,43 @@ int main(int argc, char** argv)
         // Check if the robot has been commanded to move and has received an updated local goal
         if (state == -1)
         {
+
+			// Feng Xiang
+			// move to static joint state
+			// code begin
+			// Let the main_state_machine node know that the robot is initializing
+			ROS_INFO("Planning to go to ready state.");
+			// Create and set planning goal
+			robot_state::RobotState goal_state(robot_model);
+			goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position);
+			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
+			std::cout<<"joint_goal is: "<<std::endl;
+			ROS_INFO_STREAM(joint_goal);
+			plan_req.group_name = PLANNING_GROUP;
+			plan_req.goal_constraints.clear();
+			plan_req.goal_constraints.push_back(joint_goal);
+			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+			// Store plan
+			moveit_msgs::MotionPlanResponse response;
+			response_ptr = &response;
+			plan_res.getMessage(response);
+			// moveit_plans_pub_ptr->publish(my_plan);
+			// Set the trajectory and execute the plan
+			my_plan.trajectory_ = response.trajectory;
+			// Execute move
+			move_group.execute(my_plan);
+			prev_plan_res = response;
+			ROS_INFO("Going to ready state.");
+			// code end
+
+
             // Plan RRT Connect Path and send it for execution
             // Set move group planning constraints
+			// Feng Xiang
+			// plan and execute
+			// inputs: numAttempts, planningTime, pose_relative_world
+			// outputs: (void)
+			// code block: copy all code from state == -1
             move_group_ptr->setNumPlanningAttempts(num_attempts_initial_goal);
             move_group_ptr->setPlanningTime(moveit_planning_time_initial_goal);
             // Reset tolerances
@@ -687,9 +801,10 @@ int main(int argc, char** argv)
             std::cout<<"Calling planning pipeline to generate plan"<<std::endl;
             /* Now, call the pipeline and check whether planning was successful. */
             /* Check that the planning was successful */
-            moveit_msgs::MotionPlanResponse response;
-            response_ptr = &response;
-            while (true)
+            // moveit_msgs::MotionPlanResponse response;
+            // response_ptr = &response;
+            
+			while (true)
             {
                 std::cout<<"Adding pose goal"<<std::endl;
                 moveit_msgs::Constraints pose_goal = kinematic_constraints::constructGoalConstraints(end_effector_name, goal_pose, goal_tolerance_pose, goal_tolerance_angle);
@@ -1022,153 +1137,200 @@ int main(int argc, char** argv)
 			}
 			new_plan_origin_found = 0;
 		}
-		// Check if the robot is naively moving toward the target (admittance control)
-		if (state == 3)
-		{
-			// // Update the Jacobian
-			// robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
-			// // Get the joint forces
-			// if (group->getNextFeedback(group_feedback))
-			// {
-			// 	motor_torques = group_feedback.getEffort();
-			// }
-			// // Update the end-effector force
-			// end_effector_force = wristJacobian * motor_torques;
-			// // Check to see if the force on the end-effector is below the threshold
-			// if (sqrt(pow(end_effector_force(0),2)+pow(end_effector_force(1),2)+pow(end_effector_force(2),2)) < naive_push_force_threshold)
-			// {
-			// 	// Update the joint velocities
-			// 	joint_velocities = wristJacobian.inverse() * desired_velocity;
-			// 	groupCommand.setVelocity(joint_velocities);
-			// 	group->sendCommand(groupCommand);
-			// }
-			// // If it exceeds the threshold, set up impedance control
-			// else
-			// {
-			// 	// Stop the end-effector
-			// 	joint_velocities.setZero();
-			// 	groupCommand.setVelocity(joint_velocities);
-			// 	group->sendCommand(groupCommand);
-			// 	// Update the goal_normal
-			// 	update_rel_goal();
-			// 	// Use the transform to convert the received global impedance goal to the current, local goal in the world frame
-			// 	goal_normal = odom_tf_current_rotation_matrix * global_goal_normal;
-			// 	// Translate the global goal into homogeneous coordinates
-			// 	Eigen::VectorXd impedance_global_goal_worker(4);
-			// 	impedance_global_goal_worker << impedance_global_goal(0,2), 1;
-			// 	// Transform the global impedance goal into the local frame
-			// 	impedance_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_global_goal_worker)(0,2);
-			// 	// Set the current local goal
-			// 	// Set the desired stabilization position as a point some distance into the target and 0 velocity
-			// 	// Get the current end-effector position and add an offset to it along the normal
-			// 	Eigen::Vector3d current_end_effector_position_worker;
-			// 	Eigen::MatrixXd identity_worker(3,3);
-			// 	identity_worker << MatrixXd::Identity(3,3);
-			// 	identity_worker = impedance_goal_offset * identity_worker;
-			// 	Eigen::Vector3d goal_offset_worker;
-			// 	goal_offset_worker = identity_worker * goal_normal;
-			// 	current_end_effector_position_worker = (robot_state->getGlobalLinkTransform(end_effector_name)).translation();
-			// 	impedance_goal(0) = current_end_effector_position_worker.x() + goal_offset_worker(0);
-			// 	impedance_goal(1) = current_end_effector_position_worker.y() + goal_offset_worker(1);
-			// 	impedance_goal(2) = current_end_effector_position_worker.z() + goal_offset_worker(2);
-			// 	// Convert the loccal goal to a global goal
-			// 	// Get the transform from the local frame to the ODOM frame
-			// 	listener_ptr -> lookupTransform(global_origin_frame_name, "world", ros::Time::now(), odom_tf_goal);
-			// 	odom_tf_goal_translation << odom_tf_goal.getOrigin().getX(), odom_tf_goal.getOrigin().getY(), odom_tf_goal.getOrigin().getZ();
-			// 	// Store the tf::Quaternion
-			// 	tf::Quaternion tfQuat;
-			// 	tfQuat = odom_tf_goal.getRotation();
-			// 	// Convert the tf::Quaternion to an Eigen vector
-			// 	Eigen::VectorXd odom_tf_goal_quaternion_worker(4);
-			// 	odom_tf_goal_quaternion_worker << tfQuat.x(), tfQuat.y(), tfQuat.z(), tfQuat.w();
-			// 	// Convert the Eigen vector to an Eigen quaternion
-			// 	Eigen::Quaterniond odom_tf_goal_quaternion(odom_tf_goal_quaternion_worker(3),odom_tf_goal_quaternion_worker(0),odom_tf_goal_quaternion_worker(1),odom_tf_goal_quaternion_worker(2));
-			// 	Eigen::Quaterniond odom_tf_goal_quaternion_normalized;
-			// 	odom_tf_goal_quaternion_normalized = odom_tf_goal_quaternion.normalized();
-			// 	odom_tf_goal_rotation_matrix = odom_tf_goal_quaternion_normalized.toRotationMatrix();	
-			// 	odom_tf_goal_homogeneous_matrix << odom_tf_goal_rotation_matrix, odom_tf_goal_translation, 0, 0, 0, 1;
-			// 	// Use the transform to convert the impedance goal to a global goal
-			// 	// Translate the local goal into homogeneous coordinates
-			// 	Eigen::VectorXd impedance_local_goal_worker(4);
-			// 	impedance_local_goal_worker << impedance_goal(0,2), 1;
-			// 	// Transform the local impedance goal into the global frame
-			// 	impedance_global_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_local_goal_worker)(0,2);
-			// 	// Update the state to stabilization
-			// 	state = 4;
-			// 	ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "impedance");
-			// 	ROS_INFO("Running stabilization");
-			// 	// Let the main_state_machine node know that the robot is ready for another command
-			// 	status.data = 3;
-			// 	state_input_pub.publish(status);
-			// }
-		}
-		// Check if the robot is stabilizing (impedance control)
-		if (state == 4)
-		{
-			// update_impedance_goal();
-			// // Get the joint velocities
-			// jointVelocityVect << hebiJointAngVelocities.at(0), hebiJointAngVelocities.at(1), hebiJointAngVelocities.at(2);
-			// // compute fwd kinematics from hebi joints
-			// robot_state->setJointGroupPositions(joint_model_group, hebiJointAngles);
-			// end_effector_state = robot_state->getGlobalLinkTransform(end_effector_name);
-			// // Update the Jacobian
-			// robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
-			// // Calculate the taskspace velocity
-			// taskSpaceVelocityVect = wristJacobian * jointVelocityVect;
-			// // Compute the errors
-			// position_error << impedance_goal(0) - end_effector_state.translation().x(), impedance_goal(1) - end_effector_state.translation().y(), impedance_goal(2) - end_effector_state.translation().z();
-			// velocity_error(0) = impedance_goal(3) - taskSpaceVelocityVect(0);
-			// velocity_error(1) = impedance_goal(4) - taskSpaceVelocityVect(1);
-			// velocity_error(2) = impedance_goal(5) - taskSpaceVelocityVect(2);
-			// // Set the desired cartesian forces
-			// desired_cartesian_forces(0) = impedance_position_gain(0) * position_error(0) + impedance_derivative_gain(0) * velocity_error(0);
-			// desired_cartesian_forces(1) = impedance_position_gain(1) * position_error(1) + impedance_derivative_gain(1) * velocity_error(1);
-			// desired_cartesian_forces(2) = impedance_position_gain(2) * position_error(2) + impedance_derivative_gain(2) * velocity_error(2);
-			// // Convert desired cartesian forces to joint efforts
-			// Eigen::MatrixXd jacobian_worker(6,group->size());
-			// jacobian_worker = wristJacobian.transpose();
+		// // Check if the robot is naively moving toward the target (admittance control)
+		// if (state == 3)
+		// {
+		// 	// // Update the Jacobian
+		// 	// robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
+		// 	// // Get the joint forces
+		// 	// if (group->getNextFeedback(group_feedback))
+		// 	// {
+		// 	// 	motor_torques = group_feedback.getEffort();
+		// 	// }
+		// 	// // Update the end-effector force
+		// 	// end_effector_force = wristJacobian * motor_torques;
+		// 	// // Check to see if the force on the end-effector is below the threshold
+		// 	// if (sqrt(pow(end_effector_force(0),2)+pow(end_effector_force(1),2)+pow(end_effector_force(2),2)) < naive_push_force_threshold)
+		// 	// {
+		// 	// 	// Update the joint velocities
+		// 	// 	joint_velocities = wristJacobian.inverse() * desired_velocity;
+		// 	// 	groupCommand.setVelocity(joint_velocities);
+		// 	// 	group->sendCommand(groupCommand);
+		// 	// }
+		// 	// // If it exceeds the threshold, set up impedance control
+		// 	// else
+		// 	// {
+		// 	// 	// Stop the end-effector
+		// 	// 	joint_velocities.setZero();
+		// 	// 	groupCommand.setVelocity(joint_velocities);
+		// 	// 	group->sendCommand(groupCommand);
+		// 	// 	// Update the goal_normal
+		// 	// 	update_rel_goal();
+		// 	// 	// Use the transform to convert the received global impedance goal to the current, local goal in the world frame
+		// 	// 	goal_normal = odom_tf_current_rotation_matrix * global_goal_normal;
+		// 	// 	// Translate the global goal into homogeneous coordinates
+		// 	// 	Eigen::VectorXd impedance_global_goal_worker(4);
+		// 	// 	impedance_global_goal_worker << impedance_global_goal(0,2), 1;
+		// 	// 	// Transform the global impedance goal into the local frame
+		// 	// 	impedance_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_global_goal_worker)(0,2);
+		// 	// 	// Set the current local goal
+		// 	// 	// Set the desired stabilization position as a point some distance into the target and 0 velocity
+		// 	// 	// Get the current end-effector position and add an offset to it along the normal
+		// 	// 	Eigen::Vector3d current_end_effector_position_worker;
+		// 	// 	Eigen::MatrixXd identity_worker(3,3);
+		// 	// 	identity_worker << MatrixXd::Identity(3,3);
+		// 	// 	identity_worker = impedance_goal_offset * identity_worker;
+		// 	// 	Eigen::Vector3d goal_offset_worker;
+		// 	// 	goal_offset_worker = identity_worker * goal_normal;
+		// 	// 	current_end_effector_position_worker = (robot_state->getGlobalLinkTransform(end_effector_name)).translation();
+		// 	// 	impedance_goal(0) = current_end_effector_position_worker.x() + goal_offset_worker(0);
+		// 	// 	impedance_goal(1) = current_end_effector_position_worker.y() + goal_offset_worker(1);
+		// 	// 	impedance_goal(2) = current_end_effector_position_worker.z() + goal_offset_worker(2);
+		// 	// 	// Convert the loccal goal to a global goal
+		// 	// 	// Get the transform from the local frame to the ODOM frame
+		// 	// 	listener_ptr -> lookupTransform(global_origin_frame_name, "world", ros::Time::now(), odom_tf_goal);
+		// 	// 	odom_tf_goal_translation << odom_tf_goal.getOrigin().getX(), odom_tf_goal.getOrigin().getY(), odom_tf_goal.getOrigin().getZ();
+		// 	// 	// Store the tf::Quaternion
+		// 	// 	tf::Quaternion tfQuat;
+		// 	// 	tfQuat = odom_tf_goal.getRotation();
+		// 	// 	// Convert the tf::Quaternion to an Eigen vector
+		// 	// 	Eigen::VectorXd odom_tf_goal_quaternion_worker(4);
+		// 	// 	odom_tf_goal_quaternion_worker << tfQuat.x(), tfQuat.y(), tfQuat.z(), tfQuat.w();
+		// 	// 	// Convert the Eigen vector to an Eigen quaternion
+		// 	// 	Eigen::Quaterniond odom_tf_goal_quaternion(odom_tf_goal_quaternion_worker(3),odom_tf_goal_quaternion_worker(0),odom_tf_goal_quaternion_worker(1),odom_tf_goal_quaternion_worker(2));
+		// 	// 	Eigen::Quaterniond odom_tf_goal_quaternion_normalized;
+		// 	// 	odom_tf_goal_quaternion_normalized = odom_tf_goal_quaternion.normalized();
+		// 	// 	odom_tf_goal_rotation_matrix = odom_tf_goal_quaternion_normalized.toRotationMatrix();	
+		// 	// 	odom_tf_goal_homogeneous_matrix << odom_tf_goal_rotation_matrix, odom_tf_goal_translation, 0, 0, 0, 1;
+		// 	// 	// Use the transform to convert the impedance goal to a global goal
+		// 	// 	// Translate the local goal into homogeneous coordinates
+		// 	// 	Eigen::VectorXd impedance_local_goal_worker(4);
+		// 	// 	impedance_local_goal_worker << impedance_goal(0,2), 1;
+		// 	// 	// Transform the local impedance goal into the global frame
+		// 	// 	impedance_global_goal(0,2) = (odom_tf_current_homogeneous_matrix * impedance_local_goal_worker)(0,2);
+		// 	// 	// Update the state to stabilization
+		// 	// 	state = 4;
+		// 	// 	ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "impedance");
+		// 	// 	ROS_INFO("Running stabilization");
+		// 	// 	// Let the main_state_machine node know that the robot is ready for another command
+		// 	// 	status.data = 3;
+		// 	// 	state_input_pub.publish(status);
+		// 	// }
+		// }
+		// // Check if the robot is stabilizing (impedance control)
+		// if (state == 4)
+		// {
+		// 	// update_impedance_goal();
+		// 	// // Get the joint velocities
+		// 	// jointVelocityVect << hebiJointAngVelocities.at(0), hebiJointAngVelocities.at(1), hebiJointAngVelocities.at(2);
+		// 	// // compute fwd kinematics from hebi joints
+		// 	// robot_state->setJointGroupPositions(joint_model_group, hebiJointAngles);
+		// 	// end_effector_state = robot_state->getGlobalLinkTransform(end_effector_name);
+		// 	// // Update the Jacobian
+		// 	// robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
+		// 	// // Calculate the taskspace velocity
+		// 	// taskSpaceVelocityVect = wristJacobian * jointVelocityVect;
+		// 	// // Compute the errors
+		// 	// position_error << impedance_goal(0) - end_effector_state.translation().x(), impedance_goal(1) - end_effector_state.translation().y(), impedance_goal(2) - end_effector_state.translation().z();
+		// 	// velocity_error(0) = impedance_goal(3) - taskSpaceVelocityVect(0);
+		// 	// velocity_error(1) = impedance_goal(4) - taskSpaceVelocityVect(1);
+		// 	// velocity_error(2) = impedance_goal(5) - taskSpaceVelocityVect(2);
+		// 	// // Set the desired cartesian forces
+		// 	// desired_cartesian_forces(0) = impedance_position_gain(0) * position_error(0) + impedance_derivative_gain(0) * velocity_error(0);
+		// 	// desired_cartesian_forces(1) = impedance_position_gain(1) * position_error(1) + impedance_derivative_gain(1) * velocity_error(1);
+		// 	// desired_cartesian_forces(2) = impedance_position_gain(2) * position_error(2) + impedance_derivative_gain(2) * velocity_error(2);
+		// 	// // Convert desired cartesian forces to joint efforts
+		// 	// Eigen::MatrixXd jacobian_worker(6,group->size());
+		// 	// jacobian_worker = wristJacobian.transpose();
 
-			// for (unsigned int it = 0; it < group->size(); it++)
-			// {
-			// 	desired_torques.effort.push_back(
-			// jacobian_worker(0,it) * desired_cartesian_forces(0) + jacobian_worker(1,it) * desired_cartesian_forces(1) + jacobian_worker(2,it) * desired_cartesian_forces(2) + jacobian_worker(3,it) * desired_cartesian_forces(3) + jacobian_worker(4,it) * desired_cartesian_forces(4) + jacobian_worker(5,it) * desired_cartesian_forces(5));
-			// }
+		// 	// for (unsigned int it = 0; it < group->size(); it++)
+		// 	// {
+		// 	// 	desired_torques.effort.push_back(
+		// 	// jacobian_worker(0,it) * desired_cartesian_forces(0) + jacobian_worker(1,it) * desired_cartesian_forces(1) + jacobian_worker(2,it) * desired_cartesian_forces(2) + jacobian_worker(3,it) * desired_cartesian_forces(3) + jacobian_worker(4,it) * desired_cartesian_forces(4) + jacobian_worker(5,it) * desired_cartesian_forces(5));
+		// 	// }
 
-			// // desired_torques.y = jacobian_worker(1,0) * desired_cartesian_forces(0) + jacobian_worker(1,1) * desired_cartesian_forces(0) + jacobian_worker(1,2) * desired_cartesian_forces(2) + jacobian_worker(1,3) * desired_cartesian_forces(3) + jacobian_worker(1,4) * desired_cartesian_forces(4) + jacobian_worker(1,5) * desired_cartesian_forces(5);
-			// // desired_torques.z = jacobian_worker(2,0) * desired_cartesian_forces(0) + jacobian_worker(2,1) * desired_cartesian_forces(0) + jacobian_worker(2,2) * desired_cartesian_forces(2) + jacobian_worker(2,3) * desired_cartesian_forces(3) + jacobian_worker(2,4) * desired_cartesian_forces(4) + jacobian_worker(2,5) * desired_cartesian_forces(5);
-			// // Send the desired joint torques to the motors
-			// desired_efforts_pub.publish(desired_torques);
-		}
-		// Check if the robot is naively pulling from part (velocity control)
-		if (state == 5)
+		// 	// // desired_torques.y = jacobian_worker(1,0) * desired_cartesian_forces(0) + jacobian_worker(1,1) * desired_cartesian_forces(0) + jacobian_worker(1,2) * desired_cartesian_forces(2) + jacobian_worker(1,3) * desired_cartesian_forces(3) + jacobian_worker(1,4) * desired_cartesian_forces(4) + jacobian_worker(1,5) * desired_cartesian_forces(5);
+		// 	// // desired_torques.z = jacobian_worker(2,0) * desired_cartesian_forces(0) + jacobian_worker(2,1) * desired_cartesian_forces(0) + jacobian_worker(2,2) * desired_cartesian_forces(2) + jacobian_worker(2,3) * desired_cartesian_forces(3) + jacobian_worker(2,4) * desired_cartesian_forces(4) + jacobian_worker(2,5) * desired_cartesian_forces(5);
+		// 	// // Send the desired joint torques to the motors
+		// 	// desired_efforts_pub.publish(desired_torques);
+		// }
+		// // Check if the robot is naively pulling from part (velocity control)
+		// if (state == 5)
+		// {
+		// 	// // Grab the current end-effector pose
+		// 	// naive_pull_current_pose = robot_state->getGlobalLinkTransform(end_effector_name);
+		// 	// // Check to see if the end-effector has moved far enough
+		// 	// if ((naive_pull_starting_pose.translation() - naive_pull_current_pose.translation()).norm() < naive_pull_offset)
+		// 	// {
+		// 	// 	// Update the Jacobian
+		// 	// 	robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
+		// 	// 	// Update the joint velocities
+		// 	// 	joint_velocities = wristJacobian.inverse() * desired_velocity;
+		// 	// 	groupCommand.setVelocity(joint_velocities);
+		// 	// 	group->sendCommand(groupCommand);
+		// 	// }
+		// 	// // If it has moved far enough away, return it to home
+		// 	// else
+		// 	// {
+		// 	// 	// Stop the end-effector
+		// 	// 	joint_velocities.setZero();
+		// 	// 	groupCommand.setVelocity(joint_velocities);
+		// 	// 	group->sendCommand(groupCommand);
+		// 	// 	// Update the state to returning to home
+		// 	// 	state = 6;
+		// 	// 	ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "home");
+		// 	// 	// Let the main_state_machine node know that the robot is initializing
+		// 	// 	status.data = 1;
+		// 	// 	state_input_pub.publish(status);
+		// 	// 	ROS_INFO("Pull successful, returning to home");
+		// 	// }
+		// }
+		if (state == 3 || state == 4 || state == 5)
 		{
-			// // Grab the current end-effector pose
-			// naive_pull_current_pose = robot_state->getGlobalLinkTransform(end_effector_name);
-			// // Check to see if the end-effector has moved far enough
-			// if ((naive_pull_starting_pose.translation() - naive_pull_current_pose.translation()).norm() < naive_pull_offset)
-			// {
-			// 	// Update the Jacobian
-			// 	robot_state->getJacobian(joint_model_group, robot_state->getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, wristJacobian);
-			// 	// Update the joint velocities
-			// 	joint_velocities = wristJacobian.inverse() * desired_velocity;
-			// 	groupCommand.setVelocity(joint_velocities);
-			// 	group->sendCommand(groupCommand);
-			// }
-			// // If it has moved far enough away, return it to home
-			// else
-			// {
-			// 	// Stop the end-effector
-			// 	joint_velocities.setZero();
-			// 	groupCommand.setVelocity(joint_velocities);
-			// 	group->sendCommand(groupCommand);
-			// 	// Update the state to returning to home
-			// 	state = 6;
-			// 	ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "home");
-			// 	// Let the main_state_machine node know that the robot is initializing
-			// 	status.data = 1;
-			// 	state_input_pub.publish(status);
-			// 	ROS_INFO("Pull successful, returning to home");
-			// }
+			// xg = goal
+			Eigen::Vector3d xg;
+            xg << motorGoalPoseStamped.pose.position.x+0.05, motorGoalPoseStamped.pose.position.y, -motorGoalPoseStamped.pose.position.z;
+			
+			//theta = Get joint state
+			if (group->getNextFeedback(group_feedback))
+            {
+                thetas = group_feedback.getPosition(); 
+            }
+
+			//[x,y,z of the end effector] -- x0
+            Eigen::Matrix4d transform;
+            model->getEndEffector(thetas,transform);
+
+			// double roll0 = atan2(transform(2,1), transform(2,2));
+            // double pitch0 = atan2(-transform(2,0), sqrt(pow(transform(2,1),2)+pow(transform(2,2),2)));
+            // double yaw0 = atan2(transform(1,0), transform(0,0));
+
+			Eigen::Vector3d x0;
+            x0 << transform(0,3), transform(1,3), transform(2,3);
+
+			//Compute Jacobian -- J
+            //[2d matrix of joint angles ]
+            Eigen::MatrixXd J;
+            model->getJEndEffector(thetas, J);
+            Eigen::MatrixXd ee_J = J.block(0,0,3,4);
+
+			// err of position to goal
+			Eigen::Vector3d err;
+            err = xg - x0;
+
+			if (W.isIdentity(0.1))
+            {
+                thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*err;
+            }
+            else
+            {
+                thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*err;
+            }
+
+            thetas += dt*thetadot;
+
+			groupCommand.setPosition(thetas);
+            group->sendCommand(groupCommand);
 		}
 		// Check if the robot is returning to home
 		if (state == 6)
