@@ -206,6 +206,7 @@ std::vector<double> joint_group_positions = { 0.0, -1.8, -1.9, -2.1 };
 // Feng Xiang <-- Loser
 // Initialize Ready Variables
 std::vector<double> joint_group_ready_position = {0.29, -1.02, -2.38, -1.61};
+bool homeInit = false;
 
 // Resolved Rate Globals
 double tf_offset_time = 0.05;
@@ -492,7 +493,7 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 	std::cout<<"msg->feedback.state is: "<<msg->feedback.state<<std::endl;
 	std::cout<<"msg->status.text is: "<<msg->status.text<<std::endl;
 	// Check if the trajectory has finished
-	if (msg->feedback.state == "IDLE" and msg->status.text == "Solution was found and executed.")
+	if (msg->feedback.state == "IDLE") //  and msg->status.text == "Solution was found and executed."
 	{
 		// Check if any time has passed
 		// if (ros::Time::now() - plan_start > ros::Duration(plan_execution_start_delay))
@@ -1328,6 +1329,7 @@ int main(int argc, char** argv)
 			// }
 			
 			// xg = goal
+			ros::param::set("Integrated_AM/resolve_rate_start", "true");
 			Eigen::Vector3d xg;
             xg << motorGoalPoseStamped.pose.position.x+0.05, motorGoalPoseStamped.pose.position.y, -motorGoalPoseStamped.pose.position.z;
 			
@@ -1396,6 +1398,20 @@ int main(int argc, char** argv)
 			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
 			std::cout<<"joint_goal is: "<<std::endl;
 			ROS_INFO_STREAM(joint_goal);
+
+			// Feng Xiang
+			if (homeInit == true)
+			{
+				plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+				plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+				plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
+				plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+			}
+			else
+			{
+				homeInit = true;
+			}
+
 			plan_req.group_name = PLANNING_GROUP;
 			plan_req.goal_constraints.clear();
 			plan_req.goal_constraints.push_back(joint_goal);

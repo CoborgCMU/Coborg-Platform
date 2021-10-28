@@ -5,6 +5,7 @@
         <param name="planning_plugin" value="$(arg planning_plugin)" />
         <param name="request_adapters" value="$(arg planning_adapters)" />
         <param name="start_state_max_bounds_error" value="0.1" />
+        <param name="resolve_rate_start" value="false" />
     </node>
     
     <!-- <node pkg="tf" type="static_transform_publisher" name="t265_coborg_tf" args="-0.2794 0.4999 0.67305 0 0 0 /world /t265_link 100" />

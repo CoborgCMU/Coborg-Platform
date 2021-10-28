@@ -167,6 +167,8 @@ int main(int argc, char** argv)
 
         // acquire current state of the manipulation system
         ros::param::get("tf_moveit_goalsetNode/manipulation_state", maniState);
+        // std::string resolveState;
+        // ros::param::get("Integrated_AM/resolve_rate_start", resolveState);
 
         // if the motors sendback feedback information
         if (group->getNextFeedback(group_feedback))
