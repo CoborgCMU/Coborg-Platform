@@ -17,9 +17,9 @@
 	// In a separate terminal, run "rostopic echo /hebi_joints"
 
 
-Feng Xiang and Yuqing Qin and Gerry D'Ascoli:
-change /goal message callback to goal_getter::GoalPose
-get the normal goal_msg for normal planning
+// Feng Xiang and Yuqing Qin and Gerry D'Ascoli:
+// change /goal message callback to goal_getter::GoalPose
+// get the normal goal_msg for normal planning
 
 //Includes
 #include <string>
@@ -122,7 +122,8 @@ std::string move_group_planner_id = "RRTConnect";
 // Eigen::Vector3d global_goal_normal;
 std::vector<double> goal_tolerance_pose_default {0.05, 0.05, 0.05};
 std::vector<double> goal_tolerance_pose = goal_tolerance_pose_default;
-std::vector<double> goal_tolerance_angle_default {10, 0.79, 0.79};
+// std::vector<double> goal_tolerance_angle_default {10, 0.79, 0.79};
+std::vector<double> goal_tolerance_angle_default {10, 0.4, 0.4};
 std::vector<double> goal_tolerance_angle = goal_tolerance_angle_default;
 double goal_tolerance_pose_adjustment = 0.025;
 double goal_tolerance_pose_adjusted_threshold = 0.1;
@@ -135,7 +136,7 @@ float goal_offset = 0.15;
 std::string moveit_planner = "RRTConnect";
 double moveit_planning_time_initial_goal = 2.0;
 double moveit_planning_time_return_home = 2.0;
-unsigned int num_attempts_initial_goal = 5;
+unsigned int num_attempts_initial_goal = 10;
 unsigned int num_attempts_stitching = 1;
 unsigned int num_attempts_return_home = 5;
 planning_interface::MotionPlanRequest plan_req;
@@ -243,9 +244,10 @@ void update_impedance_goal()
 
 // Define subscriber callbacks
 // Local Goal Update
-void goal_callback(const geometry_msgs::PoseStamped::ConstPtr& msg)
+void goal_callback(const goal_getter::GoalPose::ConstPtr& msg)
 {
-    goal_pose = *msg;
+    goal_pose = msg->goal_normal;
+	motorGoalPoseStamped = msg->goal_normal_motor;
     if (state == 1)
     {
         state = -1;
@@ -556,31 +558,72 @@ int main(int argc, char** argv)
     // tf::TransformListener listener;
     // listener_ptr = &listener;
 	
-	//code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
-	// connect to HEBI joints on network through UDP connection
-    for (int num_tries = 0; num_tries < 3; num_tries++) {
-        hebi::Lookup lookup;
-        group = lookup.getGroupFromNames(families, names);
-        if (group) {
-            //print hebi modules to terminal
-            auto entry_list = lookup.getEntryList();
+	// //code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
+	// // connect to HEBI joints on network through UDP connection
+    // for (int num_tries = 0; num_tries < 3; num_tries++) {
+    //     hebi::Lookup lookup;
+    //     group = lookup.getGroupFromNames(families, names);
+    //     if (group) {
+    //         //print hebi modules to terminal
+    //         auto entry_list = lookup.getEntryList();
 
-            for (size_t hebi_iter = 0; hebi_iter < entry_list->size(); ++hebi_iter)
-            {
-                std::cout << (*entry_list)[hebi_iter].family_ << " | " << (*entry_list)[hebi_iter].name_ << std::endl;
-            }
-            break;
+    //         for (size_t hebi_iter = 0; hebi_iter < entry_list->size(); ++hebi_iter)
+    //         {
+    //             std::cout << (*entry_list)[hebi_iter].family_ << " | " << (*entry_list)[hebi_iter].name_ << std::endl;
+    //         }
+    //         break;
+    //     }
+    //     ROS_WARN("Could not find group actuators, trying again...");
+    //     ros::Duration(1.0).sleep();
+    // }
+	// int group_size;
+	// if (group){
+	// 	group_size = group->size();
+	// } else {
+	// 	ROS_WARN("Could not find group actuators, setting dummy size of 3");
+	//     group_size = 4;
+	// }
+
+	// ----- Set up for resolved rate
+	// inititalize HEBI API
+    std::vector<std::string> families;
+    families = {"01-base","02-shoulder","03-elbow","04-wrist"};
+    std::vector<std::string> names;
+    names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
+
+    // connect to HEBI joints on network through UDP connection
+    std::shared_ptr<hebi::Group> group;
+    for (int num_tries = 0; num_tries < 3; num_tries++) {
+      hebi::Lookup lookup;
+      group = lookup.getGroupFromNames(families, names);
+      if (group) {
+        //print hebi modules to terminal
+        auto entry_list = lookup.getEntryList();
+
+        for(size_t hebi_iter = 0; hebi_iter < entry_list->size(); ++ hebi_iter)
+        {
+            std::cout << (*entry_list)[hebi_iter].family_ << " | " << (*entry_list)[hebi_iter].name_ << std::endl;
         }
-        ROS_WARN("Could not find group actuators, trying again...");
-        ros::Duration(1.0).sleep();
+        break;
+      }
+      ROS_WARN("[RESOLVED RATE] Initialization - Could not find group actuators, trying again...");
+      ros::Duration(1.0).sleep();
     }
+    //code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
+
 	int group_size;
-	if (group){
+    // error out if HEBI joints are not found on the network
+    if (!group) {
+      ROS_ERROR("[RESOLVED RATE] Initialization - Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+      return -1;
+    }
+	else
+	{
 		group_size = group->size();
-	} else {
-		ROS_WARN("Could not find group actuators, setting dummy size of 3");
-	    group_size = 3;
 	}
+    //print names of each HEBI item in the group
+    std::cout << "Total Number of HEBI Members in group: " << group->size() << std::endl;
+
 
 	// Initialize Local Naive Push Variables
 	Eigen::VectorXd joint_velocities(group_size);
@@ -686,40 +729,6 @@ int main(int argc, char** argv)
 	ros::Subscriber goal_sub = node_handle.subscribe("/goal", 1, goal_callback);
 	ros::Subscriber interpolator_success_sub = node_handle.subscribe("/interpolator_success", 1, interpolator_success_callback);
 
-	// ----- Set up for resolved rate
-	// inititalize HEBI API
-    std::vector<std::string> families;
-    families = {"01-base","02-shoulder","03-elbow","04-wrist"};
-    std::vector<std::string> names;
-    names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
-
-    // connect to HEBI joints on network through UDP connection
-    std::shared_ptr<hebi::Group> group;
-    for (int num_tries = 0; num_tries < 3; num_tries++) {
-      hebi::Lookup lookup;
-      group = lookup.getGroupFromNames(families, names);
-      if (group) {
-        //print hebi modules to terminal
-        auto entry_list = lookup.getEntryList();
-
-        for(size_t hebi_iter = 0; hebi_iter < entry_list->size(); ++ hebi_iter)
-        {
-            std::cout << (*entry_list)[hebi_iter].family_ << " | " << (*entry_list)[hebi_iter].name_ << std::endl;
-        }
-        break;
-      }
-      ROS_WARN("[RESOLVED RATE] Initialization - Could not find group actuators, trying again...");
-      ros::Duration(1.0).sleep();
-    }
-    //code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
-
-    // error out if HEBI joints are not found on the network
-    if (!group) {
-      ROS_ERROR("[RESOLVED RATE] Initialization - Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
-      return -1;
-    }
-    //print names of each HEBI item in the group
-    std::cout << "Total Number of HEBI Members in group: " << group->size() << std::endl;
 
     Eigen::VectorXd thetas(group->size());
     Eigen::VectorXd thetadot(group->size());
@@ -755,41 +764,60 @@ int main(int argc, char** argv)
         if (state == -1)
         {
 
-			// Feng Xiang
-			// move to static joint state
-			// code begin
-			// Let the main_state_machine node know that the robot is initializing
-			ROS_INFO("Planning to go to ready state.");
-			// Create and set planning goal
-			robot_state::RobotState goal_state(robot_model);
-			goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position);
-			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
-			std::cout<<"joint_goal is: "<<std::endl;
-			ROS_INFO_STREAM(joint_goal);
-			plan_req.group_name = PLANNING_GROUP;
-			plan_req.goal_constraints.clear();
-			plan_req.goal_constraints.push_back(joint_goal);
-			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
-			// Store plan
-			moveit_msgs::MotionPlanResponse response;
-			response_ptr = &response;
-			plan_res.getMessage(response);
-			// moveit_plans_pub_ptr->publish(my_plan);
-			// Set the trajectory and execute the plan
-			my_plan.trajectory_ = response.trajectory;
-			// Execute move
-			move_group.execute(my_plan);
-			prev_plan_res = response;
-			ROS_INFO("Going to ready state.");
-			// code end
 
+
+			// // Feng Xiang
+			// // move to static joint state
+			// // code begin
+			// // Let the main_state_machine node know that the robot is initializing
+			// ROS_INFO("Planning to go to ready state.");
+			// // Create and set planning goal
+			// robot_state::RobotState goal_state(robot_model);
+			// goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position);
+			// moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
+			// std::cout<<"joint_goal is: "<<std::endl;
+			// ROS_INFO_STREAM(joint_goal);
+
+			// plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+			// plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+			// plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
+			// plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+
+			// plan_req.group_name = PLANNING_GROUP;
+			// plan_req.goal_constraints.clear();
+			// plan_req.goal_constraints.push_back(joint_goal);
+			// planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+			// // Store plan
+			// moveit_msgs::MotionPlanResponse response;
+			// response_ptr = &response;
+			// plan_res.getMessage(response);
+			// // moveit_plans_pub_ptr->publish(my_plan);
+			// // Set the trajectory and execute the plan
+			// my_plan.trajectory_ = response.trajectory;
+			// // Execute move
+			// move_group.execute(my_plan);
+			// prev_plan_res = response;
+			// ROS_INFO("Going to ready state.");
+			// // code end
+
+
+
+			// compute offset
+			Eigen::Quaterniond goal_pose_quaternion(goal_pose.pose.orientation.w, goal_pose.pose.orientation.x, goal_pose.pose.orientation.y, goal_pose.pose.orientation.z);
+			goal_pose_quaternion = goal_pose_quaternion.normalized();
+
+			Eigen::Matrix3d goal_pose_rotation_matrix;
+			Eigen::Vector3d goal_pose_normal_vector;
+
+			goal_pose_rotation_matrix = goal_pose_quaternion.toRotationMatrix();
+			goal_pose_normal_vector << goal_pose_rotation_matrix(0,0) * goal_offset, goal_pose_rotation_matrix(1,0) * goal_offset, goal_pose_rotation_matrix(2,0) * goal_offset;
+
+			goal_pose.pose.position.x = goal_pose.pose.position.x - goal_pose_normal_vector(0);
+			goal_pose.pose.position.y = goal_pose.pose.position.x - goal_pose_normal_vector(1);
+			goal_pose.pose.position.z = goal_pose.pose.position.x - goal_pose_normal_vector(2);
 
             // Plan RRT Connect Path and send it for execution
             // Set move group planning constraints
-			// Feng Xiang
-			// plan and execute
-			// inputs: numAttempts, planningTime, pose_relative_world
-			// outputs: (void)
 			// code block: copy all code from state == -1
             move_group_ptr->setNumPlanningAttempts(num_attempts_initial_goal);
             move_group_ptr->setPlanningTime(moveit_planning_time_initial_goal);
@@ -801,8 +829,8 @@ int main(int argc, char** argv)
             std::cout<<"Calling planning pipeline to generate plan"<<std::endl;
             /* Now, call the pipeline and check whether planning was successful. */
             /* Check that the planning was successful */
-            // moveit_msgs::MotionPlanResponse response;
-            // response_ptr = &response;
+            moveit_msgs::MotionPlanResponse response;
+            response_ptr = &response;
             
 			while (true)
             {
@@ -1287,6 +1315,18 @@ int main(int argc, char** argv)
 		// }
 		if (state == 3 || state == 4 || state == 5)
 		{
+			// // If pushing or pull, iterate goal
+			// if (state == 3)
+			// {
+			// 	// Move goal forward one step along normal vector
+			// 	// If we've reached the final goal (pushing into the board x distance), then switch to state 4
+			// }
+			// if (state == 5)
+			// {
+			// 	// Move goal backward one step along normal vector
+			// 	// If we've reached the final goal (out from the board x distance), then switch to state 6
+			// }
+			
 			// xg = goal
 			Eigen::Vector3d xg;
             xg << motorGoalPoseStamped.pose.position.x+0.05, motorGoalPoseStamped.pose.position.y, -motorGoalPoseStamped.pose.position.z;
@@ -1331,6 +1371,14 @@ int main(int argc, char** argv)
 
 			groupCommand.setPosition(thetas);
             group->sendCommand(groupCommand);
+			if (state == 3)
+			{
+				state = 4;
+			}
+			if (state == 5)
+			{
+				state = 6;
+			}
 		}
 		// Check if the robot is returning to home
 		if (state == 6)
@@ -1361,6 +1409,7 @@ int main(int argc, char** argv)
 			my_plan.trajectory_ = response.trajectory;
 			// Execute move
 			move_group.execute(my_plan);
+			
 			prev_plan_res = response;
 			// Let the main_state_machine node know that the robot is executing
 			status.data = 2;

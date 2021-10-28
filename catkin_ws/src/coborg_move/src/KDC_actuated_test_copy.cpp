@@ -524,7 +524,7 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 	std::cout<<"msg->feedback.state is: "<<msg->feedback.state<<std::endl;
 	std::cout<<"msg->status.text is: "<<msg->status.text<<std::endl;
 	// Check if the trajectory has finished
-	if (msg->feedback.state == "IDLE" and msg->status.text == "Solution was found and executed.")
+	if (msg->feedback.state == "IDLE" ) // and msg->status.text == "Solution was found and executed."
 	{
 		// Check if any time has passed
 		// if (ros::Time::now() - plan_start > ros::Duration(plan_execution_start_delay))
