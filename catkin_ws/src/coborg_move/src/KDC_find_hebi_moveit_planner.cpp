@@ -46,9 +46,6 @@ double startup_sec = 0.1;
 // geometry_msgs::Twist publishState;
 sensor_msgs::JointState torqueVect;
 
-// subscribe to rosparam for state triggers
-std::string maniState;
-
 ros::Time currImp;
 
 bool impValue = false;
@@ -57,8 +54,8 @@ bool impValue = false;
 // convert joint angles from MoveIt node to HEBI joint angles
 void hebiOutputCallback(const sensor_msgs::JointState::ConstPtr& msg) {
     // ROS_INFO("motor1: %f | motor2: %f | motor3: %f", msg->position[0],msg->position[1],msg->position[2]);
-    motor1_joint = msg->position[0] + 0.1; // offset determined empirically for level arm out at 0 radians 
-    motor2_joint = msg->position[1];
+    motor1_joint = msg->position[0]; // offset determined empirically for level arm out at 0 radians 
+    motor2_joint = msg->position[1]+0.1;
     motor3_joint = msg->position[2];
     motor4_joint = msg->position[3];
 }
@@ -140,8 +137,6 @@ int main(int argc, char** argv)
     Eigen::VectorXd feedbackTor(group->size());
     feedbackPos.setZero();
 
-
-
     // (impedance control) declare varaibles to be using for force control state
     group->setFeedbackFrequencyHz(20);
     ros::Time begin = ros::Time::now();
@@ -154,10 +149,6 @@ int main(int argc, char** argv)
 
     ros::Rate loop_rate(20.0);
 
-
-
-
-
     while (ros::ok()) {
         beginImp = ros::Time::now();
 
@@ -165,33 +156,12 @@ int main(int argc, char** argv)
         // compute duration variable
         durr = (float)(curr - begin).toSec();
 
-        // acquire current state of the manipulation system
-        ros::param::get("tf_moveit_goalsetNode/manipulation_state", maniState);
-        // std::string resolveState;
-        // ros::param::get("Integrated_AM/resolve_rate_start", resolveState);
-
         // if the motors sendback feedback information
         if (group->getNextFeedback(group_feedback))
         {
             feedbackPos = group_feedback.getPosition();
             feedbackVel = group_feedback.getVelocity();
             feedbackTor = group_feedback.getEffort();
-            // // std::cout << "Position feedback: " << std::endl << feedbackPos << std::endl;
-            // publishState.linear.x = (float)feedbackPos(0); // base motor
-            // publishState.linear.y = (float)feedbackPos(1); // elbow motor
-            // publishState.linear.z = (float)feedbackPos(2); // wrist motor
-            // publishState.angular.x = (float)feedbackVel(0);
-            // publishState.angular.y = (float)feedbackVel(1);
-            // publishState.angular.z = (float)feedbackVel(2);
-            // torques[0] = (float)feedbackTor(0);
-            // torques[1] = (float)feedbackTor(1);
-            // torques[2] = (float)feedbackTor(2);
-            // groupCommandStabilize.setEffort(torques);
-            // group->sendCommand(groupCommandStabilize);
-
-            // hebi_joints_pub.publish(publishState);
-
-
 
             sensor_msgs::JointState hebi_feedback_message;
             hebi_feedback_message.header.stamp = ros::Time::now();
@@ -230,42 +200,6 @@ int main(int argc, char** argv)
                     boolFirstTime = false;
                 }
             }
-            else if (strcmp(maniState.c_str(), "impedance") == 0 && impValue == true)
-            {
-                // position control
-                // positions[0] = motor1_joint;
-                // positions[1] = motor2_joint;
-                // positions[2] = motor3_joint;
-                // groupCommand.setPosition(positions);
-                // // group->sendCommand(groupCommand);
-                // group->sendCommandWithAcknowledgement(groupCommand);
-                curr = ros::Time::now();
-                ROS_INFO_STREAM("HEBI Time to Receive Callback: " << (float)(curr - currImp).toSec() << "\n");
-
-                // Torques to instantenously hold up the robot arm
-                // torques[0] = 3.05;
-                // torques[1] = -0.29;
-                // torques[2] = 0.15;
-
-                torques[0] = torqueVect.effort[0];
-                torques[1] = torqueVect.effort[1];
-                torques[2] = torqueVect.effort[2];
-                torques[3] = torqueVect.effort[3];
-
-                groupCommandStabilize.setEffort(torques);
-                group->sendCommand(groupCommandStabilize);
-                // curr = ros::Time::now();
-                // ROS_INFO_STREAM("Impedance Duration: " << (float) (curr- begin).toSec() << "\n");
-
-
-
-
-            }
-            else if (strcmp(maniState.c_str(), "velocity") == 0)
-            {
-                impValue = false;
-                continue;
-            }
             else
             {
                 curr = ros::Time::now();
@@ -280,7 +214,6 @@ int main(int argc, char** argv)
                 group->sendCommand(groupCommand);
                 // ROS_INFO_STREAM((float) durr);
                 impValue = false;
-
 
             }
 

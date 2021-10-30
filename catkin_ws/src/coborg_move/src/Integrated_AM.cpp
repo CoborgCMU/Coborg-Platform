@@ -55,6 +55,7 @@
 #include "hebi_cpp_api/robot_model.hpp"
 
 #include "goal_getter/GoalPose.h"
+#include "sensor_msgs/JointState.h"
 
 // TO DO:
 // Update goal_tolerance_angle with the actual tolerance of the end-effector
@@ -81,7 +82,7 @@ int num_max_attempts = 20;
 // Eigen::Vector3d motor_joints;
 // sensor_msgs::JointState publishState;
 // geometry_msgs::Vector3 torqueVect;
-std::shared_ptr<hebi::Group> group;
+// std::shared_ptr<hebi::Group> group;
 std::vector<std::string> families = {"01-base", "02-shoulder","03-elbow","04-wrist"};
 std::vector<std::string> names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 // MoveIt Global Pointers
@@ -173,6 +174,7 @@ Eigen::VectorXd end_effector_force(6);
 Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
 std::vector<double> hebiJointAngles(4);
 std::vector<double> hebiJointAngVelocities(4);
+std::vector<double> hebiJointAngEfforts(4);
 // Eigen::Vector3d current_hebi_joints;
 Eigen::Isometry3d end_effector_state;
 Eigen::VectorXd impedance_goal(6);
@@ -456,7 +458,7 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 		if (state == 4)
 		{
 			state = 5;
-			ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
+			// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
 			status.data = 1;
 			state_input_pub_ptr->publish(status);
 			// // Update the normal vector
@@ -479,7 +481,7 @@ void interpolator_success_callback(const std_msgs::Int32::ConstPtr& msg)
 	{
 		state = 3;
 		ROS_INFO("Successfully reached target offset; extending");
-		ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
+		// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
 		// // Update the normal vector
 		// update_rel_goal();
 		// // Set the desired end-effector velocity
@@ -506,7 +508,7 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			{
 				state = 3;
 				ROS_INFO("Successfully reached target offset; extending");
-				ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
+				// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
 				// Update the normal vector
 				// update_rel_goal();
 				// // Set the desired end-effector velocity
@@ -536,6 +538,10 @@ void hebiJointsCallback(const sensor_msgs::JointState::ConstPtr & hebimsg)
 	hebiJointAngVelocities.at(1) = hebimsg->velocity[1];
 	hebiJointAngVelocities.at(2) = hebimsg->velocity[2];
 	hebiJointAngVelocities.at(3) = hebimsg->velocity[3];
+	hebiJointAngEfforts.at(0) = hebimsg->effort[0];
+	hebiJointAngEfforts.at(1) = hebimsg->effort[1];
+	hebiJointAngEfforts.at(2) = hebimsg->effort[2];
+	hebiJointAngEfforts.at(3) = hebimsg->effort[3];
 }
 
 int main(int argc, char** argv)
@@ -548,7 +554,8 @@ int main(int argc, char** argv)
 	ros::NodeHandle* node_handle_ptr;
 	node_handle_ptr = &node_handle;
 
-	ros::Duration(10).sleep();
+	// uncomment if node is not initializing and running first operations well
+	// ros::Duration(10).sleep();
 
 	ros::AsyncSpinner spinner(0);
 	spinner.start();
@@ -592,38 +599,40 @@ int main(int argc, char** argv)
     std::vector<std::string> names;
     names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 
-    // connect to HEBI joints on network through UDP connection
-    std::shared_ptr<hebi::Group> group;
-    for (int num_tries = 0; num_tries < 3; num_tries++) {
-      hebi::Lookup lookup;
-      group = lookup.getGroupFromNames(families, names);
-      if (group) {
-        //print hebi modules to terminal
-        auto entry_list = lookup.getEntryList();
+    // // connect to HEBI joints on network through UDP connection
+    // std::shared_ptr<hebi::Group> group;
+    // for (int num_tries = 0; num_tries < 3; num_tries++) {
+    //   hebi::Lookup lookup;
+    //   group = lookup.getGroupFromNames(families, names);
+    //   if (group) {
+    //     //print hebi modules to terminal
+    //     auto entry_list = lookup.getEntryList();
 
-        for(size_t hebi_iter = 0; hebi_iter < entry_list->size(); ++ hebi_iter)
-        {
-            std::cout << (*entry_list)[hebi_iter].family_ << " | " << (*entry_list)[hebi_iter].name_ << std::endl;
-        }
-        break;
-      }
-      ROS_WARN("[RESOLVED RATE] Initialization - Could not find group actuators, trying again...");
-      ros::Duration(1.0).sleep();
-    }
-    //code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
+    //     for(size_t hebi_iter = 0; hebi_iter < entry_list->size(); ++ hebi_iter)
+    //     {
+    //         std::cout << (*entry_list)[hebi_iter].family_ << " | " << (*entry_list)[hebi_iter].name_ << std::endl;
+    //     }
+    //     break;
+    //   }
+    //   ROS_WARN("[RESOLVED RATE] Initialization - Could not find group actuators, trying again...");
+    //   ros::Duration(1.0).sleep();
+    // }
+    // //code stolen from hebi_cpp_api_examples/src/basic/group_node.cpp
 
-	int group_size;
-    // error out if HEBI joints are not found on the network
-    if (!group) {
-      ROS_ERROR("[RESOLVED RATE] Initialization - Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
-      return -1;
-    }
-	else
-	{
-		group_size = group->size();
+	int group_size = names.size();
+    // // error out if HEBI joints are not found on the network
+    // if (!group) {
+    //   ROS_ERROR("[RESOLVED RATE] Initialization - Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+    //   return -1;
+    // }
+	// else
+	// {
+	// 	group_size = group->size();
 	}
+
+
     //print names of each HEBI item in the group
-    std::cout << "Total Number of HEBI Members in group: " << group->size() << std::endl;
+    std::cout << "Total Number of HEBI Members in group: " << group_size << std::endl;
 
 
 	// Initialize Local Naive Push Variables
@@ -716,7 +725,12 @@ int main(int argc, char** argv)
 	// ros::Publisher moveit_plans_pub = node_handle.advertise<moveit_msgs::MotionPlanRequest>("/moveit_plans", 1);
 	// moveit_plans_pub_ptr = &moveit_plans_pub;
 	ros::Publisher new_trajectory_pub = node_handle_ptr->advertise<moveit_msgs::RobotTrajectory>("/new_trajectory", 1, true);
-	ros::Duration(0.5).sleep();
+	// uncomment if initialization and first operations go poorly
+	// ros::Duration(0.5).sleep();
+
+	// Feng Xiang
+	// Publisher to publish joint_states for resolved rate controller
+	ros::Publisher simulated_joint_states_pub = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states",1);
 
 	// Publish initial state (waiting)
 	status.data = 3;
@@ -731,11 +745,12 @@ int main(int argc, char** argv)
 	ros::Subscriber interpolator_success_sub = node_handle.subscribe("/interpolator_success", 1, interpolator_success_callback);
 
 
-    Eigen::VectorXd thetas(group->size());
-    Eigen::VectorXd thetadot(group->size());
+	// Feng Xiang: hardcoded number of motor joints on robot arm
+    Eigen::VectorXd thetas(group_size);
+    Eigen::VectorXd thetadot(group_size);
 
 	float dt = 1.0;
-    Eigen::MatrixXd W(group->size(),group->size());
+    Eigen::MatrixXd W(group_size,group_size);
     W.setIdentity();
 
     std::string cwd("\0", FILENAME_MAX+1);
@@ -1269,10 +1284,10 @@ int main(int argc, char** argv)
 		// 	// desired_cartesian_forces(1) = impedance_position_gain(1) * position_error(1) + impedance_derivative_gain(1) * velocity_error(1);
 		// 	// desired_cartesian_forces(2) = impedance_position_gain(2) * position_error(2) + impedance_derivative_gain(2) * velocity_error(2);
 		// 	// // Convert desired cartesian forces to joint efforts
-		// 	// Eigen::MatrixXd jacobian_worker(6,group->size());
+		// 	// Eigen::MatrixXd jacobian_worker(6,group_size);
 		// 	// jacobian_worker = wristJacobian.transpose();
 
-		// 	// for (unsigned int it = 0; it < group->size(); it++)
+		// 	// for (unsigned int it = 0; it < group_size; it++)
 		// 	// {
 		// 	// 	desired_torques.effort.push_back(
 		// 	// jacobian_worker(0,it) * desired_cartesian_forces(0) + jacobian_worker(1,it) * desired_cartesian_forces(1) + jacobian_worker(2,it) * desired_cartesian_forces(2) + jacobian_worker(3,it) * desired_cartesian_forces(3) + jacobian_worker(4,it) * desired_cartesian_forces(4) + jacobian_worker(5,it) * desired_cartesian_forces(5));
@@ -1329,19 +1344,25 @@ int main(int argc, char** argv)
 			// }
 			
 			// xg = goal
-			ros::param::set("Integrated_AM/resolve_rate_start", "true");
 			Eigen::Vector3d xg;
-            xg << motorGoalPoseStamped.pose.position.x+0.05, motorGoalPoseStamped.pose.position.y, -motorGoalPoseStamped.pose.position.z;
+            xg << motorGoalPoseStamped.pose.position.x, motorGoalPoseStamped.pose.position.y, -motorGoalPoseStamped.pose.position.z;
 			
-			//theta = Get joint state
-			if (group->getNextFeedback(group_feedback))
-            {
-                thetas = group_feedback.getPosition(); 
-            }
+			// //theta = Get joint state
+			// if (group->getNextFeedback(group_feedback))
+            // {
+            //     thetas = group_feedback.getPosition(); 
+            // }
+
+			for (unsigned int ii = 0; ii < group_size; ii++)
+			{
+				thetas(ii) = hebiJointAngles.at(ii);
+			}
 
 			//[x,y,z of the end effector] -- x0
             Eigen::Matrix4d transform;
             model->getEndEffector(thetas,transform);
+
+
 
 			// double roll0 = atan2(transform(2,1), transform(2,2));
             // double pitch0 = atan2(-transform(2,0), sqrt(pow(transform(2,1),2)+pow(transform(2,2),2)));
@@ -1371,8 +1392,21 @@ int main(int argc, char** argv)
 
             thetas += dt*thetadot;
 
-			groupCommand.setPosition(thetas);
-            group->sendCommand(groupCommand);
+			sensor_msgs::JointState hebi_thetas_msg;
+
+			hebi_thetas_msg.header.stamp = ros::Time::now();
+			hebi_thetas_msg.name = names;
+			for (unsigned int ii = 0; ii < group_size; ii++)
+			{
+				hebi_thetas_msg.position.push_back(thetas(ii));
+			}
+
+			simulated_joint_states_pub.publish(hebi_thetas_msg);
+
+
+
+			// groupCommand.setPosition(thetas);
+            // group->sendCommand(groupCommand);
 			if (state == 3)
 			{
 				state = 4;
@@ -1420,6 +1454,16 @@ int main(int argc, char** argv)
 			moveit_msgs::MotionPlanResponse response;
 			response_ptr = &response;
 			plan_res.getMessage(response);
+			/////////////// Visualize the result
+            moveit_msgs::DisplayTrajectory display_trajectory;
+            /* Visualize the trajectory */
+            ROS_INFO("Visualizing the trajectory");
+            display_trajectory.trajectory_start = response.trajectory_start;
+            display_trajectory.trajectory.clear();
+            display_trajectory.trajectory.push_back(response.trajectory);
+            display_publisher_ptr->publish(display_trajectory);
+            visual_tools_ptr->publishTrajectoryLine(display_trajectory.trajectory.back(), joint_model_group);
+            visual_tools_ptr->trigger();
 			// moveit_plans_pub_ptr->publish(my_plan);
 			// Set the trajectory and execute the plan
 			my_plan.trajectory_ = response.trajectory;
@@ -1433,7 +1477,7 @@ int main(int argc, char** argv)
 			ROS_INFO("Returning home");
 			// Update the state to waiting
 			state = 0;
-			ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "standby");
+			// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "standby");
 			// Let the main_state_machine node know that the robot is initializing
 			status.data = 3;
 			state_input_pub.publish(status);
