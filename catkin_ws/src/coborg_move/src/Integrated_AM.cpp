@@ -102,6 +102,8 @@ std_msgs::Int32 status;
 const std::string PLANNING_GROUP = "dof_4_lowerlonger_arm";
 std::string move_group_planner_id = "RRTConnect";
 // Initialize Goal and Transform Variables
+geometry_msgs::PoseStamped goal_pose;
+Eigen::Vector3d goal_pose_normal_vector;
 // tf::TransformListener* listener_ptr;
 // tf::StampedTransform odom_tf_goal;
 // double tf_delay_threshold = 0.1;
@@ -145,7 +147,6 @@ unsigned int num_attempts_return_home = 5;
 planning_interface::MotionPlanRequest plan_req;
 planning_interface::MotionPlanResponse plan_res;
 moveit_msgs::MotionPlanResponse prev_plan_res;
-geometry_msgs::PoseStamped goal_pose;
 moveit::planning_interface::MoveItErrorCode moveitSuccess;
 moveit::planning_interface::MoveGroupInterface::Plan my_plan;
 double plan_execution_start_delay = 0.4;
@@ -221,6 +222,11 @@ std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.
 double tf_offset_time = 0.05;
 double prevGoalCallbackTime = 0.0;
 ros::Time prevPoseMotionDetectTime;
+// Resolved Rate Global Variables
+ros::Time rr_iterate_start_time;
+double rr_push_in_distance = 0.15;
+double rr_iterate_time = 4.0;
+double rr_curr_offset = -goal_offset;
 
 geometry_msgs::PoseStamped motorGoalPoseStamped;
 
@@ -262,8 +268,17 @@ void update_impedance_goal()
 // Local Goal Update
 void goal_callback(const goal_getter::GoalPose::ConstPtr& msg)
 {
-    goal_pose = msg->goal_normal;
+    // Fill in pose_stamped goal
+	goal_pose = msg->goal_normal;
 	motorGoalPoseStamped = msg->goal_normal_motor;
+
+	// Calculate normal vector
+	Eigen::Quaterniond goal_pose_quaternion(goal_pose.pose.orientation.w, goal_pose.pose.orientation.x, goal_pose.pose.orientation.y, goal_pose.pose.orientation.z);
+	goal_pose_quaternion = goal_pose_quaternion.normalized();
+	Eigen::Matrix3d goal_pose_rotation_matrix;
+	goal_pose_rotation_matrix = goal_pose_quaternion.toRotationMatrix();
+	goal_pose_normal_vector << goal_pose_rotation_matrix(0,0), goal_pose_rotation_matrix(1,0), goal_pose_rotation_matrix(2,0);
+
     if (state == 1)
     {
         state = -1;
@@ -470,6 +485,9 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 	{
 		if (state == 4)
 		{
+			// Initialize Resolved Rate Variables
+			rr_iterate_start_time = ros::Time::now();
+			rr_curr_offset = rr_push_in_distance;
 			state = 5;
 			// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
 			status.data = 1;
@@ -492,6 +510,9 @@ void interpolator_success_callback(const std_msgs::Int32::ConstPtr& msg)
 {
 	if (msg->data == 1 && use_stitching)
 	{
+		// Initialize Resolved Rate Variables
+		rr_iterate_start_time = ros::Time::now();
+		rr_curr_offset = -goal_offset;
 		state = 3;
 		ROS_INFO("Successfully reached target offset; extending");
 		// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
@@ -523,6 +544,9 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			// Check if the robot was moving to a target
 			if (state == 2)
 			{
+				// Initialize Resolved Rate Variables
+				rr_iterate_start_time = ros::Time::now();
+				rr_curr_offset = -goal_offset;
 				state = 3;
 				ROS_INFO("Successfully reached target offset; extending");
 				// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
@@ -852,18 +876,9 @@ int main(int argc, char** argv)
 
 
 			// compute offset
-			Eigen::Quaterniond goal_pose_quaternion(goal_pose.pose.orientation.w, goal_pose.pose.orientation.x, goal_pose.pose.orientation.y, goal_pose.pose.orientation.z);
-			goal_pose_quaternion = goal_pose_quaternion.normalized();
-
-			Eigen::Matrix3d goal_pose_rotation_matrix;
-			Eigen::Vector3d goal_pose_normal_vector;
-
-			goal_pose_rotation_matrix = goal_pose_quaternion.toRotationMatrix();
-			goal_pose_normal_vector << goal_pose_rotation_matrix(0,0) * goal_offset, goal_pose_rotation_matrix(1,0) * goal_offset, goal_pose_rotation_matrix(2,0) * goal_offset;
-
-			goal_pose.pose.position.x = goal_pose.pose.position.x - goal_pose_normal_vector(0);
-			goal_pose.pose.position.y = goal_pose.pose.position.y - goal_pose_normal_vector(1);
-			goal_pose.pose.position.z = goal_pose.pose.position.z - goal_pose_normal_vector(2);
+			goal_pose.pose.position.x = goal_pose.pose.position.x - goal_pose_normal_vector(0) * goal_offset;
+			goal_pose.pose.position.y = goal_pose.pose.position.y - goal_pose_normal_vector(1) * goal_offset;
+			goal_pose.pose.position.z = goal_pose.pose.position.z - goal_pose_normal_vector(2) * goal_offset;
 
             // Plan RRT Connect Path and send it for execution
             // Set move group planning constraints
@@ -1437,9 +1452,31 @@ int main(int argc, char** argv)
 			robotCurrState.getJacobian(joint_model_group, robotCurrState.getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, J);
             Eigen::MatrixXd ee_J = J.block(0,0,3,4);
 
+			// Iterate goal forward or backwards
+			if (state == 3)
+			{
+				rr_curr_offset = ((ros::Time::now() - rr_iterate_start_time).toSec() / rr_iterate_time) * (goal_offset + rr_push_in_distance) - goal_offset;
+				if (rr_curr_offset >= rr_push_in_distance)
+				{
+					rr_curr_offset = rr_push_in_distance;
+					state = 4;
+				}
+			}
+			else if (state == 5)
+			{
+				rr_curr_offset = rr_push_in_distance - ((ros::Time::now() - rr_iterate_start_time).toSec() / rr_iterate_time) * (goal_offset + rr_push_in_distance);
+				if (rr_curr_offset <= -goal_offset)
+				{
+					rr_curr_offset = -goal_offset;
+					state = 6;
+				}
+			}
+			Eigen::Vector3d curr_goal_offset;
+			curr_goal_offset = rr_curr_offset * goal_pose_normal_vector;
+
 			// err of position to goal
 			Eigen::Vector3d err;
-            err = xg - x0;
+            err = xg + curr_goal_offset - x0;
 
 			// std::cout << "Goal:" << xg << std::endl;
             // std::cout << "Current: " << x0 << std::endl;
@@ -1605,6 +1642,9 @@ int main(int argc, char** argv)
 				if (state == 2)
 				{
 					state = 3;
+					// Initialize Resolved Rate Variables
+					rr_iterate_start_time = ros::Time::now();
+					rr_curr_offset = -goal_offset;
 					std::cout<<"Successfully reached offset target, extending"<<std::endl;
 				}
 				else if (state == 6)
