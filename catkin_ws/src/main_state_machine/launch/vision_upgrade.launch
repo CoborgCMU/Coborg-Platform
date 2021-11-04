@@ -14,7 +14,7 @@
     <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch"/>
 
     <!-- Start up Vision subystem -->
-    <include file="$(find darknet_ros_3d)/launch/darknet_ros_3d.launch"/>
+    <!-- <include file="$(find darknet_ros_3d)/launch/darknet_ros_3d.launch"/> -->
 
     <!--Start up goal getter -->
     <!-- <include file="$(find goal_getter)/launch/goal_getter.launch"/> -->

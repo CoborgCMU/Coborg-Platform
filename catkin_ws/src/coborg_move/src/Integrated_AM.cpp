@@ -126,13 +126,13 @@ Eigen::Vector3d goal_pose_normal_vector;
 std::vector<double> goal_tolerance_pose_default {0.05, 0.05, 0.05};
 std::vector<double> goal_tolerance_pose = goal_tolerance_pose_default;
 // std::vector<double> goal_tolerance_angle_default {10, 0.79, 0.79};
-// std::vector<double> goal_tolerance_angle_default {10, 0.4, 0.4};
-std::vector<double> goal_tolerance_angle_default {10.0, 10.0, 10.0};
+std::vector<double> goal_tolerance_angle_default {10, 0.4, 0.4};
+// std::vector<double> goal_tolerance_angle_default {10.0, 10.0, 10.0};
 std::vector<double> goal_tolerance_angle = goal_tolerance_angle_default;
 double goal_tolerance_pose_adjustment = 0.025;
 double goal_tolerance_pose_adjusted_threshold = 0.1;
 // float goal_offset = 0.15;
-float goal_offset = 0.0;
+float goal_offset = 0.15;
 // tf::StampedTransform odom_tf_current;
 // Eigen::Vector3d odom_tf_current_translation;
 // Eigen::Matrix3d odom_tf_current_rotation_matrix;
@@ -224,15 +224,15 @@ double prevGoalCallbackTime = 0.0;
 ros::Time prevPoseMotionDetectTime;
 // Resolved Rate Global Variables
 ros::Time rr_iterate_start_time;
-double rr_push_in_distance = 0.15;
-double rr_iterate_time = 4.0;
+double rr_push_in_distance = 0.25;
+double rr_iterate_time = 5.0;
 double rr_curr_offset = -goal_offset;
 
 geometry_msgs::PoseStamped motorGoalPoseStamped;
 
 
 // Custom trajectory finish variables
-bool manual_trajectory_finish = 1;
+bool manual_trajectory_finish = 0;
 std::vector<float> trajectory_finish_position_threshold = {0.03, 0.1, 0.03, 0.04};
 // float trajectory_finish_velocity_threshold = 1;
 
@@ -822,54 +822,54 @@ int main(int argc, char** argv)
         if (state == -1)
         {
 
-			// Feng Xiang
-			// move to static joint state
-			// code begin
-			// Let the main_state_machine node know that the robot is initializing
-			ROS_INFO("Planning to go to ready state.");
-			// Create and set planning goal
-			robot_state::RobotState goal_state(robot_model);
-			goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position);
-			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
-			std::cout<<"joint_goal is: "<<std::endl;
-			ROS_INFO_STREAM(joint_goal);
+			// // Feng Xiang
+			// // move to static joint state
+			// // code begin
+			// // Let the main_state_machine node know that the robot is initializing
+			// ROS_INFO("Planning to go to ready state.");
+			// // Create and set planning goal
+			// robot_state::RobotState goal_state(robot_model);
+			// goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position);
+			// moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
+			// std::cout<<"joint_goal is: "<<std::endl;
+			// ROS_INFO_STREAM(joint_goal);
 
-			plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
-			plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
-			plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
-			plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+			// plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+			// plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+			// plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
+			// plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
 
-			// Set the start state to the current joint state of the HEBI motors
-			std::cout<<"Update the start of the plan request to be the robot's current state"<<std::endl;
-			std::cout<<"plan_req.start_state.joint_state.position.size() is: "<<plan_req.start_state.joint_state.position.size()<<std::endl;
-			for (unsigned int ii=0; ii < plan_req.start_state.joint_state.position.size(); ii++)
-			{
-				std::cout<<"ii is: "<<ii<<std::endl;
-				std::cout<<"plan_req.start_state.joint_state.position[ii] is: "<<plan_req.start_state.joint_state.position[ii]<<std::endl;
-				// std::cout<<"plan_req.start_state.joint_state.velocity[ii] is: "<<plan_req.start_state.joint_state.velocity[ii]<<std::endl;
-				std::cout<<"hebiJointAngles[ii] is: "<<hebiJointAngles[ii]<<std::endl;
-				std::cout<<"hebiJointAngVelocities[ii] is: "<<hebiJointAngVelocities[ii]<<std::endl;
-				// plan_req.start_state.joint_state.position[ii] = hebiJointAngles[ii];
-				// plan_req.start_state.joint_state.velocity[ii] = hebiJointAngVelocities[ii];
-			}
+			// // Set the start state to the current joint state of the HEBI motors
+			// std::cout<<"Update the start of the plan request to be the robot's current state"<<std::endl;
+			// std::cout<<"plan_req.start_state.joint_state.position.size() is: "<<plan_req.start_state.joint_state.position.size()<<std::endl;
+			// for (unsigned int ii=0; ii < plan_req.start_state.joint_state.position.size(); ii++)
+			// {
+			// 	std::cout<<"ii is: "<<ii<<std::endl;
+			// 	std::cout<<"plan_req.start_state.joint_state.position[ii] is: "<<plan_req.start_state.joint_state.position[ii]<<std::endl;
+			// 	// std::cout<<"plan_req.start_state.joint_state.velocity[ii] is: "<<plan_req.start_state.joint_state.velocity[ii]<<std::endl;
+			// 	std::cout<<"hebiJointAngles[ii] is: "<<hebiJointAngles[ii]<<std::endl;
+			// 	std::cout<<"hebiJointAngVelocities[ii] is: "<<hebiJointAngVelocities[ii]<<std::endl;
+			// 	// plan_req.start_state.joint_state.position[ii] = hebiJointAngles[ii];
+			// 	// plan_req.start_state.joint_state.velocity[ii] = hebiJointAngVelocities[ii];
+			// }
 
-			plan_req.group_name = PLANNING_GROUP;
-			plan_req.goal_constraints.clear();
-			plan_req.goal_constraints.push_back(joint_goal);
-			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
-			// Store plan
+			// plan_req.group_name = PLANNING_GROUP;
+			// plan_req.goal_constraints.clear();
+			// plan_req.goal_constraints.push_back(joint_goal);
+			// planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+			// // Store plan
 			moveit_msgs::MotionPlanResponse response;
 			response_ptr = &response;
-			plan_res.getMessage(response);
-			// moveit_plans_pub_ptr->publish(my_plan);
-			// Set the trajectory and execute the plan
-			my_plan.trajectory_ = response.trajectory;
-			// Execute move
-			move_group.execute(my_plan);
+			// plan_res.getMessage(response);
+			// // moveit_plans_pub_ptr->publish(my_plan);
+			// // Set the trajectory and execute the plan
+			// my_plan.trajectory_ = response.trajectory;
+			// // Execute move
 			// move_group.execute(my_plan);
-			prev_plan_res = response;
-			ROS_INFO("Going to ready state.");
-			// code end
+			// // move_group.execute(my_plan);
+			// prev_plan_res = response;
+			// ROS_INFO("Going to ready state.");
+			// // code end
 
 			// ros::Duration(0.5).sleep();
 
@@ -1408,7 +1408,7 @@ int main(int argc, char** argv)
 			// 	debugBool = true;
 			// }
 			
-			// continue;
+			continue;
 			
 			// xg = goal
 			Eigen::Vector3d xg;
@@ -1523,14 +1523,14 @@ int main(int argc, char** argv)
 
 			// groupCommand.setPosition(thetas);
             // group->sendCommand(groupCommand);
-			if (state == 3)
-			{
-				state = 4;
-			}
-			if (state == 5)
-			{
-				state = 6;
-			}
+			// if (state == 3)
+			// {
+			// 	state = 4;
+			// }
+			// if (state == 5)
+			// {
+			// 	state = 6;
+			// }
 		}
 		// Check if the robot is returning to home
 		if (state == 6)

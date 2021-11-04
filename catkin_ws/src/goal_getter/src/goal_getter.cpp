@@ -198,19 +198,26 @@ private:
                 // tf transform to cam1_link -> odom frame
                 convertToOdom(goal_normal_cam1, goalpose_cam1, cam1_prevTime);
                 
-                if (goal_normal_cam1.pose.position.x != 0 && goal_normal_cam1.pose.position.x<=1.0)
+               
+                if (goal_normal_cam1.pose.position.x != 0)
                 {
-                    double transformed_x = goal_normal_cam1.pose.position.x; // placeholder
-                    double transformed_y = goal_normal_cam1.pose.position.y; // placeholder
-                    double transformed_z = goal_normal_cam1.pose.position.z; // placeholder
+                    double dist = std::sqrt(std::pow(goal_normal_cam1.pose.position.x,2)+
+                              std::pow(goal_normal_cam1.pose.position.y,2) +
+                              std::pow(goal_normal_cam1.pose.position.z,2));
+                    if (dist<=1.5){
+                        double transformed_x = goal_normal_cam1.pose.position.x; // placeholder
+                        double transformed_y = goal_normal_cam1.pose.position.y; // placeholder
+                        double transformed_z = goal_normal_cam1.pose.position.z; // placeholder
 
-                    // add to goal pose
-                    goalSetPoint(0) += transformed_x;
-                    goalSetPoint(1) += transformed_y;
-                    goalSetPoint(2) += transformed_z;
+                        // add to goal pose
+                        goalSetPoint(0) += transformed_x;
+                        goalSetPoint(1) += transformed_y;
+                        goalSetPoint(2) += transformed_z;
+                        
+                        totalCameras++;
+                        numMsgCam1 ++;
+                    }
                     
-                    totalCameras++;
-                    numMsgCam1 ++;
                 }
             }
 
@@ -220,18 +227,23 @@ private:
                 // tf transform to cam2_link frame -> odom frame
                 convertToOdom(goal_normal_cam2, goalpose_cam2, cam2_prevTime);
 
-                if (goal_normal_cam2.pose.position.x != 0 && goal_normal_cam2.pose.position.x<=1.0)
+                if (goal_normal_cam2.pose.position.x != 0)
                 {
-                    double transformed_x = goal_normal_cam2.pose.position.x; // placeholder
-                    double transformed_y = goal_normal_cam2.pose.position.y; // placeholder
-                    double transformed_z = goal_normal_cam2.pose.position.z; // placeholder
+                    double dist = std::sqrt(std::pow(goal_normal_cam2.pose.position.x,2)+
+                              std::pow(goal_normal_cam2.pose.position.y,2) +
+                              std::pow(goal_normal_cam2.pose.position.z,2));
+                    if (dist<=1.5){
+                        double transformed_x = goal_normal_cam2.pose.position.x; // placeholder
+                        double transformed_y = goal_normal_cam2.pose.position.y; // placeholder
+                        double transformed_z = goal_normal_cam2.pose.position.z; // placeholder
 
-                    // add to goal pose
-                    goalSetPoint(0) += transformed_x;
-                    goalSetPoint(1) += transformed_y;
-                    goalSetPoint(2) += transformed_z;
-                    totalCameras++;
-                    numMsgCam2++;
+                        // add to goal pose
+                        goalSetPoint(0) += transformed_x;
+                        goalSetPoint(1) += transformed_y;
+                        goalSetPoint(2) += transformed_z;
+                        totalCameras++;
+                        numMsgCam2++;
+                    }
                 }
             }
 
