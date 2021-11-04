@@ -4,11 +4,12 @@
         <arg name="camera" value="cam1"/>
         <arg name="serial_no" value="801212070841"/>
     </include>
+
     <include file="$(find realsense2_camera)/launch/rs_d400_and_t265.launch">
         <arg name="camera" value="cam2"/>
         <arg name="serial_no_camera2" value="943222073980"/>
     </include>
-    <!--943222070824-->
+    <!--old d435 serial no: 943222070824-->
 
     <!--Start up Move-it nodes-->
     <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch"/>

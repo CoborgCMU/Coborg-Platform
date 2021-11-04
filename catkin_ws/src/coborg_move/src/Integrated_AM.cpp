@@ -153,7 +153,7 @@ double plan_execution_start_delay = 0.4;
 ros::Time plan_start;
 ros::Time plan_end;
 std::string end_effector_name = "end_link/INPUT_INTERFACE";
-bool use_stitching = 0;
+bool use_stitching = 1;
 unsigned int stitching_loop_number = 0; // REMOVE
 double planning_time_offset_default = 0.3;
 double planning_time_offset = planning_time_offset_default;

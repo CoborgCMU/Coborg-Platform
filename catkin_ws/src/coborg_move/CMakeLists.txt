@@ -270,6 +270,13 @@ target_link_libraries(resolved_rate_integrated
   ${catkin_LIBRARIES}
 )
 
+add_executable(AM_interpolator src/AM_interpolator.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(AM_interpolator
+  ${catkin_LIBRARIES}
+)
+
 #############
 ## Install ##
 #############
