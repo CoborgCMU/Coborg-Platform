@@ -64,17 +64,24 @@ unsigned int state = 0;
 // Subscriber Callback
 void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& msg)
 {
+    std::cout<<"Trajectory Received"<<std::endl;
     if (state == 0)
     {
+        std::cout<<"Restarting trajectory"<<std::endl;
         prev_trajectory = msg->trajectory.joint_trajectory;
         new_trajectory = msg->trajectory.joint_trajectory;
+        std::cout<<"Trajectories saved"<<std::endl;
         positions.clear();
         cur_pos = 0;
         working_pos = 0;
+        std::cout<<"Starting trajectory loop"<<std::endl;
         for (unsigned int ii = 1; ii < new_trajectory.points.size(); ii++)
         {
             // Store the position indice of the point in the acceleration parameter
+            std::cout<<"new_trajectory is: "<<new_trajectory<<std::endl;
+            std::cout<<"working_pos is: "<<working_pos<<std::endl;
             new_trajectory.points[ii-1].accelerations[0] = double(working_pos);
+            std::cout<<"Stored working_pos: "<<working_pos<<std::endl;
             unsigned int num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
             for (unsigned int jj = 0; jj < num_pts; jj++)
             {
@@ -84,18 +91,23 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
                     pos_worker_0.push_back(((new_trajectory.points[ii].positions[kk] - new_trajectory.points[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.points[ii-1].positions[kk]);
                     // positions[working_pos][kk] = ((new_trajectory.points[ii].positions[kk] - new_trajectory.points[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.points[ii-1].positions[kk];
                 }
+                std::cout<<"pos_worker_0 filled"<<std::endl;
                 positions.push_back(pos_worker_0);
+                std::cout<<"pos_worker_0 pushed back"<<std::endl;
                 working_pos += 1;
             }
         }
+        std::cout<<"New trajectory successfully created"<<std::endl;
         state = 1;
     }
     else
     {
+        std::cout<<"Updating trajectory"<<std::endl;
         prev_trajectory = new_trajectory;
         new_trajectory = msg->trajectory.joint_trajectory;
         bool divergence_point_found = 0;
         // Find the divergence point of the two trajectories
+        std::cout<<"Finding divergence point"<<std::endl;
         for (unsigned int ii = 0; ii < prev_trajectory.points.size(); ii++)
         {
             // Check whether the first point of the new trajectory overlaps a point of the old trajectory
@@ -114,6 +126,7 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
             {
                 // Store the position indice of the point in the acceleration parameter
                 new_trajectory.points[ii-1].accelerations[0] = double(working_pos);
+                std::cout<<"Store working_pos: "<<working_pos<<std::endl;
                 unsigned int num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
                 for (unsigned int jj = 0; jj < num_pts; jj++)
                 {
@@ -125,10 +138,12 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
                     }
                     if (working_pos < positions.size())
                     {
+                        std::cout<<"Adjusting position vector"<<std::endl;
                         positions.at(working_pos) = pos_worker_1;
                     }
                     else
                     {
+                        std::cout<<"Adding to position vector"<<std::endl;
                         positions.push_back(pos_worker_1);
                     }
                     working_pos += 1;
@@ -168,11 +183,14 @@ int main(int argc, char** argv)
     while (ros::ok())
     {
         ros::spinOnce();
+        std::cout<<"Loop start is: "<<ros::Time::now().toSec()<<std::endl;
         if (state == 1)
         {
+            std::cout<<"state == 1"<<std::endl;
             // Fill in JointState message
             next_point.header.stamp = ros::Time::now();
             next_point.position = positions[cur_pos];
+            std::cout<<"next_point filled in"<<std::endl;
             cur_pos += 1;
             joint_state_pub.publish(next_point);
             if (cur_pos > positions.size())
@@ -186,7 +204,9 @@ int main(int argc, char** argv)
             }
             next_point.header.seq += 1;
         }
+        std::cout<<"Loop end is: "<<ros::Time::now().toSec()<<std::endl;
         loop_rate.sleep();
+        std::cout<<"Loop after sleep is: "<<ros::Time::now().toSec()<<std::endl;
     }
     return 0;
 }
