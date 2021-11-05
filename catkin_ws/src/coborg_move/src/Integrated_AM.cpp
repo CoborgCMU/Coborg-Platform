@@ -766,7 +766,7 @@ int main(int argc, char** argv)
 	display_publisher_ptr = &display_publisher;
 	// ros::Publisher moveit_plans_pub = node_handle.advertise<moveit_msgs::MotionPlanRequest>("/moveit_plans", 1);
 	// moveit_plans_pub_ptr = &moveit_plans_pub;
-	ros::Publisher new_trajectory_pub = node_handle_ptr->advertise<moveit_msgs::RobotTrajectory>("/new_trajectory", 1, true);
+	ros::Publisher new_trajectory_pub = node_handle_ptr->advertise<moveit_msgs::MotionPlanResponse>("/new_trajectory", 1, true);
 	// uncomment if initialization and first operations go poorly
 	// ros::Duration(0.5).sleep();
 
