@@ -7,6 +7,8 @@ from pydub import AudioSegment
 from pydub.playback import play
 import math
 import enum
+import time
+import threading
 
 import rospy
 import rospkg
@@ -14,10 +16,18 @@ from std_msgs.msg import Int32
 
 
 class Command(enum.IntEnum):
-    STOP = 1
-    TARGET = 2
-    HOME = 3
-    READY = 4
+    RESTART = 0
+    TARGET = 1
+    HOME = 2
+    READY = 3
+    CELEBRATE = 4
+    STOP = 9
+
+class State(enum.IntEnum):
+    IDLE = 0
+    INIT = 1
+    PROCESSING = 2
+    COMPLETED = 3
 
 rospack = rospkg.RosPack()
 package_dir = rospack.get_path("voice_recog")
@@ -45,23 +55,34 @@ stream.start_stream()
 
 # Initialize ROS
 rospy.init_node('voice_recog')
-voice_commands_pub = rospy.Publisher('/voice_commands', Int32, queue_size=1)
+voice_commands_pub = rospy.Publisher('/voice_cmd', Int32, queue_size=1)
+voice_state_pub = rospy.Publisher('/feedback_voice', Int32, queue_size=1)
+voice_state_pub.publish(State.INIT)
 
+state = State.INIT
+command_timer = 0
+timer_flag = False
 command = False
 sound = False
 in_speech_bf = False
 decoder.start_utt()
 while not rospy.is_shutdown():
+    if state != State.PROCESSING:
+        state = State.IDLE
+    voice_state_pub.publish(state)
     command = False
     buf = stream.read(1024)
     if buf:
         # Send raw audio to pocketsphinx decoder
         decoder.process_raw(buf, False, False)
+        if command_timer > 0 and (time.time() - command_timer) > 5.0:
+            timer_flag = True
+            print("TIMEOUT")
         # Once speech is detected, keep listening until no more speech is detected before processing command.
-        if decoder.get_in_speech() != in_speech_bf:
+        if decoder.get_in_speech() != in_speech_bf or timer_flag:
             in_speech_bf = decoder.get_in_speech()
             # Once speech is completed (decoder.get_in_speech() is set back to false), process phrase
-            if not in_speech_bf:
+            if not in_speech_bf or timer_flag:
                 decoder.end_utt()
 
                 # Print hypothesis and switch search to another mode
@@ -93,6 +114,16 @@ while not rospy.is_shutdown():
                         voice_commands_pub.publish(Command.READY)
                         sound = AudioSegment.from_mp3(voice_dir + '/Sounds/commandSound.mp3')  
                         command = True
+                    elif "'start', 'up'" in str(results):
+                        print(repr(Command.RESTART))
+                        voice_commands_pub.publish(Command.RESTART)
+                        sound = AudioSegment.from_mp3(voice_dir + '/Sounds/startupSound.mp3')
+                        command = True
+                    elif "'successful', 'fall', 'validation', 'demonstration'" in str(results):
+                        print(repr(Command.CELEBRATE))
+                        voice_commands_pub.publish(Command.CELEBRATE)
+                        sound = AudioSegment.from_mp3(voice_dir + '/Sounds/celebrategoodtimes.mp3')
+                        command = True
 
                 # Send stop command when "stop stop stop" is outside of "Coborg" trigger
                 if 'stop stop stop' in results:
@@ -102,17 +133,25 @@ while not rospy.is_shutdown():
                 
                 # Translate to base language model if 'coborg' is heard.
                 # Switch back to trigger model if language model hears a command (plays failure sound if command not valid)
-                if 'coborg' in results:
+                if 'hey coborg' in results:
                     sound = AudioSegment.from_mp3(voice_dir + '/Sounds/triggerSound.mp3')
+                    state = State.PROCESSING
+                    voice_state_pub.publish(state)
                     decoder.set_search('lm')
-                elif decoder.get_search() == 'lm' and len(results) > 0:
-                     decoder.set_search('coborg')
-                     if not command:
+                    command_timer = time.time()
+                elif decoder.get_search() == 'lm' and (len(results) > 0 or timer_flag):
+                    state = State.COMPLETED
+                    voice_state_pub.publish(state)
+                    decoder.set_search('coborg')
+                    command_timer = 0
+                    timer_flag = False
+                    if not command:
                          sound = AudioSegment.from_mp3(voice_dir + '/Sounds/nocommandSound.mp3')
                 
                 # Play response sound (if set)
                 if sound:
-                    play(sound)
+                    soundthread = threading.Thread(target=play, args=(sound,))
+                    soundthread.start()
                     sound = False
                 decoder.start_utt()
     else:
