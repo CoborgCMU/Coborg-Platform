@@ -12,6 +12,7 @@
 #include <Eigen/Dense>
 #include "std_msgs/Int16.h"
 #include "std_msgs/Int32.h"
+#include "std_msgs/String.h"
 // #include "geometry_msgs/TransformStamped.h"
 // #include "geometry_msgs/PoseStamped.h"
 // #include "gb_visual_detection_3d_msgs/goal_msg.h" // Change to darknet_ros_3d/goal_message when switching to arm branch
@@ -39,14 +40,19 @@
 // 1 == executing
 
 // Global Variable Declarations
-std::string name[4] = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
+const unsigned int joint_num = 4;
+// std::string name[joint_num] = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
+std::vector<std::string> name = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 std::string frame_id = "/world";
-moveit_msgs::RobotTrajectory new_trajectory;
-moveit_msgs::RobotTrajectory prev_trajectory;
+// moveit_msgs::RobotTrajectory new_trajectory;
+// moveit_msgs::RobotTrajectory prev_trajectory;
+trajectory_msgs::JointTrajectory new_trajectory;
+trajectory_msgs::JointTrajectory prev_trajectory;
 sensor_msgs::JointState next_point;
+std::vector<std::vector<double>> positions;
 // double positions[][name.size()];
 // double positions[][sizeof(name)/sizeof(*name)];
-double positions[1][4];
+// double positions[1][4];
 unsigned int cur_pos = 0;
 unsigned int working_pos = 0;
 // double* cur_pos_ptr;
@@ -60,22 +66,25 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
 {
     if (state == 0)
     {
-        prev_trajectory = msg->trajectory;
-        new_trajectory = msg->trajectory;
-        positions.fill(0);
+        prev_trajectory = msg->trajectory.joint_trajectory;
+        new_trajectory = msg->trajectory.joint_trajectory;
+        positions.clear();
         cur_pos = 0;
         working_pos = 0;
-        for (unsigned int ii = 1; ii < new_trajectory.joint_trajectory.points.size(); ii++)
+        for (unsigned int ii = 1; ii < new_trajectory.points.size(); ii++)
         {
             // Store the position indice of the point in the acceleration parameter
-            new_trajectory.joint_trajectory.points[ii-1].accelerations = working_pos;
-            unsigned int num_pts = (new_trajectory.joint_trajectory.points[ii].time_from_start - new_trajectory.joint_trajectory.points[ii].time_from_start[ii-1]).toSec()/time_step;
+            new_trajectory.points[ii-1].accelerations[0] = double(working_pos);
+            unsigned int num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
             for (unsigned int jj = 0; jj < num_pts; jj++)
             {
-                for (unsigned int kk = 0; kk < positions[0].size(); kk++)
+                std::vector<double> pos_worker_0;
+                for (unsigned int kk = 0; kk < joint_num; kk++)
                 {
-                    positions[working_pos][kk] = ((new_trajectory.joint_trajectory.points[ii].positions[kk] - new_trajectory.joint_trajectory.points[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.joint_trajectory.points[ii-1].positions[kk];
+                    pos_worker_0.push_back(((new_trajectory.points[ii].positions[kk] - new_trajectory.points[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.points[ii-1].positions[kk]);
+                    // positions[working_pos][kk] = ((new_trajectory.points[ii].positions[kk] - new_trajectory.points[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.points[ii-1].positions[kk];
                 }
+                positions.push_back(pos_worker_0);
                 working_pos += 1;
             }
         }
@@ -84,34 +93,45 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
     else
     {
         prev_trajectory = new_trajectory;
-        new_trajectory = msg->trajectory;
+        new_trajectory = msg->trajectory.joint_trajectory;
         bool divergence_point_found = 0;
         // Find the divergence point of the two trajectories
-        for (unsigned int ii = 0; ii < prev_trajectory.joint_trajectory.points.size(); ii++)
+        for (unsigned int ii = 0; ii < prev_trajectory.points.size(); ii++)
         {
             // Check whether the first point of the new trajectory overlaps a point of the old trajectory
             // Also ensure that this point hasn't already been executed
-            if (std::equal(std::begin(prev_trajectory.joint_trajectory.points[ii].positions), std::end(prev_trajectory.joint_trajectory.points[ii].positions), std::begin(new_trajectory.joint_trajectory.points[0].positions)) && prev_trajectory.joint_trajectory.points[ii].accelerations > cur_pos)
+            if (std::equal(std::begin(prev_trajectory.points[ii].positions), std::end(prev_trajectory.points[ii].positions), std::begin(new_trajectory.points[0].positions)) && prev_trajectory.points[ii].accelerations[0] > cur_pos)
             {
-                working_pos = int(prev_trajectory.joint_trajectory.points[ii].accelerations);
+                working_pos = int(prev_trajectory.points[ii].accelerations[0]);
                 divergence_point_found = 1;
+                std::cout<<"Divergence point found"<<std::endl;
                 break;
             }
         }
         if (divergence_point_found == 1)
         {
-            for (unsigned int ii = 1; ii < new_trajectory.joint_trajectory.points.size(); ii++)
+            for (unsigned int ii = 1; ii < new_trajectory.points.size(); ii++)
             {
                 // Store the position indice of the point in the acceleration parameter
-                new_trajectory.joint_trajectory.points[ii-1].accelerations = working_pos;
-                unsigned int num_pts = (new_trajectory.joint_trajectory.points[ii].time_from_start - new_trajectory.joint_trajectory.points[ii].time_from_start[ii-1]).toSec()/time_step;
+                new_trajectory.points[ii-1].accelerations[0] = double(working_pos);
+                unsigned int num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
                 for (unsigned int jj = 0; jj < num_pts; jj++)
                 {
-                    for (unsigned int kk = 0; kk < positions[0].size(); kk++)
+                    std::vector<double> pos_worker_1;
+                    for (unsigned int kk = 0; kk < pos_worker_1.size(); kk++)
                     {
-                        positions[working_pos][kk] = ((new_trajectory.joint_trajectory.points[ii].positions[kk] - new_trajectory.joint_trajectory.points[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.joint_trajectory.points[ii-1].positions[kk];
+                        pos_worker_1.push_back(((new_trajectory.points[ii].positions[kk] - new_trajectory.points[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.points[ii-1].positions[kk]);
+                        // positions[working_pos][kk] = ((new_trajectory.points[ii].positions[kk] - new_trajectory.points[ii-1].positions[kk]) * jj / num_pts) + new_trajectory.points[ii-1].positions[kk];
                     }
-                working_pos += 1;
+                    if (working_pos < positions.size())
+                    {
+                        positions.at(working_pos) = pos_worker_1;
+                    }
+                    else
+                    {
+                        positions.push_back(pos_worker_1);
+                    }
+                    working_pos += 1;
                 }
             }
         }
