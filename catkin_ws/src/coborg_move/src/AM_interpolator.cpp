@@ -151,7 +151,7 @@ int main(int argc, char** argv)
     ros::Rate loop_rate(HZ);
 
 	// Initialize Publishers
-    ros::Publisher trajectory_feedback_pub = node_handle.advertise<std_msgs::String>("/interpolator_success", 1, true);
+    ros::Publisher trajectory_feedback_pub = node_handle.advertise<std_msgs::Int32>("/interpolator_success", 1, true);
 	ros::Publisher joint_state_pub = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states", 1, true);
 	ros::Duration(0.5).sleep();
 
