@@ -153,7 +153,11 @@ double plan_execution_start_delay = 0.4;
 ros::Time plan_start;
 ros::Time plan_end;
 std::string end_effector_name = "end_link/INPUT_INTERFACE";
+// // // Variables used to turn on or off various features
 bool use_stitching = 1;
+bool fix_traj_times = 1;
+std::vector<float> max_joint_velocities_RadPerSec = {1, 1, 1, 1};
+// // // // // // // //
 unsigned int stitching_loop_number = 0; // REMOVE
 double planning_time_offset_default = 0.3;
 double planning_time_offset = planning_time_offset_default;
@@ -584,6 +588,26 @@ void hebiJointsCallback(const sensor_msgs::JointState::ConstPtr & hebimsg)
 	hebiJointAngEfforts.at(2) = hebimsg->effort[2];
 	hebiJointAngEfforts.at(3) = hebimsg->effort[3];
 }
+// Manual trajectory time fixer
+moveit_msgs::MotionPlanResponse manual_traj_time_fixer(moveit_msgs::MotionPlanResponse response_traj)
+{
+	double required_time;
+	// Loop through each point in the trajectory and update the trajectory time
+	for (unsigned int ii = 1; ii < response_traj.trajectory.joint_trajectory.points.size(); ii++)
+	{
+		required_time = 0.0;
+		// Loop through each joint and determine the minimum amount of time required for the move
+		for (unsigned int jj = 0; jj < response_traj.trajectory.joint_trajectory.points[ii].positions.size(); jj++)
+		{
+			if ((response_traj.trajectory.joint_trajectory.points[ii].positions[jj] - response_traj.trajectory.joint_trajectory.points[ii-1].positions[jj]) / max_joint_velocities_RadPerSec[jj] > required_time)
+			{
+				required_time = (response_traj.trajectory.joint_trajectory.points[ii].positions[jj] - response_traj.trajectory.joint_trajectory.points[ii-1].positions[jj]) / max_joint_velocities_RadPerSec[jj];
+			}
+		}
+		response_traj.trajectory.joint_trajectory.points[ii].time_from_start = response_traj.trajectory.joint_trajectory.points[ii-1].time_from_start + ros::Duration(required_time);
+	}
+	return response_traj;
+}
 
 int main(int argc, char** argv)
 {	
@@ -966,6 +990,13 @@ int main(int argc, char** argv)
             {
                 continue;
             }
+
+			// If manual trajectory time fixing is requested and the time is bad, update the trajectory
+			if (fix_traj_times && (response.trajectory.joint_trajectory.points[response.trajectory.joint_trajectory.points.size()-1].time_from_start - response.trajectory.joint_trajectory.points[0].time_from_start).toSec() < 0.01)
+			{
+				response = manual_traj_time_fixer(response);
+			}
+
             /////////////// Visualize the result
             moveit_msgs::DisplayTrajectory display_trajectory;
             /* Visualize the trajectory */
@@ -994,7 +1025,10 @@ int main(int argc, char** argv)
             ROS_INFO("Moving to target");
             if (use_stitching)
 			{
+				std::cout<<"response.trajectory is: "<<response.trajectory<<std::endl;
+				std::cout<<"response is: "<<response<<std::endl;
 				new_trajectory_pub.publish(response);
+				exit(1);
 			}
 			else
 			{
@@ -1030,6 +1064,7 @@ int main(int argc, char** argv)
 					plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[i].positions;
 					plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[i].velocities;
 					plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[i].effort;
+
 					std::cout<<"Breakaway point found"<<std::endl;
 					// Stop looping
 					break;
@@ -1216,15 +1251,17 @@ int main(int argc, char** argv)
 				my_plan.trajectory_ = response.trajectory;
 				// my_plan.start_state_ = response.trajectory_start;
 				//////////////////// // Naive Method
-				ros::console::shutdown();
-				std::cout.clear();
+				// ros::console::shutdown();
+				// std::cout.clear();
 				std::cout<<"/////////////////////////////////"<<std::endl;
 				std::cout<<"stitching_loop_number is: "<<stitching_loop_number<<std::endl;
 				std::cout<<"plan_start is: "<<plan_start<<std::endl;
 				std::cout<<"ros::Time::now() is: "<<ros::Time::now()<<std::endl;
 				std::cout<<"trajectory_start_time is: "<<trajectory_start_time<<std::endl;
 				std::cout<<"plan_start - ros::Time::now() + trajectory_start_time is: "<<(plan_start - ros::Time::now() + trajectory_start_time)<<std::endl;
-				std::cout.setstate(std::ios_base::failbit);
+				// std::cout.setstate(std::ios_base::failbit);
+				std::cout<<"response.trajectory is: "<<response.trajectory<<std::endl;
+				std::cout<<"response is: "<<response<<std::endl;
 				new_trajectory_pub.publish(response);
 				// ros::Duration(plan_start - ros::Time::now() + trajectory_start_time - ros::Duration(0.03)).sleep();
 				////////////////////
@@ -1584,6 +1621,7 @@ int main(int argc, char** argv)
 			moveit_msgs::MotionPlanResponse response;
 			response_ptr = &response;
 			plan_res.getMessage(response);
+			std::cout<<"response is: "<<response<<std::endl;
 			/////////////// Visualize the result
             moveit_msgs::DisplayTrajectory display_trajectory;
             /* Visualize the trajectory */

@@ -70,19 +70,34 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
         std::cout<<"Restarting trajectory"<<std::endl;
         prev_trajectory = msg->trajectory.joint_trajectory;
         new_trajectory = msg->trajectory.joint_trajectory;
+        std::cout<<"new_trajectory is: "<<new_trajectory<<std::endl;
         std::cout<<"Trajectories saved"<<std::endl;
         positions.clear();
         cur_pos = 0;
         working_pos = 0;
         std::cout<<"Starting trajectory loop"<<std::endl;
+        std::cout<<"new_trajectory.points.size() is: "<<new_trajectory.points.size()<<std::endl;
         for (unsigned int ii = 1; ii < new_trajectory.points.size(); ii++)
         {
             // Store the position indice of the point in the acceleration parameter
-            std::cout<<"new_trajectory is: "<<new_trajectory<<std::endl;
+            std::cout<<"ii is: "<<ii<<std::endl;
             std::cout<<"working_pos is: "<<working_pos<<std::endl;
-            new_trajectory.points[ii-1].accelerations[0] = double(working_pos);
+            // new_trajectory.points[ii-1].accelerations[0] = 0.15;
+            // std::cout<<"Performed new_trajectory.points[ii-1].acceleartions[0] = 0.15"<<std::endl;
+            // new_trajectory.points[ii-1].accelerations.at(0) = 0.15;
+            // std::cout<<"Performed new_trajectory.points[ii-1].accelerations.at(0) = 0.15"<<std::endl;
+            new_trajectory.points[ii-1].accelerations.push_back((double)working_pos);
+            // new_trajectory.points[ii-1].accelerations[0] = (double)working_pos;
             std::cout<<"Stored working_pos: "<<working_pos<<std::endl;
-            unsigned int num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
+            double double_num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
+            unsigned int num_pts = (unsigned int) double_num_pts;
+            std::cout<<"new_trajectory.points[ii].time_from_start is: "<<new_trajectory.points[ii].time_from_start<<std::endl;
+            std::cout<<"new_trajectory.points[ii-1].time_from_start is: "<<new_trajectory.points[ii-1].time_from_start<<std::endl;
+            std::cout<<"(new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec() is: "<<(new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()<<std::endl;
+            std::cout<<"time_step is: "<<time_step<<std::endl;
+            std::cout<<"(new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step is: "<<(new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step<<std::endl;
+            std::cout<<"double_num_pts is: "<<double_num_pts<<std::endl;
+            std::cout<<"num_pts is: "<<num_pts<<std::endl;
             for (unsigned int jj = 0; jj < num_pts; jj++)
             {
                 std::vector<double> pos_worker_0;
@@ -114,7 +129,7 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
             // Also ensure that this point hasn't already been executed
             if (std::equal(std::begin(prev_trajectory.points[ii].positions), std::end(prev_trajectory.points[ii].positions), std::begin(new_trajectory.points[0].positions)) && prev_trajectory.points[ii].accelerations[0] > cur_pos)
             {
-                working_pos = int(prev_trajectory.points[ii].accelerations[0]);
+                working_pos = (int)prev_trajectory.points[ii].accelerations[0];
                 divergence_point_found = 1;
                 std::cout<<"Divergence point found"<<std::endl;
                 break;
@@ -125,7 +140,7 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
             for (unsigned int ii = 1; ii < new_trajectory.points.size(); ii++)
             {
                 // Store the position indice of the point in the acceleration parameter
-                new_trajectory.points[ii-1].accelerations[0] = double(working_pos);
+                new_trajectory.points[ii-1].accelerations[0] = (double)working_pos;
                 std::cout<<"Store working_pos: "<<working_pos<<std::endl;
                 unsigned int num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
                 for (unsigned int jj = 0; jj < num_pts; jj++)
