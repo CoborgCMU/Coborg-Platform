@@ -992,8 +992,14 @@ int main(int argc, char** argv)
             status.data = 2;
             state_input_pub_ptr->publish(status);
             ROS_INFO("Moving to target");
-            // move_group_ptr->execute(my_plan);
-            move_group_ptr->execute(my_plan);
+            if (use_stitching)
+			{
+				new_trajectory_pub.publish(response);
+			}
+			else
+			{
+				move_group_ptr->execute(my_plan);
+			}
         }
 		// Check if the robot is executing trajectories to target and stitching is in use
 		if (state == 2 && use_stitching)
@@ -1592,8 +1598,15 @@ int main(int argc, char** argv)
 			// Set the trajectory and execute the plan
 			my_plan.trajectory_ = response.trajectory;
 			// Execute move
-			move_group.execute(my_plan);
-			
+            // if (use_stitching)
+			// {
+			// 	new_trajectory_pub.publish(response);
+			// }
+			// else
+			// {
+			// 	move_group_ptr->execute(my_plan);
+			// }
+			move_group_ptr->execute(my_plan);
 			prev_plan_res = response;
 			// Let the main_state_machine node know that the robot is executing
 			status.data = 2;
