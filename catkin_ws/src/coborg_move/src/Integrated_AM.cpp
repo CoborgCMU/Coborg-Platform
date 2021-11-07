@@ -156,7 +156,8 @@ std::string end_effector_name = "end_link/INPUT_INTERFACE";
 // // // Variables used to turn on or off various features
 bool use_stitching = 1;
 bool fix_traj_times = 1;
-std::vector<float> max_joint_velocities_RadPerSec = {1, 1, 1, 1};
+// std::vector<float> max_joint_velocities_RadPerSec = {1, 1, 1, 1};
+std::vector<float> max_joint_velocities_RadPerSec = {0.3, 0.3, 0.3, 0.3};
 // // // // // // // //
 unsigned int stitching_loop_number = 0; // REMOVE
 double planning_time_offset_default = 0.3;
@@ -1028,7 +1029,7 @@ int main(int argc, char** argv)
 				std::cout<<"response.trajectory is: "<<response.trajectory<<std::endl;
 				std::cout<<"response is: "<<response<<std::endl;
 				new_trajectory_pub.publish(response);
-				exit(1);
+				// exit(1);
 			}
 			else
 			{
@@ -1109,6 +1110,13 @@ int main(int argc, char** argv)
 			moveit_msgs::MotionPlanResponse response;
 			response_ptr = &response;
 			plan_res.getMessage(response);
+
+			// If manual trajectory time fixing is requested and the time is bad, update the trajectory
+			if (fix_traj_times && (response.trajectory.joint_trajectory.points[response.trajectory.joint_trajectory.points.size()-1].time_from_start - response.trajectory.joint_trajectory.points[0].time_from_start).toSec() < 0.01)
+			{
+				response = manual_traj_time_fixer(response);
+			}
+
 			// Record the memory size of the arrays
 			// int new_trajectory_length = response_ptr->trajectory.joint_trajectory.points.size();
 			int new_trajectory_length = response_ptr->trajectory.joint_trajectory.points.size();
@@ -1263,6 +1271,7 @@ int main(int argc, char** argv)
 				std::cout<<"response.trajectory is: "<<response.trajectory<<std::endl;
 				std::cout<<"response is: "<<response<<std::endl;
 				new_trajectory_pub.publish(response);
+				std::cout<<"New trajectory published"<<std::endl;
 				// ros::Duration(plan_start - ros::Time::now() + trajectory_start_time - ros::Duration(0.03)).sleep();
 				////////////////////
 				// moveitSuccess = move_group.plan(my_plan);

@@ -90,7 +90,7 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
             // new_trajectory.points[ii-1].accelerations[0] = (double)working_pos;
             std::cout<<"Stored working_pos: "<<working_pos<<std::endl;
             double double_num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
-            unsigned int num_pts = (unsigned int) double_num_pts;
+            unsigned int num_pts = (unsigned int) double_num_pts + 1;
             std::cout<<"new_trajectory.points[ii].time_from_start is: "<<new_trajectory.points[ii].time_from_start<<std::endl;
             std::cout<<"new_trajectory.points[ii-1].time_from_start is: "<<new_trajectory.points[ii-1].time_from_start<<std::endl;
             std::cout<<"(new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec() is: "<<(new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()<<std::endl;
@@ -142,7 +142,8 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
                 // Store the position indice of the point in the acceleration parameter
                 new_trajectory.points[ii-1].accelerations[0] = (double)working_pos;
                 std::cout<<"Store working_pos: "<<working_pos<<std::endl;
-                unsigned int num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step;
+                double double_num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step; 
+                unsigned int num_pts = (unsigned int) double_num_pts + 1;
                 for (unsigned int jj = 0; jj < num_pts; jj++)
                 {
                     std::vector<double> pos_worker_1;
@@ -197,8 +198,9 @@ int main(int argc, char** argv)
 
     while (ros::ok())
     {
+        ros::Time loop_start = ros::Time::now();
         ros::spinOnce();
-        std::cout<<"Loop start is: "<<ros::Time::now().toSec()<<std::endl;
+        ros::Time after_spin = ros::Time::now();
         if (state == 1)
         {
             std::cout<<"state == 1"<<std::endl;
@@ -219,9 +221,13 @@ int main(int argc, char** argv)
             }
             next_point.header.seq += 1;
         }
-        std::cout<<"Loop end is: "<<ros::Time::now().toSec()<<std::endl;
+        ros::Time before_sleep = ros::Time::now();
         loop_rate.sleep();
-        std::cout<<"Loop after sleep is: "<<ros::Time::now().toSec()<<std::endl;
+        ros::Time after_sleep = ros::Time::now();
+        std::cout<<"ros:spinOnce() time is: "<<(after_spin - loop_start).toSec()<<std::endl;
+        std::cout<<"Loop working time is: "<<(before_sleep - after_spin).toSec()<<std::endl;
+        std::cout<<"Sleep time is: "<<(after_sleep - before_sleep).toSec()<<std::endl;
+        std::cout<<"Total loop time is: "<<(after_sleep - loop_start).toSec()<<std::endl;
     }
     return 0;
 }
