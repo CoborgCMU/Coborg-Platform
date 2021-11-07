@@ -4,25 +4,13 @@
 
     <include file="$(find dof_4_lowerlonger_arm)/launch/demo.launch" />
 
+    <node pkg="tf" type="static_transform_publisher" name="motor1_to_lowercam" args="-0.2273 -0.03150 0.2075 0.698132 -0.733038 0 /motor1/INPUT_INTERFACE /cam1_link 100" />
 
-    <!-- <node pkg="tf" type="static_transform_publisher" name="t265_coborg_tf" args="0.2794 -0.4999 -0.67305 0 0 0 /t265_link /world 100" />
-    <node pkg="tf" type="static_transform_publisher" name="t265_to_d400_1" args="0.0035 -0.44 -0.065 0.000 -0.018 0.005 /t265_link /cam1_link 100"/>
-    <node pkg="tf" type="static_transform_publisher" name="t265_to_d400_2" args="0.0035 -0.44 -0.1 0.000 -0.018 0.005 /t265_link /cam2_link 100"/> -->
+    <node pkg="tf" type="static_transform_publisher" name="motor1_to_uppercam" args="-0.2220 -0.02438 0.2497 0.698132 0 0 /motor1/INPUT_INTERFACE /cam2_link 100" />
 
-    <node pkg="tf" type="static_transform_publisher" name="motor1_to_lowercam" args="-0.2286 -0.04318 0.1651 0.645772 -0.733038 0 /ms1/INPUT_INTERFACE /cam1_link 100" />
-    <node pkg="tf" type="static_transform_publisher" name="lowercam_to_lowerintermediate" args="-0.2286 -0.04318 0.1651 0.645772 0 0 /ms1/INPUT_INTERFACE /lowerintermediate_link 100" />
-    <!-- <node pkg="tf" type="static_transform_publisher" name="lower_intermediate_to_t265" args="-0.0259 0.0199 0.0081 0 0 0 /lowerintermediate_link /t265_link  100" /> -->
-    <!-- <node pkg="tf" type="static_transform_publisher" name="t265_to_t265_odom" args="0 0 0 0 0 0 /t265_link /t265_odom_frame 100" /> -->
-    <node pkg="tf" type="static_transform_publisher" name="lower_intermediate_to_middle_intermediate" args="-0.0259 0.0199 0.0081 0 0 0 /lowerintermediate_link /middleintermediate_link 100" />
-    <node pkg="tf" type="static_transform_publisher" name="middle_intermediate_to_highercam" args="0.0347 -0.0199 0.0341 0 -0.0524 0 /middleintermediate_link /cam2_link 100" /> 
-    <node pkg="tf" type="static_transform_publisher" name="middle_intermediate_to_higher_intermediate" args="0.0347 -0.0199 0.0341 0 0 0 /middleintermediate_link /highintermediate_lnk 100" /> 
-
-    <node pkg="tf" type="static_transform_publisher" name="t265_coborg_tf" args="-0.2286 0.093+ -0.503 -3.7876 0 0 /t265_link /world 100" />
-    <!-- 3.7876 -->
-    <!-- -0.646 -->
-
-    <!-- y: 0.112-->
-    <!-- "-0.22225 -0.08255 0.17018 0.645772 -0.733038 0-->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.2609 -0.0381 0.5149 3.8397 0 0 /world /t265_link 100" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.1887 0.1844 -0.5149 2.44348 0 0 /t265_link /world 100" />
+    
 
 
 

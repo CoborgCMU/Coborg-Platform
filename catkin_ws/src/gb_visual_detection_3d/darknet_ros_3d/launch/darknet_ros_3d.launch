@@ -4,7 +4,7 @@
   <!-- <arg name="camera_rgb_topic" default="/camera/color/image_raw" /> -->
 
   <!-- Console launch prefix -->
-  <arg name="launch_prefix" default=""/>
+  <arg name="launch_prefix" default="xterm -e"/>
 
   <!-- Config and weights folder. -->
   <arg name="yolo_weights_path"          default="$(find darknet_ros)/yolo_network_config/weights"/>

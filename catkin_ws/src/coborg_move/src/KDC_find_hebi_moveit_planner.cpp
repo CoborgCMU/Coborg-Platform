@@ -55,7 +55,7 @@ bool impValue = false;
 void hebiOutputCallback(const sensor_msgs::JointState::ConstPtr& msg) {
     // ROS_INFO("motor1: %f | motor2: %f | motor3: %f", msg->position[0],msg->position[1],msg->position[2]);
     motor1_joint = msg->position[0]; // offset determined empirically for level arm out at 0 radians 
-    motor2_joint = msg->position[1]+0.1;
+    motor2_joint = msg->position[1];
     motor3_joint = msg->position[2];
     motor4_joint = msg->position[3];
 }

@@ -1,12 +1,19 @@
 <launch>
-    <!--Start up realsense(if not working, switch serial no) -->
+    <!--Start up realsense-->
+
+    <include file="$(find realsense2_camera)/launch/rs_t265.launch">
+        <arg name="camera" value="t265"/>
+        <arg name="initial_reset" value="true"/>
+    </include>
+
     <include file="$(find realsense2_camera)/launch/rs_rgbd.launch">
         <arg name="camera" value="cam1"/>
         <arg name="serial_no" value="801212070841"/>
     </include>
-    <include file="$(find realsense2_camera)/launch/rs_d400_and_t265.launch">
+
+    <include file="$(find realsense2_camera)/launch/rs_rgbd.launch">
         <arg name="camera" value="cam2"/>
-        <arg name="serial_no_camera2" value="943222073980"/>
+        <arg name="serial_no" value="943222073980"/>
     </include>
 
     <!--Start up Move-it nodes-->
