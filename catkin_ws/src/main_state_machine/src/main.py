@@ -13,17 +13,30 @@ import enum
 # add status inputs
 
 # Commands:
-# 0 = pause > Motors stop moving, but maintain with lower torque threshold
-# 1 = stop > Shut off power to motors
-# 2 = target > Move to and hold plate
-# 3 = home > Return to home position
+# 0 = Restart > Recover from voice trigger E-stop
+# 1 = Target > Move to and hold plate
+# 2 = Home > Return to home position
+# 3 = Ready > Go to ready position (currently unused)
+# 4 = Celebrate > Time to party!
+# 9 = Stop > Shut off power to motors (voice trigger E-stop)
+class voiceCommand(enum.IntEnum):
+    RESTART = 0
+    TARGET = 1
+    HOME = 2
+    READY = 3
+    CELEBRATE = 4
+    STOP = 9
 
-
-class Command(enum.IntEnum): #these are the voice commands that come in and get sent to the motors
-    STOP = 1 
-    TARGET = 2 
-    HOME = 3
-    WARNING = 4
+# Voice System States
+# 0 = (Idle) Waiting for audio"
+# 1 = (Initializing) Starting up node
+# 2 = (Processing) Analyzing audio
+# 3 = (Success) Completed task. Latch for 0.5(s)
+class voiceState(enum.IntEnum):
+    IDLE = 0
+    INIT = 1
+    PROCESSING = 2
+    COMPLETED = 3
 
 # Status Outputs:
 # 1 = initializing > Command received, but not executing yet (e.g. detecting hands) 
