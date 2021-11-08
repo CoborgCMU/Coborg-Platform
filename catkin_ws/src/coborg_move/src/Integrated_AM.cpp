@@ -131,7 +131,6 @@ std::vector<double> goal_tolerance_angle_default {10, 0.4, 0.4};
 std::vector<double> goal_tolerance_angle = goal_tolerance_angle_default;
 double goal_tolerance_pose_adjustment = 0.025;
 double goal_tolerance_pose_adjusted_threshold = 0.1;
-// float goal_offset = 0.15;
 float goal_offset = 0.15;
 // tf::StampedTransform odom_tf_current;
 // Eigen::Vector3d odom_tf_current_translation;
@@ -945,15 +944,16 @@ int main(int argc, char** argv)
 
                 // // Lock the visual planner
                 // planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
-                std::cout<<"Generating plan"<<std::endl;
+                std::cout<<"Generating plan, state == -1"<<std::endl;
                 planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
                 if ( sqrt(pow(goal_tolerance_pose[0],2)+pow(goal_tolerance_pose[1],2)+pow(goal_tolerance_pose[2],2)) > goal_tolerance_pose_adjusted_threshold)
                 {
                     if (num_attempts < num_max_attempts)
                     {
                         std::cout<<"Couldn't sufficiently plan for point, trying again"<<std::endl;
-                        num_attempts += 1;
-                        break;
+                        std::cout<<"num_attempts is: "<<num_attempts<<std::endl;
+						num_attempts += 1;
+                        continue;
                     }
                     state = 0;
                     ROS_INFO("Couldn't find a suitable path, returning to waiting");
@@ -1092,7 +1092,8 @@ int main(int argc, char** argv)
 			{
 				// planning_scene_monitor::LockedPlanningSceneRO lscene(*psmPtr);
 				/* Now, call the pipeline and check whether planning was successful. */
-				std::cout<<"Generating new plan"<<std::endl;
+				std::cout<<"plan_req is: "<<plan_req<<std::endl;
+				std::cout<<"Generating new plan, state == 2 && use_stitching"<<std::endl;
 				planning_pipeline->generatePlan(*psmPtr, plan_req, plan_res);
 			}
 			/* Now, call the pipeline and check whether planning was successful. */

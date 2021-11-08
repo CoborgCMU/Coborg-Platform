@@ -12,6 +12,7 @@
 
 #include "Eigen/Eigen"
 
+#include "std_msgs/Bool.h" // Used in bypass option
 
 #include <algorithm> //based on HEBI C++ API 3.3.0 documentation
 #include <cmath>
@@ -50,24 +51,39 @@ ros::Time currImp;
 
 bool impValue = false;
 
+// Path stitching option to bypass find_hebi_moveit.....
+bool bypass_option = true;
+bool bypassed = false;
+
 
 // convert joint angles from MoveIt node to HEBI joint angles
 void hebiOutputCallback(const sensor_msgs::JointState::ConstPtr& msg) {
     // ROS_INFO("motor1: %f | motor2: %f | motor3: %f", msg->position[0],msg->position[1],msg->position[2]);
+    std::cout<<"hebiOutputCallback received"<<std::endl; // // //
     motor1_joint = msg->position[0]; // offset determined empirically for level arm out at 0 radians 
     motor2_joint = msg->position[1];
     motor3_joint = msg->position[2];
     motor4_joint = msg->position[3];
+    std::cout<<"motor joint positions filled"<<std::endl; // // //
 }
 
 void effortCallback(const sensor_msgs::JointState::ConstPtr& msg)
 {
+    std::cout<<"effortCallback received"<<std::endl; // // //
     impValue = true;
     currImp = ros::Time::now();
     ROS_INFO_STREAM("Received Torque Command : \n" << *msg << "\n");
     torqueVect = *msg;
+    std::cout<<"effortCallback finalized"<<std::endl; // // //
 }
 
+void bypassCallback(const std_msgs::Bool::ConstPtr& msg)
+{
+    std::cout<<"Bypass callback received"<<std::endl;
+    std::cout<<"Bypass message is: "<<msg->data<<std::endl;
+    bypassed = msg->data;
+    std::cout<<"bypassed is: "<<bypassed<<std::endl;
+}
 
 int main(int argc, char** argv)
 {
@@ -81,6 +97,7 @@ int main(int argc, char** argv)
     ros::Subscriber fake_joint_states_sub = node.subscribe("/move_group/fake_controller_joint_states", 1, hebiOutputCallback);
     // ros::Publisher hebi_joints_pub = node.advertise<geometry_msgs::Twist>("hebi_joints", 1);
     ros::Publisher hebi_jointstate_pub = node.advertise<sensor_msgs::JointState>("hebi_joints", 1);
+    ros::Subscriber bypass_sub = node.subscribe("/find_hebi_bypass", 1, bypassCallback);
 
     ros::Subscriber desired_torques_sub = node.subscribe("/desired_hebi_efforts", 1, effortCallback);
 
@@ -151,20 +168,25 @@ int main(int argc, char** argv)
 
     while (ros::ok()) {
         beginImp = ros::Time::now();
+        std::cout<<"Time recorded"<<std::endl; // // //
 
 
         // compute duration variable
         durr = (float)(curr - begin).toSec();
+        std::cout<<"Duration computed"<<std::endl; // // //
 
         // if the motors sendback feedback information
         if (group->getNextFeedback(group_feedback))
         {
+            std::cout<<"Feedback information received"<<std::endl; // // //
             feedbackPos = group_feedback.getPosition();
             feedbackVel = group_feedback.getVelocity();
             feedbackTor = group_feedback.getEffort();
+            std::cout<<"Feedback information recorded"<<std::endl; // // //
 
             sensor_msgs::JointState hebi_feedback_message;
             hebi_feedback_message.header.stamp = ros::Time::now();
+            std::cout<<"Feedback timestamp recorded"<<std::endl; // // //
 
             for (unsigned int it = 0; it < names.size(); it++)
             {
@@ -173,10 +195,22 @@ int main(int argc, char** argv)
                 hebi_feedback_message.position.push_back((float) feedbackPos(it));
                 hebi_feedback_message.velocity.push_back((float) feedbackVel(it));
                 hebi_feedback_message.effort.push_back((float) feedbackTor(it));
+                std::cout<<"Pushed back hebi feedback info"<<std::endl; // // //
 
             }
+            std::cout<<"Finished filling in Hebi feedback info"<<std::endl; // // //
+            if (bypassed == false || bypass_option == false)
+            {
+                hebi_jointstate_pub.publish(hebi_feedback_message);
+                std::cout<<">>>> Published hebi feedback info"<<std::endl; // // //
+                std::cout<<"bypassed is: "<<bypassed<<std::endl;
+                std::cout<<"bypass_option is: "<<bypass_option<<std::endl;
+            }
+            else
+            {
+                std::cout<<"<<<< hebi jointstate publishing circumvented"<<std::endl;
+            }
 
-            hebi_jointstate_pub.publish(hebi_feedback_message);
 
 
 

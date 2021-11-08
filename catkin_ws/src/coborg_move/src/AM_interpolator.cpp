@@ -12,6 +12,7 @@
 #include <Eigen/Dense>
 #include "std_msgs/Int16.h"
 #include "std_msgs/Int32.h"
+#include "std_msgs/Bool.h"
 #include "std_msgs/String.h"
 // #include "geometry_msgs/TransformStamped.h"
 // #include "geometry_msgs/PoseStamped.h"
@@ -43,7 +44,7 @@
 const unsigned int joint_num = 4;
 // std::string name[joint_num] = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 std::vector<std::string> name = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
-std::string frame_id = "/world";
+std::string frame_id = "world";
 // moveit_msgs::RobotTrajectory new_trajectory;
 // moveit_msgs::RobotTrajectory prev_trajectory;
 trajectory_msgs::JointTrajectory new_trajectory;
@@ -57,9 +58,11 @@ unsigned int cur_pos = 0;
 unsigned int working_pos = 0;
 // double* cur_pos_ptr;
 // unsigned int cur_step = sizeof(positions[0]);
-const int HZ = 20;
+// const int HZ = 20;
+const int HZ = 2;
 double time_step = 1.0/HZ;
 unsigned int state = 0;
+std_msgs::Bool bypass_state;
 
 // Subscriber Callback
 void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& msg)
@@ -140,7 +143,7 @@ void new_trajectory_callback(const moveit_msgs::MotionPlanResponse::ConstPtr& ms
             for (unsigned int ii = 1; ii < new_trajectory.points.size(); ii++)
             {
                 // Store the position indice of the point in the acceleration parameter
-                new_trajectory.points[ii-1].accelerations[0] = (double)working_pos;
+                new_trajectory.points[ii-1].accelerations.push_back((double)working_pos);
                 std::cout<<"Store working_pos: "<<working_pos<<std::endl;
                 double double_num_pts = (new_trajectory.points[ii].time_from_start - new_trajectory.points[ii-1].time_from_start).toSec()/time_step; 
                 unsigned int num_pts = (unsigned int) double_num_pts + 1;
@@ -182,8 +185,11 @@ int main(int argc, char** argv)
     ros::Rate loop_rate(HZ);
 
 	// Initialize Publishers
-    ros::Publisher trajectory_feedback_pub = node_handle.advertise<std_msgs::Int32>("/interpolator_success", 1, true);
-	ros::Publisher joint_state_pub = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states", 1, true);
+    ros::Publisher trajectory_feedback_pub = node_handle.advertise<std_msgs::Int32>("interpolator_success", 1, true);
+	// ros::Publisher joint_state_pub = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states", 1, true);
+	ros::Publisher joint_state_pub = node_handle.advertise<sensor_msgs::JointState>("hebi_joints", 1, true);
+    ros::Publisher bypass_pub = node_handle.advertise<std_msgs::Bool>("find_hebi_bypass", 1, true);
+    bypass_state.data = false;
 	ros::Duration(0.5).sleep();
 
 	// Initialize Subscribers
@@ -203,6 +209,13 @@ int main(int argc, char** argv)
         ros::Time after_spin = ros::Time::now();
         if (state == 1)
         {
+            // Block KDC_find_hebi_moveit_planner.cpp from publishing in hebi_joints
+            if (bypass_state.data == false)
+            {
+                bypass_state.data = true;
+                bypass_pub.publish(bypass_state);
+            }
+
             std::cout<<"state == 1"<<std::endl;
             // Fill in JointState message
             next_point.header.stamp = ros::Time::now();
@@ -218,16 +231,20 @@ int main(int argc, char** argv)
                 trajectory_feedback_pub.publish(success);
                 std::cout<<"Finished trajectory"<<std::endl;
                 state = 0;
+
+                // Unblock KDC_find_hebi_moveit_planner.cpp
+                bypass_state.data = false;
+                bypass_pub.publish(bypass_state);
             }
             next_point.header.seq += 1;
         }
         ros::Time before_sleep = ros::Time::now();
         loop_rate.sleep();
         ros::Time after_sleep = ros::Time::now();
-        std::cout<<"ros:spinOnce() time is: "<<(after_spin - loop_start).toSec()<<std::endl;
-        std::cout<<"Loop working time is: "<<(before_sleep - after_spin).toSec()<<std::endl;
-        std::cout<<"Sleep time is: "<<(after_sleep - before_sleep).toSec()<<std::endl;
-        std::cout<<"Total loop time is: "<<(after_sleep - loop_start).toSec()<<std::endl;
+        // std::cout<<"ros:spinOnce() time is: "<<(after_spin - loop_start).toSec()<<std::endl;
+        // std::cout<<"Loop working time is: "<<(before_sleep - after_spin).toSec()<<std::endl;
+        // std::cout<<"Sleep time is: "<<(after_sleep - before_sleep).toSec()<<std::endl;
+        // std::cout<<"Total loop time is: "<<(after_sleep - loop_start).toSec()<<std::endl;
     }
     return 0;
 }
