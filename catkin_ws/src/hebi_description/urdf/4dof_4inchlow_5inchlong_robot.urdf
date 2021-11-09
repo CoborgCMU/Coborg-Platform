@@ -130,12 +130,12 @@
   <joint name="base_base" type="fixed">
     <parent link="world"/>
     <child link="motor1/INPUT_INTERFACE"/>
-    <origin rpy="0 0 0" xyz="0 0.05 0.3184"/>
+    <origin rpy="0 0 0" xyz="0 0.05 0.2168"/>
   </joint>
   <joint name="base_s" type="fixed">
     <parent link="world"/>
     <child link="ms1/INPUT_INTERFACE"/>
-    <origin rpy="0 0 0" xyz="0 0.05 0.3184"/>
+    <origin rpy="0 0 0" xyz="0 0.05 0.2168"/>
   </joint>
   <joint name="shoulder" type="fixed">
     <parent link="world"/>
@@ -557,12 +557,12 @@
       <inertia ixx="0.00015" ixy="0.0000341" ixz="0.0000118" iyy="0.000255" iyz="0.00000229" izz="0.000350"/>
     </inertial>
   </link>
-  <joint name="motor4/X5_4" type="continuous">
+  <joint name="motor4/X5_4" type="revolute">
     <parent link="motor4/INPUT_INTERFACE"/>
     <child link="sensor/INPUT_INTERFACE"/>
     <origin rpy="0 0 0" xyz="0 0 0.031"/>
     <axis xyz="0 0 1"/>
-    <limit effort="7.0" velocity="32"/>
+    <limit effort="7.0" velocity="32" lower="-2.4" upper="-0.1"/>
     <dynamics damping="0.1" friction="0.1"/>
   </joint>
   <gazebo reference="motor4/INPUT_INTERFACE">
