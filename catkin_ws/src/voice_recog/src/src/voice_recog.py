@@ -14,7 +14,6 @@ import rospy
 import rospkg
 from std_msgs.msg import Int32
 
-
 class Command(enum.IntEnum):
     RESTART = 0
     TARGET = 1
@@ -33,7 +32,6 @@ rospack = rospkg.RosPack()
 package_dir = rospack.get_path("voice_recog")
 voice_dir = package_dir + '/src'
 model_dir = package_dir + '/src/model'
-
 
 # Init decoder
 config = Decoder.default_config()
