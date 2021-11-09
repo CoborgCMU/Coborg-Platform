@@ -17,7 +17,7 @@
 	// In a separate terminal, run "rostopic echo /hebi_joints"
 
 
-// Feng Xiang and Yuqing Qin and Gerry D'Ascoli:
+// Feng Xiang and Yuqing Qin and Gerry D'Ascoli and you-know-who:
 // change /goal message callback to goal_getter::GoalPose
 // get the normal goal_msg for normal planning
 
@@ -104,6 +104,7 @@ std::string move_group_planner_id = "RRTConnect";
 // Initialize Goal and Transform Variables
 geometry_msgs::PoseStamped goal_pose;
 Eigen::Vector3d goal_pose_normal_vector;
+Eigen::Vector3d goal_pose_euler;
 // tf::TransformListener* listener_ptr;
 // tf::StampedTransform odom_tf_goal;
 // double tf_delay_threshold = 0.1;
@@ -282,6 +283,8 @@ void goal_callback(const goal_getter::GoalPose::ConstPtr& msg)
 	Eigen::Matrix3d goal_pose_rotation_matrix;
 	goal_pose_rotation_matrix = goal_pose_quaternion.toRotationMatrix();
 	goal_pose_normal_vector << goal_pose_rotation_matrix(0,0), goal_pose_rotation_matrix(1,0), goal_pose_rotation_matrix(2,0);
+
+	goal_pose_euler = goal_pose_rotation_matrix.eulerAngles(0,1,2);
 
     if (state == 1)
     {
@@ -1464,38 +1467,25 @@ int main(int argc, char** argv)
 			continue;
 			
 			// xg = goal
-			Eigen::Vector3d xg;
-            // xg << motorGoalPoseStamped.pose.position.x, motorGoalPoseStamped.pose.position.y, -motorGoalPoseStamped.pose.position.z;
-			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z;
+			Eigen::VectorXd xg;
+			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z, goal_pose_euler(0), goal_pose_euler(1), goal_pose_euler(2);
 
-			// //theta = Get joint state
-			// if (group->getNextFeedback(group_feedback))
-            // {
-            //     thetas = group_feedback.getPosition(); 
-            // }
-
+			// get current joint angles (thetas)
 			for (unsigned int ii = 0; ii < group_size; ii++)
 			{
 				thetas(ii) = hebiJointAngles.at(ii);
 			}
 
 			// //[x,y,z of the end effector] -- x0
-            // Eigen::Matrix4d transform;
-            // model->getEndEffector(thetas,transform);
-			
 			std::vector<double> joint_values{thetas(0), thetas(1), thetas(2), thetas(3)};
 			robotCurrState.setJointGroupPositions(joint_model_group, joint_values);
 			const Eigen::Affine3d& link_pose = robotCurrState.getGlobalLinkTransform("end_link/INPUT_INTERFACE");
 			// std::cout << "Link Pose: " << link_pose << std::endl;
 
-
-			// double roll0 = atan2(transform(2,1), transform(2,2));
-            // double pitch0 = atan2(-transform(2,0), sqrt(pow(transform(2,1),2)+pow(transform(2,2),2)));
-            // double yaw0 = atan2(transform(1,0), transform(0,0));
-
-			// Eigen::Vector3d x0;
-            // x0 << transform(0,3), transform(1,3), transform(2,3);
-			Eigen::Vector3d x0 = link_pose.translation();
+			Eigen::VectorXd x0;
+			Eigen::Vector3d x0cart = link_pose.translation();
+			Eigen::Vector3d x0euler = link_pose.rotation().eulerAngles(0,1,2);
+			x0 << x0cart(0), x0cart(1), x0cart(2), x0euler(0), x0euler(1), x0euler(2);
 
 			//Compute Jacobian -- J
             //[2d matrix of joint angles ]
@@ -1503,7 +1493,7 @@ int main(int argc, char** argv)
             // model->getJEndEffector(thetas, J);
 			Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
 			robotCurrState.getJacobian(joint_model_group, robotCurrState.getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, J);
-            Eigen::MatrixXd ee_J = J.block(0,0,3,4);
+            Eigen::MatrixXd ee_J = J.block(0,0,6,4);//J.block(0,0,3,4);
 
 			// Iterate goal forward or backwards
 			if (state == 3)
