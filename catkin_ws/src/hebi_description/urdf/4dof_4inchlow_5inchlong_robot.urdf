@@ -180,7 +180,7 @@
     <child link="right_arm1/INPUT_INTERFACE"/>
     <origin rpy="0 0 0" xyz="0 0 0.031"/>
     <axis xyz="0 0 1"/>
-    <limit effort="13.0" velocity="14" lower="-2.1" upper="1.9"/>
+    <limit effort="13.0" velocity="14" lower="-0.1" upper="1.6"/>
     <dynamics damping="0.1" friction="0.1"/>
   </joint>
   <gazebo reference="motor1/INPUT_INTERFACE">

@@ -12,7 +12,6 @@
 
 #include "Eigen/Eigen"
 
-#include "std_msgs/Bool.h" // Used in bypass option
 
 #include <algorithm> //based on HEBI C++ API 3.3.0 documentation
 #include <cmath>
@@ -51,9 +50,6 @@ ros::Time currImp;
 
 bool impValue = false;
 
-// Path stitching option to bypass find_hebi_moveit.....
-bool bypass_option = true;
-bool bypassed = false;
 
 
 // convert joint angles from MoveIt node to HEBI joint angles
@@ -77,13 +73,6 @@ void effortCallback(const sensor_msgs::JointState::ConstPtr& msg)
     std::cout<<"effortCallback finalized"<<std::endl; // // //
 }
 
-void bypassCallback(const std_msgs::Bool::ConstPtr& msg)
-{
-    std::cout<<"Bypass callback received"<<std::endl;
-    std::cout<<"Bypass message is: "<<msg->data<<std::endl;
-    bypassed = msg->data;
-    std::cout<<"bypassed is: "<<bypassed<<std::endl;
-}
 
 int main(int argc, char** argv)
 {
@@ -97,7 +86,6 @@ int main(int argc, char** argv)
     ros::Subscriber fake_joint_states_sub = node.subscribe("/move_group/fake_controller_joint_states", 1, hebiOutputCallback);
     // ros::Publisher hebi_joints_pub = node.advertise<geometry_msgs::Twist>("hebi_joints", 1);
     ros::Publisher hebi_jointstate_pub = node.advertise<sensor_msgs::JointState>("hebi_joints", 1);
-    ros::Subscriber bypass_sub = node.subscribe("/find_hebi_bypass", 1, bypassCallback);
 
     ros::Subscriber desired_torques_sub = node.subscribe("/desired_hebi_efforts", 1, effortCallback);
 
@@ -198,21 +186,8 @@ int main(int argc, char** argv)
                 std::cout<<"Pushed back hebi feedback info"<<std::endl; // // //
 
             }
-            std::cout<<"Finished filling in Hebi feedback info"<<std::endl; // // //
-            if (bypassed == false || bypass_option == false)
-            {
-                hebi_jointstate_pub.publish(hebi_feedback_message);
-                std::cout<<">>>> Published hebi feedback info"<<std::endl; // // //
-                std::cout<<"bypassed is: "<<bypassed<<std::endl;
-                std::cout<<"bypass_option is: "<<bypass_option<<std::endl;
-            }
-            else
-            {
-                std::cout<<"<<<< hebi jointstate publishing circumvented"<<std::endl;
-            }
 
-
-
+            hebi_jointstate_pub.publish(hebi_feedback_message);
 
             // intiliaze if HEBI motors are starting up for the first time
             if (boolFirstTime)
@@ -243,8 +218,13 @@ int main(int argc, char** argv)
                 positions[2] = motor3_joint;
                 positions[3] = motor4_joint;
 
+                // velocity
+
                 groupCommand.setPosition(positions);
+                // groupCommand.setVelocity(velocities);
+
                 // group->sendCommand(groupCommand);
+                
                 group->sendCommand(groupCommand);
                 // ROS_INFO_STREAM((float) durr);
                 impValue = false;
