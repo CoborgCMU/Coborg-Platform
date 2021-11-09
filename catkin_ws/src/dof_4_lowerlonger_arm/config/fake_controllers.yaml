@@ -7,4 +7,4 @@ controller_list:
       - motor4/X5_4
 initial:  # Define initial robot poses.
   - group: dof_4_lowerlonger_arm
-    pose: arm_out
+    pose: tucked_pos

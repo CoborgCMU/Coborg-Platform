@@ -180,9 +180,9 @@ int main(int argc, char** argv)
             {
                 hebi_feedback_message.name.push_back(names[it]);
 
-                hebi_feedback_message.position.push_back((float) feedbackPos(it));
-                hebi_feedback_message.velocity.push_back((float) feedbackVel(it));
-                hebi_feedback_message.effort.push_back((float) feedbackTor(it));
+                hebi_feedback_message.position.push_back((double) feedbackPos(it));
+                hebi_feedback_message.velocity.push_back((double) feedbackVel(it));
+                hebi_feedback_message.effort.push_back((double) feedbackTor(it));
                 std::cout<<"Pushed back hebi feedback info"<<std::endl; // // //
 
             }

@@ -581,17 +581,17 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 void hebiJointsCallback(const sensor_msgs::JointState::ConstPtr & hebimsg)
 {
 	// Grab the joint angles and velocities of the robot
-	std::cout<<"Setting positions"<<std::endl;
+	// std::cout<<"Setting positions"<<std::endl;
 	hebiJointAngles.at(0) = hebimsg->position[0];
 	hebiJointAngles.at(1) = hebimsg->position[1];
 	hebiJointAngles.at(2) = hebimsg->position[2];
 	hebiJointAngles.at(3) = hebimsg->position[3];
-	std::cout<<"Setting velocities"<<std::endl;
+	// std::cout<<"Setting velocities"<<std::endl;
 	hebiJointAngVelocities.at(0) = hebimsg->velocity[0];
 	hebiJointAngVelocities.at(1) = hebimsg->velocity[1];
 	hebiJointAngVelocities.at(2) = hebimsg->velocity[2];
 	hebiJointAngVelocities.at(3) = hebimsg->velocity[3];
-	std::cout<<"Setting efforts"<<std::endl;
+	// std::cout<<"Setting efforts"<<std::endl;
 	hebiJointAngEfforts.at(0) = hebimsg->effort[0];
 	hebiJointAngEfforts.at(1) = hebimsg->effort[1];
 	hebiJointAngEfforts.at(2) = hebimsg->effort[2];
@@ -1477,28 +1477,34 @@ int main(int argc, char** argv)
 			
 						
 			// xg = goal
-			Eigen::VectorXd xg;
+			Eigen::VectorXd xg(6);
 			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z, goal_pose_euler(0), goal_pose_euler(1), goal_pose_euler(2);
 
+			std::cout << "[FENG XIANG] - SETTING GOAL POSE XG: " << xg << std::endl;
+
+
 			// get current joint angles (thetas)
+			std::cout << "[FENG XIANG] - RECORDING CURRENT POSITION OF HEBI MOTORS" << std::endl;
 			for (unsigned int ii = 0; ii < group_size; ii++)
 			{
 				thetas(ii) = hebiJointAngles.at(ii);
 			}
 
 			// //[x,y,z of the end effector] -- x0
+			std::cout << "[FENG XIANG] - SETTING CURRENT POSITION OF END EFFECTOR" << std::endl;
 			std::vector<double> joint_values{thetas(0), thetas(1), thetas(2), thetas(3)};
 			robotCurrState.setJointGroupPositions(joint_model_group, joint_values);
 			const Eigen::Affine3d& link_pose = robotCurrState.getGlobalLinkTransform("end_link/INPUT_INTERFACE");
 			// std::cout << "Link Pose: " << link_pose << std::endl;
 
-			Eigen::VectorXd x0;
+			Eigen::VectorXd x0(6);
 			Eigen::Vector3d x0cart = link_pose.translation();
 			Eigen::Vector3d x0euler = link_pose.rotation().eulerAngles(0,1,2);
 			x0 << x0cart(0), x0cart(1), x0cart(2), x0euler(0), x0euler(1), x0euler(2);
 
 			//Compute Jacobian -- J
             //[2d matrix of joint angles ]
+			std::cout << "[FENG XIANG] -  COMPUTING END EFFECTOR JACOBIAN" << std::endl;
             Eigen::MatrixXd J;
             // model->getJEndEffector(thetas, J);
 			Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
@@ -1538,6 +1544,7 @@ int main(int argc, char** argv)
 			// std::cout << "Goal:" << xg << std::endl;
             // std::cout << "Current: " << x0 << std::endl;
 
+			std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
 			if (W.isIdentity(0.1))
             {
                 thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*err;

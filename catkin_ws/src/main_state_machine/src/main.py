@@ -8,6 +8,7 @@ from std_msgs.msg import Char
 from std_msgs.msg import Header   
 import enum
 
+
 class voiceCommand(enum.IntEnum):
     RESTART = 0 # Recover from voice trigger E-stop
     TARGET = 1 # Move to and hold plate
@@ -47,7 +48,7 @@ class visionState(enum.IntEnum):
 #voice command -> arm movement
 def new_command(message):
     command = message.data
-    global status, mainCommand_pub
+    global mainCommand_pub, feedbackMain_pub
 
     #if normal command
     if command == voiceCommand.TARGET or command == voiceCommand.HOME \
@@ -86,10 +87,11 @@ def status_update(message):
 
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
+    status = mainState.INIT
     output_pin = 18
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(output_pin, GPIO.OUT, initial=GPIO.HIGH)
+    GPIO.setup(output_pin, GPIO.OUT, initial=GPIO.LOW)
 
     rospy.init_node('main_state_machine')
     voiceCommand_sub = rospy.Subscriber('/voice_cmd', Int32, new_command)
