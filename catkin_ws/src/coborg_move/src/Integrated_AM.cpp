@@ -1518,8 +1518,12 @@ int main(int argc, char** argv)
 			curr_goal_offset = rr_curr_offset * goal_pose_normal_vector;
 
 			// err of position to goal
-			Eigen::Vector3d err;
-            err = xg + curr_goal_offset - x0;
+			Eigen::VectorXd err;
+            // err = xg + curr_goal_offset - x0;
+			err = xg - x0;
+			err(0) += curr_goal_offset(0);
+			err(1) += curr_goal_offset(1);
+			err(2) += curr_goal_offset(2);
 
 			// std::cout << "Goal:" << xg << std::endl;
             // std::cout << "Current: " << x0 << std::endl;
