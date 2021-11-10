@@ -132,7 +132,7 @@ std::vector<double> goal_tolerance_angle_default {10, 0.54, 0.54};
 std::vector<double> goal_tolerance_angle = goal_tolerance_angle_default;
 double goal_tolerance_pose_adjustment = 0.025;
 double goal_tolerance_pose_adjusted_threshold = 0.1;
-float goal_offset = 0.15;
+float goal_offset = 0.05;
 // tf::StampedTransform odom_tf_current;
 // Eigen::Vector3d odom_tf_current_translation;
 // Eigen::Matrix3d odom_tf_current_rotation_matrix;
@@ -220,18 +220,18 @@ std::vector<double> joint_group_ready_position = {1.14, 0.53, -1.54, -1.98};
 // std::vector<double> joint_group_ready_position = {0.0, 0.0, 0.0, 0.0};
 bool homeInit = false;
 // bool debugBool = false;
-std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.3, 2.3}, {-2.3, 2.3}};
-// std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.5, 0.01}, {-2.4, 0.01}};
+// std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.3, 2.3}, {-2.3, 2.3}};
+std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.5, 0.01}, {-2.4, 0.01}};
 
 // Resolved Rate Globals
-double wait_time_for_pushing = 5.0;
+double wait_time_for_pushing = 1.0;
 double tf_offset_time = 0.05;
 double prevGoalCallbackTime = 0.0;
 ros::Time prevPoseMotionDetectTime;
 // Resolved Rate Global Variables
 ros::Time rr_iterate_start_time;
-double rr_push_in_distance = 0.1;
-double rr_iterate_time = 5.0;
+double rr_push_in_distance = 0.07;
+double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
 
 geometry_msgs::PoseStamped motorGoalPoseStamped;
@@ -839,6 +839,9 @@ int main(int argc, char** argv)
 	float dt = 1.0;
     Eigen::MatrixXd W(group_size,group_size);
     W.setIdentity();
+	W(3,3) = 2.0;
+
+	
 
     std::string cwd("\0", FILENAME_MAX+1);
     std::cout << "Current path: " << getcwd(&cwd[0],cwd.capacity()) << std::endl;
@@ -1493,10 +1496,10 @@ int main(int argc, char** argv)
 			
 						
 			// xg = goal
-			Eigen::VectorXd xg(6);
-			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z, goal_pose_euler(0), goal_pose_euler(1), goal_pose_euler(2);
-			// Eigen::VectorXd xg(3);
-			// xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z;
+			// Eigen::VectorXd xg(6);
+			// xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z, goal_pose_euler(0), goal_pose_euler(1), goal_pose_euler(2);
+			Eigen::VectorXd xg(3);
+			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z;
 
 			// std::cout << "[FENG XIANG] - SETTING GOAL POSE XG: " << xg << std::endl;
 
@@ -1515,12 +1518,12 @@ int main(int argc, char** argv)
 			const Eigen::Affine3d& link_pose = robotCurrState.getGlobalLinkTransform("end_link/INPUT_INTERFACE");
 			// std::cout << "Link Pose: " << link_pose << std::endl;
 
-			Eigen::VectorXd x0(6);
-			// Eigen::VectorXd x0(3);
+			// Eigen::VectorXd x0(6);
+			Eigen::VectorXd x0(3);
 			Eigen::Vector3d x0cart = link_pose.translation();
 			Eigen::Vector3d x0euler = link_pose.rotation().eulerAngles(0,1,2);
-			x0 << x0cart(0), x0cart(1), x0cart(2), x0euler(0), x0euler(1), x0euler(2);
-			// x0 << x0cart(0), x0cart(1), x0cart(2);
+			// x0 << x0cart(0), x0cart(1), x0cart(2), x0euler(0), x0euler(1), x0euler(2);
+			x0 = x0cart;
 
 			//Compute Jacobian -- J
             //[2d matrix of joint angles ]
@@ -1529,8 +1532,8 @@ int main(int argc, char** argv)
             // model->getJEndEffector(thetas, J);
 			Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
 			robotCurrState.getJacobian(joint_model_group, robotCurrState.getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, J);
-            Eigen::MatrixXd ee_J = J.block(0,0,6,4);//J.block(0,0,3,4);
-			// Eigen::MatrixXd ee_J = J.block(0,0,3,4);
+            // Eigen::MatrixXd ee_J = J.block(0,0,6,4);//J.block(0,0,3,4);
+			Eigen::MatrixXd ee_J = J.block(0,0,3,4);
 
 			// Iterate goal forward or backwards
 			if (state == 3)
@@ -1555,12 +1558,16 @@ int main(int argc, char** argv)
 			curr_goal_offset = rr_curr_offset * goal_pose_normal_vector;
 
 			// err of position to goal
-			Eigen::VectorXd err(6);
+			// Eigen::VectorXd err(6);
+			Eigen::VectorXd err(3);
             // err = xg + curr_goal_offset - x0;
 			err = xg - x0;
 			err(0) += curr_goal_offset(0);
 			err(1) += curr_goal_offset(1);
 			err(2) += curr_goal_offset(2);
+			// err(3) = err(3) * 0.0;
+			// err(4) = err(4) * 0.0;
+			// err(5) = err(5) * 0.0;
 
 			// std::cout << "Goal:" << xg << std::endl;
             // std::cout << "Current: " << x0 << std::endl;
@@ -1649,7 +1656,7 @@ int main(int argc, char** argv)
 				// goal_state = robotCurrState;
 				// plan_req.start_state.joint_state.position = tucked_state_values;
 				plan_req.start_state.joint_state.name = {"motor1/X5_9", "motor2/X5_9", "motor3/X5_9", "motor4/X5_4"};
-				plan_req.start_state.joint_state.position = {0.0, -1.93, -2.38, -2.40};
+				plan_req.start_state.joint_state.position = {0.0, -1.93, -2.38, -2.50};
 				plan_req.start_state.joint_state.velocity = {};
 				plan_req.start_state.joint_state.effort = {};
 

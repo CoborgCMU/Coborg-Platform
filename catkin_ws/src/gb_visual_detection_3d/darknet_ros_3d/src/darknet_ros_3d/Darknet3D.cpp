@@ -113,6 +113,7 @@ Darknet3D::calculate_boxes(const sensor_msgs::PointCloud2& cloud_pc2,
 
   int center_board_x = 0;
   int center_board_y = 0;
+  int number_valid_box = 0;
 
   for (auto bbx : original_bboxes_)
   {
@@ -127,8 +128,6 @@ Darknet3D::calculate_boxes(const sensor_msgs::PointCloud2& cloud_pc2,
     center_x = (bbx.xmax + bbx.xmin) / 2;
     center_y = (bbx.ymax + bbx.ymin) / 2;
 
-    center_board_x += center_x;
-    center_board_y += center_y;
 
     int pcl_index = (center_y* cloud_pc2.width) + center_x;
     pcl::PointXYZRGB center_point =  cloud_pcl->at(pcl_index);
@@ -161,22 +160,28 @@ Darknet3D::calculate_boxes(const sensor_msgs::PointCloud2& cloud_pc2,
         minz = std::min(point.z, minz);
       }
 
-    gb_visual_detection_3d_msgs::BoundingBox3d bbx_msg;
-    bbx_msg.Class = bbx.Class;
-    bbx_msg.probability = bbx.probability;
-    bbx_msg.xmin = minx;
-    bbx_msg.xmax = maxx;
-    bbx_msg.ymin = miny;
-    bbx_msg.ymax = maxy;
-    bbx_msg.zmin = minz;
-    bbx_msg.zmax = maxz;
+    if (minx>=0.38){
+      center_board_x += center_x;
+      center_board_y += center_y;
+      number_valid_box++;
+      gb_visual_detection_3d_msgs::BoundingBox3d bbx_msg;
+      bbx_msg.Class = bbx.Class;
+      bbx_msg.probability = bbx.probability;
+      bbx_msg.xmin = minx;
+      bbx_msg.xmax = maxx;
+      bbx_msg.ymin = miny;
+      bbx_msg.ymax = maxy;
+      bbx_msg.zmin = minz;
+      bbx_msg.zmax = maxz;
 
-    boxes->bounding_boxes.push_back(bbx_msg);
+      boxes->bounding_boxes.push_back(bbx_msg);
+    }
+    
   }
 
   // Create the normal estimation class, and pass the input dataset to it
-  center_board_x = center_board_x/original_bboxes_.size();
-  center_board_y = center_board_y/original_bboxes_.size();
+  center_board_x = center_board_x/number_valid_box;
+  center_board_y = center_board_y/number_valid_box;
   int pcl_normal_index = ((center_board_y)* cloud_pc2.width) + (center_board_x);
 
   pcl::PointXYZRGB searchPoint = cloud_pcl->at(pcl_normal_index);

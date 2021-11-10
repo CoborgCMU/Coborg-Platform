@@ -13,9 +13,9 @@
 
   <!-- Load parameters -->
   <rosparam command="load" ns="cam1/darknet_ros" file="$(find darknet_ros)/config/ros.yaml"/>
-  <rosparam command="load" ns="cam1/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand.yaml"/>
+  <rosparam command="load" ns="cam1/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand-tiny.yaml"/>
   <rosparam command="load" ns="cam2/darknet_ros" file="$(find darknet_ros)/config/ros_cam2.yaml"/>
-  <rosparam command="load" ns="cam2/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand.yaml"/>
+  <rosparam command="load" ns="cam2/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand-tiny.yaml"/>
 
   <!-- Start darknet and ros wrapper -->
   <node  ns="cam1" pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">

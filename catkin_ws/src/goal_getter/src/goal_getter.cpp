@@ -261,7 +261,7 @@ private:
             }
 
             // wait for at least 3 msgs from cam1 or cam2
-            if (numMsgCam1==3 || numMsgCam2==3)
+            if (numMsgCam1==10 || numMsgCam2==10)
                 break;
 
             if (ros::Time::now().toSec() - beginTime > 20.0){
