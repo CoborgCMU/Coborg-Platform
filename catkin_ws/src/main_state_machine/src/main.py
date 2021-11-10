@@ -86,7 +86,6 @@ def status_update(message):
             feedbackMain_pub.publish(mainState.COMPLETED)
 
 
-
 if __name__ == "__main__":  
     status = mainState.INIT
     output_pin = 18

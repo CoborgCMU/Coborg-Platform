@@ -12,7 +12,7 @@
 	// In a separate terminal, run "rostopic echo /move_group/display_planned_path"
 	// Subscriber topics
 	// In a separate terminal, run "rostopic echo /goal"
-	// In a separate terminal, run "rostopic echo /state_output"
+	// In a separate terminal, run "rostopic echo /main_cmd"
 	// In a separate terminal, run "rostopic echo /execute_trajectory/feedback"
 	// In a separate terminal, run "rostopic echo /hebi_joints"
 
@@ -127,7 +127,7 @@ Eigen::Vector3d goal_pose_euler;
 std::vector<double> goal_tolerance_pose_default {0.05, 0.05, 0.05};
 std::vector<double> goal_tolerance_pose = goal_tolerance_pose_default;
 // std::vector<double> goal_tolerance_angle_default {10, 0.79, 0.79};
-std::vector<double> goal_tolerance_angle_default {10, 0.4, 0.4};
+std::vector<double> goal_tolerance_angle_default {10, 0.54, 0.54};
 // std::vector<double> goal_tolerance_angle_default {10.0, 10.0, 10.0};
 std::vector<double> goal_tolerance_angle = goal_tolerance_angle_default;
 double goal_tolerance_pose_adjustment = 0.025;
@@ -221,7 +221,7 @@ std::vector<double> joint_group_ready_position = {1.14, 0.53, -1.54, -1.98};
 bool homeInit = false;
 // bool debugBool = false;
 std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.3, 2.3}, {-2.3, 2.3}};
-
+// std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.5, 0.01}, {-2.4, 0.01}};
 
 // Resolved Rate Globals
 double wait_time_for_pushing = 5.0;
@@ -230,7 +230,7 @@ double prevGoalCallbackTime = 0.0;
 ros::Time prevPoseMotionDetectTime;
 // Resolved Rate Global Variables
 ros::Time rr_iterate_start_time;
-double rr_push_in_distance = 0.05;
+double rr_push_in_distance = 0.1;
 double rr_iterate_time = 5.0;
 double rr_curr_offset = -goal_offset;
 
@@ -465,8 +465,9 @@ void goal_callback(const goal_getter::GoalPose::ConstPtr& msg)
 // 	}
 // }
 // State machine commands callback
-void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
+void main_cmd_callback(const std_msgs::Int32::ConstPtr& msg)
 {
+	// NOTE: descriptions need to be updated
 	// Functions:
 	// 1 = e_stop > Shut off power to motors
 	// 2 = hold > Move to and hold plate
@@ -474,22 +475,29 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 	// # = caution > Motors stop moving, but maintain with lower torque threshold
 
 	// Statuses:
+    // IDLE = 20 # Waiting for new command
+    // INIT = 21 # Starting up node
+    // PROCESSING = 22 # Executing command 
+    // COMPLETED = 23 # Finished task
+    // FAULT = 29 # Error State
+
+	// Old Statuses:
 	// 1 = initializing > Command received, but not executing yet(e.g.detecting hands)[ROS INFO]
 	// 2 = executing > Command being executed(e.g.moving to target)
 	// 3 = waiting > Command completed / performing holding task, ready for next command(maintaining position in 3d space)
 
-	if (msg->data == 2)
+	if (msg->data == 1) // go to target
 	{
 		if (state == 0)
 		{
 			state = 1;
-			status.data = 1;
+			status.data = 22; // Old: 1
 			state_input_pub_ptr->publish(status);
 			ROS_INFO("Planning to move to target");
 		}
 	}
 
-	if (msg->data == 3)
+	if (msg->data == 2) // go to home
 	{
 		if (state == 4)
 		{
@@ -498,7 +506,7 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 			rr_curr_offset = rr_push_in_distance;
 			state = 5;
 			// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
-			status.data = 1;
+			status.data = 22; // Old: 1
 			state_input_pub_ptr->publish(status);
 			// // Update the normal vector
 			// update_rel_goal();
@@ -508,7 +516,7 @@ void state_output_callback(const std_msgs::Int32::ConstPtr& msg)
 			// naive_pull_starting_pose = (*robot_state_ptr)->getGlobalLinkTransform(end_effector_name);
 			// Let the main_state_machine node know that the robot is executing
 			ROS_INFO("Leaving target");
-			status.data = 2;
+			// Old: status.data = 2;
 			state_input_pub_ptr->publish(status);
 		}
 	}
@@ -571,7 +579,9 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 				state = 0;
 				ROS_INFO("Successfully returned to home; waiting");
 				// Let the main_state_machine node know that the robot is ready
-				status.data = 3;
+				status.data = 23; // Old: 3
+				state_input_pub_ptr->publish(status);
+				status.data = 20;
 				state_input_pub_ptr->publish(status);
 			}
 		}
@@ -742,6 +752,7 @@ int main(int argc, char** argv)
 	planning_scene::PlanningScenePtr psm(new planning_scene::PlanningScene(robot_model));
 	psmPtr = &psm;
 	robot_state::RobotState& robotCurrState = psm->getCurrentStateNonConst();
+	
 	/* listen for planning scene messages on topic /XXX and apply them to the internal planning scene
 						the internal pla0.018115nning scene accordingly */
 	// psm->startSceneMonitor();
@@ -764,6 +775,7 @@ int main(int argc, char** argv)
 	/* Create a JointModelGroup to keep track of the current robot pose and planning group. The Joint Model
 	group is useful for dealing with one set of joints at a time such as a left arm or a end effector */
 	joint_model_group = robot_state->getJointModelGroup(PLANNING_GROUP);
+	// joint_model_group = robotCurrState.getJointModelGroup(PLANNING_GROUP);
 	// Create Planning Pipeline
 	planning_pipeline::PlanningPipelinePtr planning_pipeline(new planning_pipeline::PlanningPipeline(robot_model, *node_handle_ptr, "/KDC_actuated_test_copy/planning_plugin", "KDC_actuated_test_copy/request_adapters"));
 	planning_pipeline_global_ptr = planning_pipeline;
@@ -792,7 +804,7 @@ int main(int argc, char** argv)
 	//////////////////////////////////////////////////////////////
 
 	// Initialize Publishers
-	ros::Publisher state_input_pub = node_handle.advertise<std_msgs::Int32>("/state_input", 5);
+	ros::Publisher state_input_pub = node_handle.advertise<std_msgs::Int32>("/feedback_arm", 5);
 	state_input_pub_ptr = &state_input_pub;
 	ros::Publisher desired_efforts_pub = node_handle.advertise<sensor_msgs::JointState>("/desired_hebi_efforts", 1);
 	ros::Publisher display_publisher = node_handle_ptr->advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
@@ -807,13 +819,13 @@ int main(int argc, char** argv)
 	// Publisher to publish joint_states for resolved rate controller
 	ros::Publisher simulated_joint_states_pub = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states",1);
 
-	// Publish initial state (waiting)
-	status.data = 3;
-	state_input_pub.publish(status);
+	// // Publish initial state (waiting)
+	// status.data = 3;
+	// state_input_pub.publish(status);
 
 	// Initialize Subscribers
 	// ros::Subscriber camera_goal_sub = node_handle.subscribe("/goal_cam2", 1, camera_goal_callback);
-	ros::Subscriber state_output_sub = node_handle.subscribe("/state_output", 1, state_output_callback);
+	ros::Subscriber main_cmd_sub = node_handle.subscribe("/main_cmd", 1, main_cmd_callback);
 	ros::Subscriber execute_action_sub = node_handle.subscribe("/execute_trajectory/feedback", 5, execute_trajectory_feedback_callback);
 	ros::Subscriber hebi_joints_sub = node_handle.subscribe("/hebi_joints", 1, hebiJointsCallback);
 	ros::Subscriber goal_sub = node_handle.subscribe("/goal", 1, goal_callback);
@@ -964,10 +976,12 @@ int main(int argc, char** argv)
 						num_attempts += 1;
                         continue;
                     }
-                    state = 0;
-                    ROS_INFO("Couldn't find a suitable path, returning to waiting");
+                    state = 6;
+                    ROS_INFO("Couldn't find a suitable path, returning to home");
                     // Let the main_state_machine node know that the robot is ready
-                    status.data = 3;
+                    status.data = 29; // Old: 3
+                    state_input_pub_ptr->publish(status);
+                    status.data = 20;
                     state_input_pub_ptr->publish(status);
                     num_attempts = 0;
                     break;
@@ -1035,7 +1049,7 @@ int main(int argc, char** argv)
             prev_plan_res = response;
 			plan_start = ros::Time::now();
             state = 2;
-            status.data = 2;
+            status.data = 22; // Old: 2
             state_input_pub_ptr->publish(status);
             ROS_INFO("Moving to target");
             if (use_stitching)
@@ -1474,42 +1488,49 @@ int main(int argc, char** argv)
 			// 	std::cout << "Resolved Rate Running." << std::endl;
 			// 	debugBool = true;
 			// }
+
+			// move_group.stop();
 			
 						
 			// xg = goal
 			Eigen::VectorXd xg(6);
 			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z, goal_pose_euler(0), goal_pose_euler(1), goal_pose_euler(2);
+			// Eigen::VectorXd xg(3);
+			// xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z;
 
-			std::cout << "[FENG XIANG] - SETTING GOAL POSE XG: " << xg << std::endl;
+			// std::cout << "[FENG XIANG] - SETTING GOAL POSE XG: " << xg << std::endl;
 
 
 			// get current joint angles (thetas)
-			std::cout << "[FENG XIANG] - RECORDING CURRENT POSITION OF HEBI MOTORS" << std::endl;
+			// std::cout << "[FENG XIANG] - RECORDING CURRENT POSITION OF HEBI MOTORS" << std::endl;
 			for (unsigned int ii = 0; ii < group_size; ii++)
 			{
 				thetas(ii) = hebiJointAngles.at(ii);
 			}
 
 			// //[x,y,z of the end effector] -- x0
-			std::cout << "[FENG XIANG] - SETTING CURRENT POSITION OF END EFFECTOR" << std::endl;
+			// std::cout << "[FENG XIANG] - SETTING CURRENT POSITION OF END EFFECTOR" << std::endl;
 			std::vector<double> joint_values{thetas(0), thetas(1), thetas(2), thetas(3)};
 			robotCurrState.setJointGroupPositions(joint_model_group, joint_values);
 			const Eigen::Affine3d& link_pose = robotCurrState.getGlobalLinkTransform("end_link/INPUT_INTERFACE");
 			// std::cout << "Link Pose: " << link_pose << std::endl;
 
 			Eigen::VectorXd x0(6);
+			// Eigen::VectorXd x0(3);
 			Eigen::Vector3d x0cart = link_pose.translation();
 			Eigen::Vector3d x0euler = link_pose.rotation().eulerAngles(0,1,2);
 			x0 << x0cart(0), x0cart(1), x0cart(2), x0euler(0), x0euler(1), x0euler(2);
+			// x0 << x0cart(0), x0cart(1), x0cart(2);
 
 			//Compute Jacobian -- J
             //[2d matrix of joint angles ]
-			std::cout << "[FENG XIANG] -  COMPUTING END EFFECTOR JACOBIAN" << std::endl;
+			// std::cout << "[FENG XIANG] -  COMPUTING END EFFECTOR JACOBIAN" << std::endl;
             Eigen::MatrixXd J;
             // model->getJEndEffector(thetas, J);
 			Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
 			robotCurrState.getJacobian(joint_model_group, robotCurrState.getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, J);
             Eigen::MatrixXd ee_J = J.block(0,0,6,4);//J.block(0,0,3,4);
+			// Eigen::MatrixXd ee_J = J.block(0,0,3,4);
 
 			// Iterate goal forward or backwards
 			if (state == 3)
@@ -1534,7 +1555,7 @@ int main(int argc, char** argv)
 			curr_goal_offset = rr_curr_offset * goal_pose_normal_vector;
 
 			// err of position to goal
-			Eigen::VectorXd err;
+			Eigen::VectorXd err(6);
             // err = xg + curr_goal_offset - x0;
 			err = xg - x0;
 			err(0) += curr_goal_offset(0);
@@ -1544,7 +1565,7 @@ int main(int argc, char** argv)
 			// std::cout << "Goal:" << xg << std::endl;
             // std::cout << "Current: " << x0 << std::endl;
 
-			std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
+			// std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
 			if (W.isIdentity(0.1))
             {
                 thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*err;
@@ -1562,12 +1583,12 @@ int main(int argc, char** argv)
 
 				if (thetas(ii) < resolved_rate_joint_limits[ii][0])
 				{
-					std::cout << "Motor " << ii << " AT LOWER LIMIT" << std::endl;
+					// std::cout << "Motor " << ii << " AT LOWER LIMIT" << std::endl;
 					thetas(ii) = resolved_rate_joint_limits[ii][0];
 				}
 				else if (thetas(ii) > resolved_rate_joint_limits[ii][1])
 				{
-					std::cout << "Motor " << ii << " AT UPPER LIMIT" << std::endl;
+					// std::cout << "Motor " << ii << " AT UPPER LIMIT" << std::endl;
 					thetas(ii) = resolved_rate_joint_limits[ii][1];
 				}
 			}
@@ -1599,20 +1620,8 @@ int main(int argc, char** argv)
 		// Check if the robot is returning to home
 		if (state == 6)
 		{
-			// Let the main_state_machine node know that the robot is initializing
-			status.data = 1;
-			state_input_pub.publish(status);
-			ROS_INFO("Planning to return home");
-			// Set move group planning constraints
-			move_group.setNumPlanningAttempts(num_attempts_return_home);
-			move_group.setPlanningTime(moveit_planning_time_return_home);
-			// Create and set planning goal
+			
 			robot_state::RobotState goal_state(robot_model);
-			goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
-			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
-			std::cout<<"joint_goal is: "<<std::endl;
-			ROS_INFO_STREAM(joint_goal);
-
 			// Feng Xiang
 			if (homeInit == true)
 			{
@@ -1621,6 +1630,8 @@ int main(int argc, char** argv)
 				plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
 				plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
 
+
+
 				// Set the start state to the current joint state of the HEBI motors
 				std::cout<<"Update the start of the plan request to be the robot's current state"<<std::endl;
 				for (unsigned int ii=0; ii < plan_req.start_state.joint_state.position.size(); ii++)
@@ -1628,11 +1639,36 @@ int main(int argc, char** argv)
 					// plan_req.start_state.joint_state.position[ii] = hebiJointAngles[ii];
 					// plan_req.start_state.joint_state.velocity[ii] = hebiJointAngVelocities[ii];
 				}
+				
 			}
 			else
 			{
+				// robotCurrState.setToDefaultValues(robotCurrState.getJointModelGroup(PLANNING_GROUP), "tucked_pos");
+				// std::vector<double> tucked_state_values;
+				// robotCurrState.getStateValues(tucked_state_values);
+				// goal_state = robotCurrState;
+				// plan_req.start_state.joint_state.position = tucked_state_values;
+				plan_req.start_state.joint_state.name = {"motor1/X5_9", "motor2/X5_9", "motor3/X5_9", "motor4/X5_4"};
+				plan_req.start_state.joint_state.position = {0.0, -1.93, -2.38, -2.40};
+				plan_req.start_state.joint_state.velocity = {};
+				plan_req.start_state.joint_state.effort = {};
+
 				homeInit = true;
 			}
+
+			// Let the main_state_machine node know that the robot is initializing
+			status.data = 22; /// Old: 1
+			state_input_pub.publish(status);
+			ROS_INFO("Planning to return home");
+			// Set move group planning constraints
+			move_group.setNumPlanningAttempts(num_attempts_return_home);
+			move_group.setPlanningTime(moveit_planning_time_return_home);
+			// Create and set planning goal
+			
+			goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
+			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
+			std::cout<<"joint_goal is: "<<std::endl;
+			ROS_INFO_STREAM(joint_goal);
 
 			plan_req.group_name = PLANNING_GROUP;
 			plan_req.goal_constraints.clear();
@@ -1668,14 +1704,16 @@ int main(int argc, char** argv)
 			move_group_ptr->execute(my_plan);
 			prev_plan_res = response;
 			// Let the main_state_machine node know that the robot is executing
-			status.data = 2;
-			state_input_pub.publish(status);
+			// Old: status.data = 2;
+			// state_input_pub.publish(status);
 			ROS_INFO("Returning home");
 			// Update the state to waiting
 			state = 0;
 			// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "standby");
 			// Let the main_state_machine node know that the robot is initializing
-			status.data = 3;
+			status.data = 23; // Old: 3
+			state_input_pub.publish(status);
+			status.data = 20;
 			state_input_pub.publish(status);
 			ROS_INFO("Return to home successful, waiting");
 		}
@@ -1724,7 +1762,9 @@ int main(int argc, char** argv)
 					state = 0;
 					ROS_INFO("Successfully returned to home; waiting");
 					// Let the main_state_machine node know that the robot is ready
-					status.data = 3;
+					status.data = 23; // Old: 3
+					state_input_pub_ptr->publish(status);
+					status.data = 20;
 					state_input_pub_ptr->publish(status);
 				}
 			}

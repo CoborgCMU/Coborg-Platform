@@ -55,7 +55,9 @@ stream.start_stream()
 rospy.init_node('voice_recog')
 voice_commands_pub = rospy.Publisher('/voice_cmd', Int32, queue_size=1)
 voice_state_pub = rospy.Publisher('/feedback_voice', Int32, queue_size=1)
-voice_state_pub.publish(State.INIT)
+
+# Yuqing!!!!!!!!!!!!!!!!!!  voice feedback state options: 10,11,12,13,19
+voice_state_pub.publish(State.INIT) 
 
 state = State.INIT
 command_timer = 0

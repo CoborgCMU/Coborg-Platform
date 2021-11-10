@@ -9,7 +9,7 @@
     <node pkg="tf" type="static_transform_publisher" name="motor1_to_uppercam" args="-0.2220 -0.02438 0.33223 0.698132 0 0 /motor1/INPUT_INTERFACE /cam2_link 100" />
 
     <!-- <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.2609 -0.0381 0.5149 3.8397 0 0 /world /t265_link 100" /> -->
-    <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.1887 0.1844 -0.59741 2.44348 0 0 /t265_link /world 100" />
+    <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.1887 0.1844 -0.49581 2.44348 0 0 /t265_link /world 100" />
     
 
 

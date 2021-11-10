@@ -32,15 +32,15 @@ public:
     GoalGetter()
     {
         // subscribe to state_output rostopic
-        state_output_sub_ = nh_.subscribe("state_output", 1, &GoalGetter::state_output_callback, this);
+        state_output_sub_ = nh_.subscribe("main_cmd", 1, &GoalGetter::state_output_callback, this);
 
         // publish to state_input rostopic
-        state_input_pub_ = nh_.advertise<std_msgs::Int32>("state_input", 1);
+        state_input_pub_ = nh_.advertise<std_msgs::Int32>("feedback_vision", 1);
         
 
         goal_pub_ = nh_.advertise<goal_getter::GoalPose>("goal", 1);
 
-        curr_state_ = 0;  // main state
+        curr_state_ = -1;  // main state
         goalSetPoint << 0.0,0.0,0.0;
 
         goal_received = false;
@@ -49,24 +49,29 @@ public:
 
     void step(){
         // process the goals
-        if (curr_state_ == 2 && !goal_received){
+        if ((curr_state_ == 1 || curr_state_==4) && !goal_received){
             processGoal(goalNormalSetPose);  // goalNormalSetPose: relative to /t265_odom_frame
             goal_received = true;
         }
 
-        if (curr_state_ ==2 || curr_state_==3 ){
+        if (curr_state_ ==1 || curr_state_==4){
             if (goal_received){
                 // convert to /world frame and keep publishing the point
                 convertToWorld(goal_normal, goalNormalSetPose);
+                visionFeedback_.data = 33;
+                state_input_pub_.publish(visionFeedback_);
             }
         }
 
-        if (curr_state_ !=2 && curr_state_ != 3)
+        if (curr_state_ !=1 && curr_state_!=4)
         {
             if (goal_received || goal_normal_computed)
             {
                 goal_received = false;
                 goal_normal_computed = false;
+
+                visionFeedback_.data = 30;
+                state_input_pub_.publish(visionFeedback_);
             }
             
         }
@@ -81,11 +86,11 @@ private:
     {
         curr_state_ = outputVal->data;
 
-        if (outputVal->data == 2)
+        if (curr_state_ == 1 || curr_state_ == 4)
         {
             // start vision goal processing
-            commandReceived_.data = 1;
-            state_input_pub_.publish(commandReceived_);
+            visionFeedback_.data = 31;
+            state_input_pub_.publish(visionFeedback_);
         }
     }
 
@@ -150,6 +155,8 @@ private:
             }
             catch (tf::TransformException ex){
                 ROS_ERROR("%s", ex.what());
+                // visionFeedback_.data = 39;
+                // state_input_pub_.publish(visionFeedback_);
             }
         }
     }
@@ -171,6 +178,8 @@ private:
         goalSetPoint(2) = 0;
         int totalCameras = 0;
 
+        double beginTime = ros::Time::now().toSec();
+
         while(true){
             try
             {
@@ -179,6 +188,8 @@ private:
             catch(std::exception e)
             {
                 std::cout << "Cam1 not found" << std::endl;
+                // visionFeedback_.data = 39;
+                // state_input_pub_.publish(visionFeedback_);
             }
             
             try
@@ -187,6 +198,8 @@ private:
             }
             catch(std::exception e)
             {
+                // visionFeedback_.data = 39;
+                // state_input_pub_.publish(visionFeedback_);
                 std::cout << "Cam2 not found" << std::endl;
             }
 
@@ -247,9 +260,16 @@ private:
                 }
             }
 
-            // wait for at least 5 msgs from cam1 or cam2
+            // wait for at least 3 msgs from cam1 or cam2
             if (numMsgCam1==3 || numMsgCam2==3)
                 break;
+
+            if (ros::Time::now().toSec() - beginTime > 20.0){
+                std::cout << "Time out on goal getter!" << std::endl;
+                visionFeedback_.data = 39;
+                state_input_pub_.publish(visionFeedback_);
+                break;
+            }
         }      
         
         goalSetPoint(0) /= totalCameras;
@@ -282,12 +302,9 @@ private:
             goalNormalSetPose.header.frame_id = "/t265_odom_frame";
             goalNormalSetPose.header.stamp = prevTime;
 
-
-            // std::cout << "Time is  "<< prevTime << std::endl;
             // transform it to /world
             try{
                 goal_getter::GoalPose goal_msg;
-                // goal_msg.goal_normal_motor = goalNormalSetPose;
 
                 tfListener_.transformPose("/world", goalNormalSetPose, goal_normal);
                 goal_msg.goal_normal = goal_normal;
@@ -301,6 +318,8 @@ private:
             }
             catch (tf::TransformException ex){
                 ROS_ERROR("%s", ex.what());
+                // visionFeedback_.data = 39;
+                // state_input_pub_.publish(visionFeedback_);
             }
         }
 
@@ -324,7 +343,7 @@ private:
     tf::TransformListener tfListener_;
     tf::TransformBroadcaster tfBroadcaster_;
     int curr_state_;
-    std_msgs::Int32 commandReceived_;
+    std_msgs::Int32 visionFeedback_;
     Eigen::Vector3d goalSetPoint; // average goal point relative to t265_odom_frame
     geometry_msgs::PoseStamped goalNormalSetPose;
     bool goal_received;
