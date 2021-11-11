@@ -236,6 +236,8 @@ ros::Time prevPoseMotionDetectTime;
 // Resolved Rate Global Variables
 ros::Time rr_iterate_start_time;
 double rr_push_in_distance = 0.09;
+double rr_push_in_max = 0.12;
+double rr_push_in_min = 0.05;
 double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
 
@@ -1547,6 +1549,9 @@ int main(int argc, char** argv)
 			robotCurrState.getJacobian(joint_model_group, robotCurrState.getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, J);
             // Eigen::MatrixXd ee_J = J.block(0,0,6,4);//J.block(0,0,3,4);
 			Eigen::MatrixXd ee_J = J.block(0,0,3,4);
+
+			// Adjust push in distance based on the goal's orientation (more force if point up, less if pointed horizontally)
+			rr_push_in_distance = abs(goal_pose_normal_vector(2)) * (rr_push_in_max - rr_push_in_min) + rr_push_in_min;
 
 			// Iterate goal forward or backwards
 			if (state == 3)
