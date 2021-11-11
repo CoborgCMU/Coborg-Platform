@@ -31,6 +31,7 @@
 #include <Eigen/Dense>
 #include "std_msgs/Int16.h"
 #include "std_msgs/Int32.h"
+#include "std_msgs/String.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "gb_visual_detection_3d_msgs/goal_msg.h" // Change to darknet_ros_3d/goal_message when switching to arm branch
@@ -96,6 +97,10 @@ moveit_msgs::MotionPlanResponse* response_ptr;
 // ROS Initializations
 ros::Publisher* state_input_pub_ptr;
 ros::Publisher* display_publisher_ptr;
+ros::Publisher* speaker_pub_ptr;
+// Sounds
+std_msgs::String pushSound;
+std_msgs::String pullSound;
 // Planning Initializations
 int state = 6;
 std_msgs::Int32 status;
@@ -566,6 +571,7 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 				rr_iterate_start_time = ros::Time::now();
 				rr_curr_offset = -goal_offset;
 				state = 3;
+				speaker_pub_ptr->publish(pushSound);
 				ROS_INFO("Successfully reached target offset; extending");
 				// ros::param::set("/tf_moveit_goalsetNode/manipulation_state", "velocity");
 				// Update the normal vector
@@ -577,6 +583,7 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			else if (state == 6)
 			{
 				state = 0;
+				speaker_pub_ptr->publish(pullSound);
 				ROS_INFO("Successfully returned to home; waiting");
 				// Let the main_state_machine node know that the robot is ready
 				status.data = 23; // Old: 3
@@ -809,6 +816,8 @@ int main(int argc, char** argv)
 	ros::Publisher desired_efforts_pub = node_handle.advertise<sensor_msgs::JointState>("/desired_hebi_efforts", 1);
 	ros::Publisher display_publisher = node_handle_ptr->advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
 	display_publisher_ptr = &display_publisher;
+	ros::Publisher speaker_pub = node_handle.advertise<std_msgs::String>("/speaker",5);
+	speaker_pub_ptr = &speaker_pub;
 	// ros::Publisher moveit_plans_pub = node_handle.advertise<moveit_msgs::MotionPlanRequest>("/moveit_plans", 1);
 	// moveit_plans_pub_ptr = &moveit_plans_pub;
 	ros::Publisher new_trajectory_pub = node_handle_ptr->advertise<moveit_msgs::MotionPlanResponse>("/new_trajectory", 1, true);
@@ -831,12 +840,16 @@ int main(int argc, char** argv)
 	ros::Subscriber goal_sub = node_handle.subscribe("/goal", 1, goal_callback);
 	ros::Subscriber interpolator_success_sub = node_handle.subscribe("/interpolator_success", 1, interpolator_success_callback);
 
+	// Sounds
+	pushSound.data = "pushSound.mp3";
+	pullSound.data = "pullSound.mp3";
+
 
 	// Feng Xiang: hardcoded number of motor joints on robot arm
     Eigen::VectorXd thetas(group_size);
     Eigen::VectorXd thetadot(group_size);
 
-	float dt = 1.0;
+	float singularThresh = 0.1;
     Eigen::MatrixXd W(group_size,group_size);
     W.setIdentity();
 	W(3,3) = 2.0;
@@ -1581,8 +1594,13 @@ int main(int argc, char** argv)
             {
                 thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*err;
             }
-
-            thetas += dt*thetadot;
+			
+			Eigen::VectorXd tempThetas = thetas+thetadot;
+			if(tempThetas(2) < singularThresh && tempThetas(3) < singularThresh){
+				thetas(0) += thetadot(0);
+				thetas(1) += thetadot(1);
+			}
+			else thetas += thetadot;
 
 			// double joint_threshold_val = 0.04;
 			for (unsigned int ii = 0; ii < group_size; ii++)
