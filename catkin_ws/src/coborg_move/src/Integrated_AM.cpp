@@ -224,13 +224,13 @@ bool homeInit = false;
 std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.5, 0.01}, {-2.4, 0.01}};
 
 // Resolved Rate Globals
-double wait_time_for_pushing = 1.0;
+double wait_time_for_pushing = 2.0;
 double tf_offset_time = 0.05;
 double prevGoalCallbackTime = 0.0;
 ros::Time prevPoseMotionDetectTime;
 // Resolved Rate Global Variables
 ros::Time rr_iterate_start_time;
-double rr_push_in_distance = 0.07;
+double rr_push_in_distance = 0.09;
 double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
 

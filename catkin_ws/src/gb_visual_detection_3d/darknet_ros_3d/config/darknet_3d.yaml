@@ -4,5 +4,5 @@ output_goal_topic: /goal_cam1
 point_cloud_topic: /cam1/depth_registered/points
 working_frame: cam1_link
 mininum_detection_thereshold: 0.025
-minimum_probability: 0.35
+minimum_probability: 0.15
 interested_classes: ["hand"]
