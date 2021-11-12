@@ -163,7 +163,7 @@ bool use_stitching = 0;
 bool fix_traj_times = 0;
 // std::vector<float> max_joint_velocities_RadPerSec = {1, 1, 1, 1};
 std::vector<float> max_joint_velocities_RadPerSec = {0.3, 0.3, 0.3, 0.3};
-bool use_impedance_over_rr = 1;
+bool use_impedance_over_rr = 0;
 Eigen::VectorXd impedance_K_gains(6);
 // // // // // // // //
 unsigned int stitching_loop_number = 0; // REMOVE
