@@ -82,8 +82,7 @@ int num_max_attempts = 20;
 // HEBI Initializations
 // Eigen::Vector3d motor_joints;
 // sensor_msgs::JointState publishState;
-// geometry_msgs::Vector3 torqueVect;
-// std::shared_ptr<hebi::Group> group;
+// geometry_msgs::Vector3 torqueVect;cartesian
 std::vector<std::string> families = {"01-base", "02-shoulder","03-elbow","04-wrist"};
 std::vector<std::string> names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
 // MoveIt Global Pointers
@@ -242,6 +241,9 @@ double rr_push_in_max = 0.12;
 double rr_push_in_min = 0.05;
 double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
+bool use_angular_rr = 1;
+double position_rr_ratio = 1;
+double angular_rr_ratio = 0.1;
 
 geometry_msgs::PoseStamped motorGoalPoseStamped;
 
@@ -1513,12 +1515,12 @@ int main(int argc, char** argv)
 			
 						
 			// xg = goal
-			// Eigen::VectorXd xg(6);
-			// xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z, goal_pose_euler(0), goal_pose_euler(1), goal_pose_euler(2);
-			Eigen::VectorXd xg(3);
-			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z;
+			Eigen::VectorXd xg(6);
+			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z, goal_pose_euler(0), goal_pose_euler(1), goal_pose_euler(2);
+			// Eigen::VectorXd xg(3);
+			// xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z;
 
-			// std::cout << "[FENG XIANG] - SETTING GOAL POSE XG: " << xg << std::endl;
+			std::cout << "[FENG XIANG] - SETTING GOAL POSE XG: " << xg << std::endl;
 
 
 			// get current joint angles (thetas)
@@ -1529,28 +1531,27 @@ int main(int argc, char** argv)
 			}
 
 			// //[x,y,z of the end effector] -- x0
-			// std::cout << "[FENG XIANG] - SETTING CURRENT POSITION OF END EFFECTOR" << std::endl;
+			std::cout << "[FENG XIANG] - SETTING CURRENT POSITION OF END EFFECTOR" << std::endl;
 			std::vector<double> joint_values{thetas(0), thetas(1), thetas(2), thetas(3)};
 			robotCurrState.setJointGroupPositions(joint_model_group, joint_values);
 			const Eigen::Affine3d& link_pose = robotCurrState.getGlobalLinkTransform("end_link/INPUT_INTERFACE");
 			// std::cout << "Link Pose: " << link_pose << std::endl;
 
-			// Eigen::VectorXd x0(6);
-			Eigen::VectorXd x0(3);
+			Eigen::VectorXd x0(6);
 			Eigen::Vector3d x0cart = link_pose.translation();
 			Eigen::Vector3d x0euler = link_pose.rotation().eulerAngles(0,1,2);
-			// x0 << x0cart(0), x0cart(1), x0cart(2), x0euler(0), x0euler(1), x0euler(2);
-			x0 = x0cart;
+			x0 << x0cart(0), x0cart(1), x0cart(2), x0euler(0), x0euler(1), x0euler(2);
 
 			//Compute Jacobian -- J
             //[2d matrix of joint angles ]
-			// std::cout << "[FENG XIANG] -  COMPUTING END EFFECTOR JACOBIAN" << std::endl;
+			std::cout << "[FENG XIANG] -  COMPUTING END EFFECTOR JACOBIAN" << std::endl;
             Eigen::MatrixXd J;
             // model->getJEndEffector(thetas, J);
 			Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
 			robotCurrState.getJacobian(joint_model_group, robotCurrState.getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, J);
             // Eigen::MatrixXd ee_J = J.block(0,0,6,4);//J.block(0,0,3,4);
-			Eigen::MatrixXd ee_J = J.block(0,0,3,4);
+			Eigen::MatrixXd ee_J_cartesian = J.block(0,0,3,group_size);
+			Eigen::MatrixXd ee_J_angular = J.block(3,0,3,group_size);
 
 			// Adjust push in distance based on the goal's orientation (more force if point up, less if pointed horizontally)
 			rr_push_in_distance = abs(goal_pose_normal_vector(2)) * (rr_push_in_max - rr_push_in_min) + rr_push_in_min;
@@ -1578,19 +1579,26 @@ int main(int argc, char** argv)
 			curr_goal_offset = rr_curr_offset * goal_pose_normal_vector;
 
 			// err of position to goal
-			// Eigen::VectorXd err(6);
-			Eigen::VectorXd err(3);
+			Eigen::VectorXd err(6);
             // err = xg + curr_goal_offset - x0;
 			err = xg - x0;
 			err(0) += curr_goal_offset(0);
 			err(1) += curr_goal_offset(1);
 			err(2) += curr_goal_offset(2);
-			// err(3) = err(3);
-			// err(4) = err(4);
-			// err(5) = err(5);
+			
+			Eigen::VectorXd err_cartesian(3);
+			Eigen::Vector3d xg_cartesian;
+			xg_cartesian << xg(0), xg(1), xg(2);
+			Eigen::VectorXd err_angular(3);
+			Eigen::Vector3d xg_angular;
+			xg_angular << xg(3), xg(4), xg(5);
+			err_cartesian = xg_cartesian + curr_goal_offset - x0cart;
+			err_angular = xg_angular - x0euler;
 
 			if (use_impedance_over_rr)
 			{
+				Eigen::MatrixXd ee_J = J.block(0,0,6,4);
+
 				// Calculate gravity compensation
 				Eigen::VectorXd masses(group_size);
 				Eigen::VectorXd link_lengths(group_size);
@@ -1612,7 +1620,7 @@ int main(int argc, char** argv)
 
 				hebi_efforts_msg.header.stamp = ros::Time::now();
 				hebi_efforts_msg.name = names;
-				hebi_efforts_msg.frame_id = "Impedance";
+				hebi_efforts_msg.header.frame_id = "Impedance";
 				for (unsigned int ii = 0; ii < group_size; ii++)
 				{
 					hebi_efforts_msg.position.push_back(impedance_force(ii));
@@ -1625,22 +1633,36 @@ int main(int argc, char** argv)
 				// std::cout << "Goal:" << xg << std::endl;
 				// std::cout << "Current: " << x0 << std::endl;
 
-				// std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
-				if (W.isIdentity(0.1))
+				std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
+				if (use_angular_rr)
 				{
-					thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*err;
+					thetadot = position_rr_ratio * (W.inverse()*ee_J_cartesian.transpose()*(ee_J_cartesian*W.inverse()*ee_J_cartesian.transpose()).inverse()*err_cartesian);
+					std::cout<<"RR without angular is: "<<thetadot<<std::endl;
+					thetadot = thetadot + angular_rr_ratio * (W.inverse()*ee_J_angular.transpose()*(ee_J_angular*W.inverse()*ee_J_angular.transpose()).inverse()*err_angular);
+					std::cout<<"RR with angular is: "<<thetadot<<std::endl;
 				}
 				else
 				{
-					thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*err;
+					if (W.isIdentity(0.1))
+					{
+						thetadot = ee_J_cartesian.transpose()*(ee_J_cartesian*ee_J_cartesian.transpose()).inverse()*err_cartesian;
+					}
+					else
+					{
+						thetadot = W.inverse()*ee_J_cartesian.transpose()*(ee_J_cartesian*W.inverse()*ee_J_cartesian.transpose()).inverse()*err_cartesian;
+					}
 				}
+				
 				
 				Eigen::VectorXd tempThetas = thetas+thetadot;
 				if(tempThetas(2) < singularThresh && tempThetas(3) < singularThresh){
-					thetas(0) += thetadot(0);
-					thetas(1) += thetadot(1);
+					thetas(0) = thetas(0) + thetadot(0);
+					thetas(1) = thetas(0) + thetadot(1);
 				}
-				else thetas += thetadot;
+				else
+				{
+					thetas = thetas + thetadot;
+				}
 
 				// double joint_threshold_val = 0.04;
 				for (unsigned int ii = 0; ii < group_size; ii++)
