@@ -249,6 +249,13 @@ target_link_libraries(KDC_find_hebi_moveit_planner
   ${catkin_LIBRARIES}
 )
 
+add_executable(Smart_hebi_moveit_planner src/Smart_hebi_moveit_planner.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(Smart_hebi_moveit_planner
+  ${catkin_LIBRARIES}
+)
+
 add_executable(KDC_actuated_test_copy src/KDC_actuated_test_copy.cpp)
 
 ## Specify libraries to link a library or executable target against
