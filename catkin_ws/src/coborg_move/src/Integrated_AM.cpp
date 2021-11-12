@@ -246,7 +246,7 @@ bool use_angular_rr = 1;
 double position_rr_ratio = 1;
 double angular_rr_ratio = 0.1;
 
-bool use_rr_collision_checking = 0;
+bool use_rr_collision_checking = 1;
 
 
 geometry_msgs::PoseStamped motorGoalPoseStamped;
@@ -1695,26 +1695,23 @@ int main(int argc, char** argv)
 					{
 						theta_vector.push_back(thetas(ii));
 					}
-					robot_state->setVariablePositions(theta_vector);
+					robot_state::RobotState& current_state = psm->getCurrentStateNonConst();
+					current_state.setVariablePositions(theta_vector);
 					collision_detection::CollisionRequest c_req;
 					collision_detection::CollisionResult c_res;
 					psm->checkSelfCollision(c_req, c_res);
 					if (!c_res.collision)
 					{
-						std::cout<<"<<<<COLLISION"<<std::endl;
-						std::cout<<"<<<<COLLISION"<<std::endl;
-						std::cout<<"<<<<COLLISION"<<std::endl;
-						std::cout<<"<<<<COLLISION"<<std::endl;
-						std::cout<<"<<<<COLLISION"<<std::endl;
-						std::cout<<"<<<<COLLISION"<<std::endl;
-						std::cout<<"<<<<COLLISION"<<std::endl;
-						std::cout<<"<<<<COLLISION"<<std::endl;
-						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"No collision detected"<<std::endl;
 						for (unsigned int ii = 0; ii < group_size; ii++)
 						{
 							hebi_thetas_msg.position.push_back(thetas(ii));
 						}
 						simulated_joint_states_pub.publish(hebi_thetas_msg);
+					}
+					else
+					{
+						std::cout<<"Collision detected"<<std::endl;
 					}
 				}
 				else
