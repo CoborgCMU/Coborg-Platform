@@ -163,6 +163,8 @@ bool use_stitching = 0;
 bool fix_traj_times = 0;
 // std::vector<float> max_joint_velocities_RadPerSec = {1, 1, 1, 1};
 std::vector<float> max_joint_velocities_RadPerSec = {0.3, 0.3, 0.3, 0.3};
+bool use_impedance_over_rr = 1;
+Eigen::VectorXd impedance_K_gains(6);
 // // // // // // // //
 unsigned int stitching_loop_number = 0; // REMOVE
 double planning_time_offset_default = 0.3;
@@ -1583,56 +1585,90 @@ int main(int argc, char** argv)
 			err(0) += curr_goal_offset(0);
 			err(1) += curr_goal_offset(1);
 			err(2) += curr_goal_offset(2);
-			// err(3) = err(3) * 0.0;
-			// err(4) = err(4) * 0.0;
-			// err(5) = err(5) * 0.0;
+			// err(3) = err(3);
+			// err(4) = err(4);
+			// err(5) = err(5);
 
-			// std::cout << "Goal:" << xg << std::endl;
-            // std::cout << "Current: " << x0 << std::endl;
-
-			// std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
-			if (W.isIdentity(0.1))
-            {
-                thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*err;
-            }
-            else
-            {
-                thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*err;
-            }
-			
-			Eigen::VectorXd tempThetas = thetas+thetadot;
-			if(tempThetas(2) < singularThresh && tempThetas(3) < singularThresh){
-				thetas(0) += thetadot(0);
-				thetas(1) += thetadot(1);
-			}
-			else thetas += thetadot;
-
-			// double joint_threshold_val = 0.04;
-			for (unsigned int ii = 0; ii < group_size; ii++)
+			if (use_impedance_over_rr)
 			{
+				// Calculate gravity compensation
+				Eigen::VectorXd masses(group_size);
+				Eigen::VectorXd link_lengths(group_size);
+				Eigen::VectorXd center_of_masses(group_size);
 
-				if (thetas(ii) < resolved_rate_joint_limits[ii][0])
+				// Calculate impedance control
+				Eigen::VectorXd impedance_force(group_size);
+				Eigen::VectorXd impedance_joint_D_gains(group_size);
+				impedance_K_gains << 10, 0, 0, 0, 1, 1; // X is the normal direction
+				impedance_joint_D_gains << 0.5, 0.5, 0.5, 0.5; // X is the normal direction
+				Eigen::VectorXd theta_dots(group_size);
+				for (unsigned int ii = 0; ii < group_size; ii++)
 				{
-					// std::cout << "Motor " << ii << " AT LOWER LIMIT" << std::endl;
-					thetas(ii) = resolved_rate_joint_limits[ii][0];
+					theta_dots(ii) = hebiJointAngVelocities.at(ii);
 				}
-				else if (thetas(ii) > resolved_rate_joint_limits[ii][1])
+				impedance_force = ee_J.transpose() * (impedance_K_gains * err) + impedance_joint_D_gains * theta_dots;
+				
+				sensor_msgs::JointState hebi_efforts_msg;
+
+				hebi_efforts_msg.header.stamp = ros::Time::now();
+				hebi_efforts_msg.name = names;
+				hebi_efforts_msg.frame_id = "Impedance";
+				for (unsigned int ii = 0; ii < group_size; ii++)
 				{
-					// std::cout << "Motor " << ii << " AT UPPER LIMIT" << std::endl;
-					thetas(ii) = resolved_rate_joint_limits[ii][1];
+					hebi_efforts_msg.position.push_back(impedance_force(ii));
 				}
+
+				simulated_joint_states_pub.publish(hebi_efforts_msg);
 			}
-
-			sensor_msgs::JointState hebi_thetas_msg;
-
-			hebi_thetas_msg.header.stamp = ros::Time::now();
-			hebi_thetas_msg.name = names;
-			for (unsigned int ii = 0; ii < group_size; ii++)
+			else
 			{
-				hebi_thetas_msg.position.push_back(thetas(ii));
+				// std::cout << "Goal:" << xg << std::endl;
+				// std::cout << "Current: " << x0 << std::endl;
+
+				// std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
+				if (W.isIdentity(0.1))
+				{
+					thetadot = ee_J.transpose()*(ee_J*ee_J.transpose()).inverse()*err;
+				}
+				else
+				{
+					thetadot = W.inverse()*ee_J.transpose()*(ee_J*W.inverse()*ee_J.transpose()).inverse()*err;
+				}
+				
+				Eigen::VectorXd tempThetas = thetas+thetadot;
+				if(tempThetas(2) < singularThresh && tempThetas(3) < singularThresh){
+					thetas(0) += thetadot(0);
+					thetas(1) += thetadot(1);
+				}
+				else thetas += thetadot;
+
+				// double joint_threshold_val = 0.04;
+				for (unsigned int ii = 0; ii < group_size; ii++)
+				{
+					if (thetas(ii) < resolved_rate_joint_limits[ii][0])
+					{
+						// std::cout << "Motor " << ii << " AT LOWER LIMIT" << std::endl;
+						thetas(ii) = resolved_rate_joint_limits[ii][0];
+					}
+					else if (thetas(ii) > resolved_rate_joint_limits[ii][1])
+					{
+						// std::cout << "Motor " << ii << " AT UPPER LIMIT" << std::endl;
+						thetas(ii) = resolved_rate_joint_limits[ii][1];
+					}
+				}
+
+				sensor_msgs::JointState hebi_thetas_msg;
+
+				hebi_thetas_msg.header.stamp = ros::Time::now();
+				hebi_thetas_msg.name = names;
+				for (unsigned int ii = 0; ii < group_size; ii++)
+				{
+					hebi_thetas_msg.position.push_back(thetas(ii));
+				}
+
+				simulated_joint_states_pub.publish(hebi_thetas_msg);
 			}
 
-			simulated_joint_states_pub.publish(hebi_thetas_msg);
 
 
 
