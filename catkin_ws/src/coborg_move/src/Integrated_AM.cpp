@@ -241,9 +241,13 @@ double rr_push_in_max = 0.12;
 double rr_push_in_min = 0.05;
 double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
+
 bool use_angular_rr = 1;
 double position_rr_ratio = 1;
 double angular_rr_ratio = 0.1;
+
+bool use_rr_collision_checking = 0;
+
 
 geometry_msgs::PoseStamped motorGoalPoseStamped;
 
@@ -1683,12 +1687,45 @@ int main(int argc, char** argv)
 
 				hebi_thetas_msg.header.stamp = ros::Time::now();
 				hebi_thetas_msg.name = names;
-				for (unsigned int ii = 0; ii < group_size; ii++)
+				if (use_rr_collision_checking)
 				{
-					hebi_thetas_msg.position.push_back(thetas(ii));
+					// Set the joint positions of the robot state to the proposed joint positions
+					std::vector<double> theta_vector;
+					for (unsigned int ii = 0; ii < group_size; ii++)
+					{
+						theta_vector.push_back(thetas(ii));
+					}
+					robot_state->setVariablePositions(theta_vector);
+					collision_detection::CollisionRequest c_req;
+					collision_detection::CollisionResult c_res;
+					psm->checkSelfCollision(c_req, c_res);
+					if (!c_res.collision)
+					{
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						std::cout<<"<<<<COLLISION"<<std::endl;
+						for (unsigned int ii = 0; ii < group_size; ii++)
+						{
+							hebi_thetas_msg.position.push_back(thetas(ii));
+						}
+						simulated_joint_states_pub.publish(hebi_thetas_msg);
+					}
+				}
+				else
+				{
+					for (unsigned int ii = 0; ii < group_size; ii++)
+					{
+						hebi_thetas_msg.position.push_back(thetas(ii));
+					}
+					simulated_joint_states_pub.publish(hebi_thetas_msg);
 				}
 
-				simulated_joint_states_pub.publish(hebi_thetas_msg);
 			}
 
 
