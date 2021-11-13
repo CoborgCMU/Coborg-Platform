@@ -6,6 +6,7 @@ import rospy
 from std_msgs.msg import Int32
 from std_msgs.msg import Char
 from std_msgs.msg import Header   
+from std_msgs.msg import String
 import enum
 
 
@@ -76,6 +77,14 @@ def status_update(message):
     new_status = message.data
 
     if status != mainState.FAULT: #if not faulted, mirror arm node
+        if new_status%10 == 9:
+            # voice: 19, arm: 29, vision: 39 error out
+            mainCommand_pub.publish(voiceCommand.HOME)  # back to home position and wait for next voice command
+            status = mainState.IDLE
+            feedbackMain_pub.publish(status)       
+            speaker_pub.publish("errorSound.mp3")
+            return
+
         if new_status == armState.IDLE:
             feedbackMain_pub.publish(mainState.IDLE)
 
@@ -100,5 +109,7 @@ if __name__ == "__main__":
 
     mainCommand_pub = rospy.Publisher('/main_cmd', Int32, queue_size=1)
     feedbackMain_pub = rospy.Publisher('/feedback_main', Int32, queue_size=1)
+    speaker_pub = rospy.Publisher('/speaker', String, queue_size=1)
+    #Usage: speaker_pub.publish("[sound].mp3")
 
     rospy.spin()
