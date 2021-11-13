@@ -7,9 +7,9 @@ joint_limits:
     max_velocity: 14
     has_acceleration_limits: false
     max_acceleration: 0
-  motor2/X5_9:
+  motor2/X8_16:
     has_velocity_limits: true
-    max_velocity: 14
+    max_velocity: 15
     has_acceleration_limits: false
     max_acceleration: 0
   motor3/X5_9:

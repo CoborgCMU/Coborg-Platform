@@ -18,7 +18,7 @@
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0.035 -.2475 -0.08"/>
+      <origin rpy="0 0 0" xyz="0.035 .2475 -0.08"/>
       <geometry>
         <box size="0.12 0.8 0.8"/>
       </geometry>
@@ -31,44 +31,66 @@
   </link>
   <link name="body">
     <visual>
-      <origin rpy="0 0 0" xyz=".115 0.2475 -.50"/>
+      <origin rpy="0 0 0" xyz=".145 0.2475 -.50"/>
       <geometry>
-        <box size="0.30 0.32 1.0"/>
+        <box size="0.4 0.32 1.0"/>
       </geometry>
       <material name="silver">
         <color rgba="0.6 0.6 0.6 1"/>
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz=".115 0.2475 -.25"/>
+      <origin rpy="0 0 0" xyz=".145 0.2475 -.50"/>
       <geometry>
-        <box size="0.30 0.32 1.0"/>
+        <box size="0.4 0.32 1.0"/>
       </geometry>
     </collision>
     <inertial>
-      <origin rpy="0 0 0" xyz=".115 .2475 -.25"/>
+      <origin rpy="0 0 0" xyz=".125 .2475 -.50"/>
+      <mass value="1.0"/>
+      <inertia ixx=".112" ixy="0.0" ixz="0.0" iyy=".029" iyz="0.0" izz=".0235"/>
+    </inertial>
+  </link>
+  <link name="lower_body">
+    <visual>
+      <origin rpy="0 0 0" xyz=".5 0.2475 -0.75"/>
+      <geometry>
+        <box size="1.25 1.5 0.25"/>
+      </geometry>
+      <material name="silver">
+        <color rgba="0.6 0.6 0.6 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz=".5 0.2475 -0.75"/>
+      <geometry>
+        <box size="1.25 1.5 0.25"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin rpy="0 0 0" xyz=".5 0.2475 -0.75"/>
       <mass value="1.0"/>
       <inertia ixx=".112" ixy="0.0" ixz="0.0" iyy=".029" iyz="0.0" izz=".0235"/>
     </inertial>
   </link>
   <link name="head">
     <visual>
-      <origin rpy="0 0 0" xyz=".09 0.2475 .09"/>
+      <origin rpy="0 0 0" xyz=".16 0.2475 .13"/>
       <geometry>
-        <sphere radius="0.11"/>
+        <sphere radius="0.18"/>
       </geometry>
       <material name="silver">
         <color rgba="0.6 0.6 0.6 1"/>
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz=".09 0.2475 .09"/>
+      <origin rpy="0 0 0" xyz=".16 0.2475 .13"/>
       <geometry>
-        <sphere radius="0.11"/>
+        <sphere radius="0.18"/>
       </geometry>
     </collision>
     <inertial>
-      <origin rpy="0 0 0" xyz=".09 0.2475 .09"/>
+      <origin rpy="0 0 0" xyz=".09 0.2475 .13"/>
       <mass value="1.0"/>
       <inertia ixx=".00324" ixy="0.0" ixz="0.0" iyy=".00324" iyz="0.0" izz=".00324"/>
     </inertial>
@@ -120,37 +142,42 @@
   <joint name="right_arm" type="fixed">
     <parent link="world"/>
     <child link="rodR"/>
-    <origin rpy="0 0 0" xyz="-.34 0.03 0.5"/>
+    <origin rpy="0 0 0" xyz="-0.0606 -0.02 0.2832"/>
   </joint>
   <joint name="left_arm" type="fixed">
     <parent link="world"/>
     <child link="rodL"/>
-    <origin rpy="0 0 0" xyz="-.34 0.475 0.5"/>
+    <origin rpy="0 0 0" xyz="-0.0606 0.425 0.2832"/>
   </joint>
   <joint name="base_base" type="fixed">
     <parent link="world"/>
     <child link="motor1/INPUT_INTERFACE"/>
-    <origin rpy="0 0 0" xyz="0 0.05 0.2168"/>
+    <origin rpy="0 0 0" xyz="0.2794 0 0"/>
   </joint>
   <joint name="base_s" type="fixed">
     <parent link="world"/>
     <child link="ms1/INPUT_INTERFACE"/>
-    <origin rpy="0 0 0" xyz="0 0.05 0.2168"/>
+    <origin rpy="0 0 0" xyz="0.2794 0 0"/>
   </joint>
   <joint name="shoulder" type="fixed">
     <parent link="world"/>
     <child link="shoulder_len"/>
-    <origin rpy="0 0 0" xyz="-.34 0 0.5"/>
+    <origin rpy="0 0 0" xyz="-0.0606 -0.05 0.2982"/>
   </joint>
   <joint name="body" type="fixed">
     <parent link="world"/>
     <child link="body"/>
-    <origin rpy="0 0 0" xyz="-.34 0 0.515"/>
+    <origin rpy="0 0 0" xyz="-0.0606 -0.05 0.2982"/>
+  </joint>
+  <joint name="lower_body" type="fixed">
+    <parent link="world"/>
+    <child link="lower_body"/>
+    <origin rpy="0 0 0" xyz="-0.0606 -0.05 0.2982"/>
   </joint>
   <joint name="head" type="fixed">
     <parent link="world"/>
     <child link="head"/>
-    <origin rpy="0 0 0" xyz="-.318 0 0.5"/>
+    <origin rpy="0 0 0" xyz="-0.0386 -0.05 0.2832"/>
   </joint>
   <link name="motor1/INPUT_INTERFACE">
     <visual>
@@ -205,7 +232,7 @@
   <link name="ms1/INPUT_INTERFACE">
     <!-- shifts the mount -->
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0.0 0 0" xyz="0 0 0"/>
       <geometry>
         <mesh filename="package://hebi_description/meshes/A-2039-02.stl"/>
       </geometry>
@@ -224,26 +251,20 @@
       </material>
     </visual>
     <collision>
-      <origin rpy="0 1.57079632679 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="package://hebi_description/meshes/A-2038-02.stl"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin rpy="0 1.57075 0" xyz="0.2 -0.02 0"/>
-      <geometry>
-        <cylinder length="0.3746" radius=".016"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin rpy="0 0 0" xyz="0.4 0.0 0.04"/>
+      <origin rpy="0.0 0 0" xyz="0 0 0"/>
       <geometry>
         <mesh filename="package://hebi_description/meshes/A-2039-02.stl"/>
       </geometry>
     </collision>
+    <collision>
+      <origin rpy="0 1.57075 0" xyz="-0.2 0 -0.02"/>
+      <geometry>
+        <cylinder length="0.3746" radius=".016"/>
+      </geometry>
+    </collision>
     <!-- Approximate inertia as thin rod about x axis -->
     <inertial>
-      <origin rpy="0 0 0" xyz="0.2 0 0.02"/>
+      <origin rpy="0 0 0" xyz="-0.2 0 -0.02"/>
       <mass value="0.432"/>
       <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.00576" iyz="0.0" izz="0.00576"/>
     </inertial>
@@ -316,7 +337,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://hebi_description/meshes/X5.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://hebi_description/meshes/X8.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="red">
         <color rgba=".82 0.06 0.06 1"/>
@@ -325,24 +346,34 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://hebi_description/meshes/X5.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://hebi_description/meshes/X8.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
     <inertial>
-      <origin rpy="0 0 0" xyz="-0.0142 -0.0031 0.0165"/>
-      <mass value="0.322"/>
-      <mass value="0.360"/>
-      <inertia ixx="0.00015" ixy="0.0000341" ixz="0.0000118" iyy="0.000255" iyz="0.00000229" izz="0.000350"/>
+      <origin rpy="0 0 0" xyz="-0.0145 -0.0031 0.0242"/>
+      <mass value="0.33"/>
+      <mass value="0.500"/>
+      <inertia ixx="0.000246" ixy="0.0000444" ixz="0.0000266" iyy="0.000380" iyz="0.00000422" izz="0.000463"/>
     </inertial>
   </link>
-  <joint name="motor2/X5_9" type="revolute">
+  <joint name="motor2/X8_16" type="revolute">
     <parent link="motor2/INPUT_INTERFACE"/>
     <child link="right_arm2/INPUT_INTERFACE"/>
-    <origin rpy="0 0 0" xyz="0 0 0.031"/>
+    <origin rpy="0 0 0" xyz="0 0 0.045"/>
     <axis xyz="0 0 1"/>
-    <limit effort="13.0" velocity="14" lower="-2.4" upper="2.4"/>
-    <dynamics damping="0.1" friction="0.1"/>
+    <limit effort="38" velocity="15" lower="-2.4" upper="2.4"/>
+    <dynamics damping="0.5" friction="0.5"/>
   </joint>
+  <transmission name="motor2/transmission">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="motor2">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="motor2/actuator">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
   <gazebo reference="motor2/INPUT_INTERFACE">
     <selfCollide>true</selfCollide>
     <gravity>true</gravity>

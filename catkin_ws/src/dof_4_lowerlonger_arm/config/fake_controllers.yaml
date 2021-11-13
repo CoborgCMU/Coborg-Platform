@@ -1,8 +1,9 @@
 controller_list:
   - name: fake_dof_4_lowerlonger_arm_controller
+    type: $(arg execution_type)
     joints:
       - motor1/X5_9
-      - motor2/X5_9
+      - motor2/X8_16
       - motor3/X5_9
       - motor4/X5_4
 initial:  # Define initial robot poses.
