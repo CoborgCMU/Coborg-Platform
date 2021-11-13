@@ -32,6 +32,7 @@
 #include <string.h>
 
 // declare motor joints as global vairables
+std::string control_type;
 double motor1_joint;
 double motor2_joint;
 double motor3_joint;
@@ -51,11 +52,11 @@ ros::Time currImp;
 bool impValue = false;
 
 
-
 // convert joint angles from MoveIt node to HEBI joint angles
 void hebiOutputCallback(const sensor_msgs::JointState::ConstPtr& msg) {
     // ROS_INFO("motor1: %f | motor2: %f | motor3: %f", msg->position[0],msg->position[1],msg->position[2]);
     std::cout<<"hebiOutputCallback received"<<std::endl; // // //
+    control_type = msg->header.frame_id;
     motor1_joint = msg->position[0]; // offset determined empirically for level arm out at 0 radians 
     motor2_joint = msg->position[1];
     motor3_joint = msg->position[2];
@@ -96,6 +97,8 @@ int main(int argc, char** argv)
 
     std::vector<std::string> names;
     names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
+
+
 
     // connect to HEBI joints on network through UDP connection
     std::shared_ptr<hebi::Group> group;
@@ -141,6 +144,15 @@ int main(int argc, char** argv)
     Eigen::VectorXd feedbackVel(group->size());
     Eigen::VectorXd feedbackTor(group->size());
     feedbackPos.setZero();
+
+    // Gravity compensation variables
+    double gravity = 0.98;
+    Eigen::VectorXd masses(group->size());
+    Eigen::VectorXd link_lengths(group->size());
+    Eigen::VectorXd center_of_masses(group->size());
+    masses << 0, 0, 0, 0;
+    link_lengths << 0.1524, 0.254, 0.2286, 0.2794;
+    center_of_masses << 0.1, 0.2, 0.2, 0.2;
 
     // (impedance control) declare varaibles to be using for force control state
     group->setFeedbackFrequencyHz(20);
@@ -217,14 +229,28 @@ int main(int argc, char** argv)
                 positions[1] = motor2_joint;
                 positions[2] = motor3_joint;
                 positions[3] = motor4_joint;
+                if (control_type == "Impedance")
+                {
+                    // Add gravity compensation
+                    
+                    // double gravity = 0.98;
+                    // Eigen::VectorXd masses(group_size);
+                    // Eigen::VectorXd link_lengths(group_size);
+                    // Eigen::VectorXd center_of_masses(group_size);
+                    // masses << 0, 0, 0, 0;
+                    // link_lengths << 0.1524, 0.254, 0.2286, 0.2794;
+                    // center_of_masses << 0.1, 0.2, 0.2, 0.2;
+                    positions[0] += 0;
+                    // positions[1] += masses(1) * gravity * center_of_masses(1) * cos(feedbackPos(1)) + 
+                    positions[2] += 0;
+                    positions[3] += 0;
+                    groupCommand.setEffort(positions);
+                }
+                else
+                {
+                    groupCommand.setPosition(positions);
+                }
 
-                // velocity
-
-                groupCommand.setPosition(positions);
-                // groupCommand.setVelocity(velocities);
-
-                // group->sendCommand(groupCommand);
-                
                 group->sendCommand(groupCommand);
                 // ROS_INFO_STREAM((float) durr);
                 impValue = false;

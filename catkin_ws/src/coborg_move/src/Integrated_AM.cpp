@@ -1602,12 +1602,6 @@ int main(int argc, char** argv)
 			if (use_impedance_over_rr)
 			{
 				Eigen::MatrixXd ee_J = J.block(0,0,6,4);
-
-				// Calculate gravity compensation
-				Eigen::VectorXd masses(group_size);
-				Eigen::VectorXd link_lengths(group_size);
-				Eigen::VectorXd center_of_masses(group_size);
-
 				// Calculate impedance control
 				Eigen::VectorXd impedance_force(group_size);
 				Eigen::VectorXd impedance_joint_D_gains(group_size);
@@ -1686,6 +1680,7 @@ int main(int argc, char** argv)
 				sensor_msgs::JointState hebi_thetas_msg;
 
 				hebi_thetas_msg.header.stamp = ros::Time::now();
+				hebi_thetas_msg.header.frame_id = "Position";
 				hebi_thetas_msg.name = names;
 				if (use_rr_collision_checking)
 				{

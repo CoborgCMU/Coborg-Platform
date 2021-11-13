@@ -51,6 +51,8 @@ public:
         // process the goals
         if ((curr_state_ == 1 || curr_state_==4) && !goal_received){
             processGoal(goalNormalSetPose);  // goalNormalSetPose: relative to /t265_odom_frame
+            if (goalNormalSetPose.pose.position.x == 0)
+                return;
             goal_received = true;
         }
 
@@ -58,8 +60,6 @@ public:
             if (goal_received){
                 // convert to /world frame and keep publishing the point
                 convertToWorld(goal_normal, goalNormalSetPose);
-                visionFeedback_.data = 33;
-                state_input_pub_.publish(visionFeedback_);
             }
         }
 
@@ -69,7 +69,7 @@ public:
             {
                 goal_received = false;
                 goal_normal_computed = false;
-
+                goalNormalSetPose = geometry_msgs::PoseStamped{};
                 visionFeedback_.data = 30;
                 state_input_pub_.publish(visionFeedback_);
             }
@@ -155,6 +155,7 @@ private:
             }
             catch (tf::TransformException ex){
                 ROS_ERROR("%s", ex.what());
+                std::cout << "Here error out!!" << std::endl;
                 // visionFeedback_.data = 39;
                 // state_input_pub_.publish(visionFeedback_);
             }
@@ -209,6 +210,11 @@ private:
             {
                 ROS_INFO("Cam 01 Position Received.");
                 // tf transform to cam1_link -> odom frame
+                if (goalpose_cam1 -> x == 0){
+                    ROS_INFO("Cam 1: null. Continue...");
+                    continue;
+                }
+                    
                 convertToOdom(goal_normal_cam1, goalpose_cam1, cam1_prevTime);
                 
                
@@ -218,6 +224,8 @@ private:
                               std::pow(goal_normal_cam1.pose.position.y,2) +
                               std::pow(goal_normal_cam1.pose.position.z,2));
                     if (dist<=1.5){
+                        ROS_INFO("Cam 1: Valid Pose Received.");
+
                         double transformed_x = goal_normal_cam1.pose.position.x; // placeholder
                         double transformed_y = goal_normal_cam1.pose.position.y; // placeholder
                         double transformed_z = goal_normal_cam1.pose.position.z; // placeholder
@@ -238,6 +246,11 @@ private:
             {
                 ROS_INFO("Cam 02 Position Received.");
                 // tf transform to cam2_link frame -> odom frame
+                if (goalpose_cam2 -> x == 0){
+                    ROS_INFO("Cam 2: null. Continue...");
+                    continue;
+                }
+
                 convertToOdom(goal_normal_cam2, goalpose_cam2, cam2_prevTime);
 
                 if (goal_normal_cam2.pose.position.x != 0)
@@ -246,6 +259,8 @@ private:
                               std::pow(goal_normal_cam2.pose.position.y,2) +
                               std::pow(goal_normal_cam2.pose.position.z,2));
                     if (dist<=1.5){
+                        ROS_INFO("Cam 2: Valid Pose Received.");
+
                         double transformed_x = goal_normal_cam2.pose.position.x; // placeholder
                         double transformed_y = goal_normal_cam2.pose.position.y; // placeholder
                         double transformed_z = goal_normal_cam2.pose.position.z; // placeholder
@@ -260,15 +275,15 @@ private:
                 }
             }
 
-            // wait for at least 3 msgs from cam1 or cam2
-            if (numMsgCam1==5 || numMsgCam2==5)
+            // wait for at least 7 valid msgs from cam1 or cam2
+            if (numMsgCam1==7 || numMsgCam2==7)
                 break;
 
-            if (ros::Time::now().toSec() - beginTime > 20.0){
+            if (ros::Time::now().toSec() - beginTime > 15.0){
                 std::cout << "Time out on goal getter!" << std::endl;
                 visionFeedback_.data = 39;
                 state_input_pub_.publish(visionFeedback_);
-                break;
+                return;
             }
         }      
         
@@ -293,6 +308,9 @@ private:
             goalNormalSetPose = goal_normal_cam2;
             prevTime = ros::Time::now();
         }
+        visionFeedback_.data = 33;
+        state_input_pub_.publish(visionFeedback_);
+
     }
 
     void convertToWorld(geometry_msgs::PoseStamped& goal_normal, geometry_msgs::PoseStamped& goalNormalSetPose){
