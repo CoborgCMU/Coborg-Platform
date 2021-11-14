@@ -33,11 +33,11 @@
 
 #include <string.h>
 
-// declare motor joints as global vairables
-double motor1_joint;
-double motor2_joint;
-double motor3_joint;
-double motor4_joint;
+// declare motor joints as global vairables -- Initial values are tucked position
+double motor1_joint = -0.05;
+double motor2_joint = -2.0;
+double motor3_joint = -2.1;
+double motor4_joint = -2.3;
 
 // start up variables
 // set start up procedure to prevent max torque at start up phenomena

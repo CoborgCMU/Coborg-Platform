@@ -4,7 +4,7 @@
   <!-- <arg name="camera_rgb_topic" default="/camera/color/image_raw" /> -->
 
   <!-- Console launch prefix -->
-  <arg name="launch_prefix" default="xterm -e"/>
+  <!-- <arg name="launch_prefix" default="xterm -e"/> -->
 
   <!-- Config and weights folder. -->
   <arg name="yolo_weights_path"          default="$(find darknet_ros)/yolo_network_config/weights"/>
@@ -18,11 +18,11 @@
   <rosparam command="load" ns="cam2/darknet_ros" file="$(find darknet_ros)/config/yolov3-hand-tiny.yaml"/>
 
   <!-- Start darknet and ros wrapper -->
-  <node  ns="cam1" pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">
+  <node  ns="cam1" pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="xterm -geometry 30x3+710+0 -e">
     <param name="weights_path"                              value="$(arg yolo_weights_path)" />
     <param name="config_path"                               value="$(arg yolo_config_path)" />
   </node>
-  <node  ns="cam2" pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">
+  <node  ns="cam2" pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="xterm -geometry 30x3+710+120 -e">
     <param name="weights_path"                              value="$(arg yolo_weights_path)" />
     <param name="config_path"                               value="$(arg yolo_config_path)" />
   </node>

@@ -60,19 +60,22 @@ class main_status:
             mainCommand_pub.publish(command)
             self.status = mainState.PROCESSING
             feedbackMain_pub.publish(self.status)
+            print("Status: " + str(mainState(self.status)) + "\t| Voice command: " + str(voiceCommand(command)))
 
         #if stop command, toggle relay high (NC so it kills power)
         elif command == voiceCommand.STOP:
             mainCommand_pub.publish(command)
             self.status = mainState.FAULT
             feedbackMain_pub.publish(self.status)
+            print("Status: " + str(mainState(self.status)) + "\t| Voice command: " + str(voiceCommand(command)))
             GPIO.output(output_pin, GPIO.HIGH)
 
         #if restart command, toggle relay low (NC so it powers on)
         elif command == voiceCommand.RESTART:
             mainCommand_pub.publish(command)
             self.status = mainState.IDLE
-            feedbackMain_pub.publish(self.status)       
+            feedbackMain_pub.publish(self.status)
+            print("Status: " + str(mainState(self.status)) + "\t| Voice command: " + str(voiceCommand(command)))   
             GPIO.output(output_pin, GPIO.LOW)
             
     #right now the main state just mirrors the arm state. voice + vision optional logic in the future
@@ -83,24 +86,30 @@ class main_status:
             if new_status%10 == 9:
                 # voice: 19, arm: 29, vision: 39 error out
                 mainCommand_pub.publish(voiceCommand.HOME)  # back to home position and wait for next voice command
-                self.status = mainState.IDLE
-                feedbackMain_pub.publish(self.status)       
+                self.status = mainState.FAULT
+                feedbackMain_pub.publish(self.status)
+                faultNode = "Voice" if new_status == 19 else "AM" if new_status == 29 else "Vision"
+                print("Status: " + str(mainState(self.status)) + "\t| Fault in " + faultNode)       
                 speaker_pub.publish("errorSound.mp3")
-
-            if new_status == armState.IDLE:
-                feedbackMain_pub.publish(mainState.IDLE)
-
+            elif new_status == armState.IDLE:
+                self.status = mainState.IDLE
+                feedbackMain_pub.publish(self.status)
+                print("Status: " + str(mainState(self.status)))
             elif new_status == armState.PROCESSING:
-                feedbackMain_pub.publish(mainState.PROCESSING)
-
+                self.status = mainState.PROCESSING
+                feedbackMain_pub.publish(self.status)
+                print("Status: " + str(mainState(self.status)))
             elif new_status == armState.COMPLETED:
-                feedbackMain_pub.publish(mainState.COMPLETED)
+                self.status = mainState.COMPLETED
+                feedbackMain_pub.publish(self.status)
+                print("Status: " + str(mainState(self.status)))
 
 
 if __name__ == "__main__":
     status = mainState.INIT
     main = main_status(status)
     output_pin = 18
+    GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(output_pin, GPIO.OUT, initial=GPIO.LOW)
 
@@ -113,6 +122,5 @@ if __name__ == "__main__":
     mainCommand_pub = rospy.Publisher('/main_cmd', Int32, queue_size=1)
     feedbackMain_pub = rospy.Publisher('/feedback_main', Int32, queue_size=1)
     speaker_pub = rospy.Publisher('/speaker', String, queue_size=1)
-    #Usage: speaker_pub.publish("[sound].mp3")
 
     rospy.spin()
