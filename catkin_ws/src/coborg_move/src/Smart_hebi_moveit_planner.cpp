@@ -9,6 +9,8 @@
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
+#include "hebi_cpp_api/robot_model.hpp"
+
 
 #include "Eigen/Eigen"
 
@@ -74,6 +76,42 @@ void effortCallback(const sensor_msgs::JointState::ConstPtr& msg)
     std::cout<<"effortCallback finalized"<<std::endl; // // //
 }
 
+Eigen::VectorXd getGravityCompensationEfforts(const hebi::robot_model::RobotModel& model, 
+  const Eigen::VectorXd& masses, const Eigen::VectorXd& positions, const Eigen::Vector3d& gravity) {
+
+  // Normalize gravity vector (to 1g, or 9.8 m/s^2)
+  Eigen::Vector3d normed_gravity = gravity;
+  normed_gravity /= normed_gravity.norm();
+  normed_gravity *= 9.81;
+
+  size_t num_dof = model.getDoFCount();
+  size_t num_frames = model.getFrameCount(hebi::robot_model::FrameType::CenterOfMass);
+
+  hebi::robot_model::MatrixXdVector jacobians;
+  model.getJ(hebi::robot_model::FrameType::CenterOfMass, positions, jacobians);
+
+  // Get torque for each module
+  // comp_torque = J' * wrench_vector
+  // (for each frame, sum this quantity)
+  Eigen::VectorXd comp_torque(num_dof);
+  comp_torque.setZero();
+
+  // Wrench vector
+  Eigen::VectorXd wrench_vec(6); // For a single frame; this is (Fx/y/z, tau x/y/z)
+  wrench_vec.setZero();
+  for (size_t i = 0; i < num_frames; i++) {
+    // Set translational part
+    for (size_t j = 0; j < 3; j++) {
+      wrench_vec[j] = -normed_gravity[j] * masses[i];
+    }
+
+    // Add the torques for each joint to support the mass at this frame
+    comp_torque += jacobians[i].transpose() * wrench_vec;
+  }
+
+  return comp_torque;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -130,7 +168,7 @@ int main(int argc, char** argv)
 
     // set HEBI command variables
     hebi::GroupCommand groupCommandBegin(group->size());
-    hebi::GroupCommand groupCommand(group->size());
+    
     hebi::GroupCommand groupCommandStabilize(group->size());
 
     // set positions based on motor joints angles
@@ -164,6 +202,24 @@ int main(int argc, char** argv)
     startupVelocity.setOnes();
     const double stiffness = 1.0;
 
+    std::string cwd("\0", FILENAME_MAX+1);
+    std::cout << "Current path: " << getcwd(&cwd[0],cwd.capacity()) << std::endl;
+    std::unique_ptr<hebi::robot_model::RobotModel> model = hebi::robot_model::RobotModel::loadHRDF("dof_4_robot.hrdf");
+    Eigen::Matrix4d baseTransform;
+    baseTransform.setIdentity();
+    model->setBaseFrame(baseTransform);
+	if (model == NULL)
+    {
+        ROS_WARN("[RESOLVED RATE] Initialization - Did NOT find HRDF file of robot arm.");
+    }
+    else
+    {
+        std::cout << "[RESOLVED RATE] Initialization - Found HRDF file of robot arm." << std::endl;
+    }
+
+    double force_time_offset = 5.0;
+    double force_ref_time = ros::Time::now().toSec();
+
     ros::Rate loop_rate(20.0);
 
     while (ros::ok()) {
@@ -174,6 +230,26 @@ int main(int argc, char** argv)
         // compute duration variable
         durr = (float)(curr - begin).toSec();
         std::cout<<"Duration computed"<<std::endl; // // //
+
+        hebi::GroupCommand groupCommand(group->size());
+
+
+        if (ros::Time::now().toSec() - force_ref_time < force_time_offset)
+        {
+            control_type = "Position";
+            motor1_joint = 0;
+            motor2_joint = 0;
+            motor3_joint = 0;
+            motor4_joint = 0;
+        }
+        else
+        {
+            control_type = "Impedance";
+            motor1_joint = 0;
+            motor2_joint = 0;
+            motor3_joint = 0;
+            motor4_joint = 0;
+        }
 
         // if the motors sendback feedback information
         if (group->getNextFeedback(group_feedback))
@@ -240,18 +316,49 @@ int main(int argc, char** argv)
                     // masses << 0, 0, 0, 0;
                     // link_lengths << 0.1524, 0.254, 0.2286, 0.2794;
                     // center_of_masses << 0.1, 0.2, 0.2, 0.2;
-                    positions[0] += 0;
-                    // positions[1] += masses(1) * gravity * center_of_masses(1) * cos(feedbackPos(1)) + 
-                    positions[2] += 0;
-                    positions[3] += 0;
+
+                    // Eigen::VectorXd masses(model->getFrameCount(HebiFrameTypeCenterOfMass));
+                    // model->getMasses(masses);
+                    double bracket_weight_kg = .076;
+                    double link_density_kgpm = .429714;
+                    double end_effector_kg = .22414;
+                    double mass_x5_9_kg = 0.36;
+                    double mass_x8_16_kg = 0.5;
+                    double mass_x5_4_kg = 0.335;
+
+                    Eigen::VectorXd masses(9);
+                    masses << mass_x5_9_kg, bracket_weight_kg * 2 + link_density_kgpm * .127, mass_x8_16_kg, bracket_weight_kg * 2 + link_density_kgpm * 0.2286, mass_x5_9_kg, bracket_weight_kg * 2 + link_density_kgpm * 0.1905, mass_x5_4_kg, end_effector_kg, 0;
+
+
+                    auto base_accel = group_feedback[0].imu().accelerometer().get();
+                    Vector3d gravity(-base_accel.getX(), -base_accel.getY(), -base_accel.getZ());
+                    // Eigen::Vector3d gravity(0, 0, -1);
+
+                    Eigen::VectorXd effort(group->size());
+                    effort = getGravityCompensationEfforts(*model, masses, feedbackPos, gravity);
+                    
+                    double effort_comp = 1.0;
+                    ros::console::shutdown();
+				    std::cout.clear();
+	    			std::cout<<"/////////////////////////////////"<<std::endl;
+                    std::cout<<"masses is: "<<masses<<std::endl;
+                    std::cout<<"efforts is: "<<effort<<std::endl;
+                    std::cout<<"current effort is: " << feedbackTor << std::endl;
+                    positions[0] = -effort(0);
+                    positions[1] = -effort(1);
+                    positions[2] = -effort(2);
+                    positions[3] = -effort(3);
+                    positions *= effort_comp;
                     groupCommand.setEffort(positions);
+    				std::cout.setstate(std::ios_base::failbit);
+                    group->sendCommand(groupCommand);
                 }
                 else
                 {
                     groupCommand.setPosition(positions);
                 }
 
-                group->sendCommand(groupCommand);
+                
                 // ROS_INFO_STREAM((float) durr);
                 impValue = false;
 

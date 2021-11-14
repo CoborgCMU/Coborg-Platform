@@ -2,7 +2,10 @@
 
     <!-- removed code to run rs_d400_and_t265.launch -->
 
-    <include file="$(find dof_4_lowerlonger_arm)/launch/demo.launch" />
+    <arg name="use_rviz" default="true" />
+    <include file="$(find dof_4_lowerlonger_arm)/launch/demo.launch">
+        <arg name="use_rviz" value="$(arg use_rviz)"/>
+    </include>
 
     <node pkg="tf" type="static_transform_publisher" name="motor1_to_lowercam" args="-0.291 -0.053848 0.290068 0.698132 -0.733038 0 /motor1/INPUT_INTERFACE /cam1_link 100" />
 

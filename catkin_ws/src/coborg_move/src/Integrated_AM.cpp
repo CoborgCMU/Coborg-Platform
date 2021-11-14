@@ -242,7 +242,7 @@ double rr_push_in_min = 0.05;
 double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
 
-bool use_angular_rr = 1;
+bool use_angular_rr = 0;
 double position_rr_ratio = 1;
 double angular_rr_ratio = 0.1;
 
@@ -866,20 +866,7 @@ int main(int argc, char** argv)
 
 	
 
-    std::string cwd("\0", FILENAME_MAX+1);
-    std::cout << "Current path: " << getcwd(&cwd[0],cwd.capacity()) << std::endl;
-    std::unique_ptr<hebi::robot_model::RobotModel> model = hebi::robot_model::RobotModel::loadHRDF("dof_4_robot.hrdf");
-    Eigen::Matrix4d baseTransform;
-    baseTransform.setIdentity();
-    model->setBaseFrame(baseTransform);
-	if (model == NULL)
-    {
-        ROS_WARN("[RESOLVED RATE] Initialization - Did NOT find HRDF file of robot arm.");
-    }
-    else
-    {
-        std::cout << "[RESOLVED RATE] Initialization - Found HRDF file of robot arm." << std::endl;
-    }
+    
     prevPoseMotionDetectTime = ros::Time::now();
 
 
@@ -1765,7 +1752,7 @@ int main(int argc, char** argv)
 				// robotCurrState.getStateValues(tucked_state_values);
 				// goal_state = robotCurrState;
 				// plan_req.start_state.joint_state.position = tucked_state_values;
-				plan_req.start_state.joint_state.name = {"motor1/X5_9", "motor2/X5_9", "motor3/X5_9", "motor4/X5_4"};
+				plan_req.start_state.joint_state.name = {"motor1/X5_9", "motor2/X8_16", "motor3/X5_9", "motor4/X5_4"};
 				plan_req.start_state.joint_state.position = {0.0, -1.93, -2.38, -2.50};
 				plan_req.start_state.joint_state.velocity = {};
 				plan_req.start_state.joint_state.effort = {};

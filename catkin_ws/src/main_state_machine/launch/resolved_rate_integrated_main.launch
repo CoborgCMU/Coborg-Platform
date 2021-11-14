@@ -4,8 +4,8 @@
     <include file="$(find realsense2_camera)/launch/rs_t265.launch">
         <arg name="camera" value="t265"/>
         <!-- <arg name="initial_reset" value="true"/> -->
-        <!-- <arg name="serial_no" value="905312111132"/> -->
-        <arg name="serial_no" value="952322110610"/>
+        <arg name="serial_no" value="905312111132"/>
+        <!-- <arg name="serial_no" value="952322110610"/> -->
 
     </include>
 
