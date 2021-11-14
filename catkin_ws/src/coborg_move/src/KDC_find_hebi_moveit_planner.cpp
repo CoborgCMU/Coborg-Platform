@@ -9,6 +9,8 @@
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
+#include "hebi_cpp_api/robot_model.hpp"
+
 
 #include "Eigen/Eigen"
 
@@ -151,6 +153,8 @@ int main(int argc, char** argv)
     Eigen::VectorXd startupVelocity(group->size());
     startupVelocity.setOnes();
     const double stiffness = 1.0;
+
+    
 
     ros::Rate loop_rate(20.0);
 
