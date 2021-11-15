@@ -1,8 +1,14 @@
 <launch>
     <!--Start up RVIZ -->
     <arg name="use_rviz" default="true" />
-    <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch">
+    <!-- <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch">
         <arg name="use_rviz" value="$(arg use_rviz)"/>
+    </include> -->
+
+    <!-- Run Rviz and load the default config to see the state of the move_group node -->
+    <include file="$(find dof_4_lowerlonger_arm)/launch/moveit_rviz.launch" if="$(arg use_rviz)">
+    <arg name="rviz_config" value="$(find dof_4_lowerlonger_arm)/launch/moveit.rviz"/>
+    <arg name="debug" value="$(arg debug)"/>
     </include>
-   
+
 </launch>
