@@ -31,22 +31,22 @@
   </link>
   <link name="body">
     <visual>
-      <origin rpy="0 0 0" xyz=".14 0.2475 -.50"/>
+      <origin rpy="0 0 0" xyz=".145 0.2475 -.50"/>
       <geometry>
-        <box size="0.3 0.32 1.0"/>
+        <box size="0.4 0.32 1.0"/>
       </geometry>
       <material name="silver">
         <color rgba="0.6 0.6 0.6 1"/>
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz=".14 0.2475 -.50"/>
+      <origin rpy="0 0 0" xyz=".145 0.2475 -.50"/>
       <geometry>
-        <box size="0.3 0.32 1.0"/>
+        <box size="0.4 0.32 1.0"/>
       </geometry>
     </collision>
     <inertial>
-      <origin rpy="0 0 0" xyz=".14 .2475 -.50"/>
+      <origin rpy="0 0 0" xyz=".125 .2475 -.50"/>
       <mass value="1.0"/>
       <inertia ixx=".112" ixy="0.0" ixz="0.0" iyy=".029" iyz="0.0" izz=".0235"/>
     </inertial>

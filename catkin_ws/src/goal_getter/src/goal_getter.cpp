@@ -18,6 +18,9 @@
 #include "std_msgs/Int32.h"
 #include "geometry_msgs/PoseStamped.h"
 
+// #include "goal_getter/GoalPose.h"
+
+
 
 
 #define HZ 20
@@ -47,6 +50,7 @@ public:
         goal_normal_computed = false;
     }
 
+    
     void step(){
         // process the goals
         if ((curr_state_ == 1 || curr_state_==4) && !goal_received){
@@ -168,6 +172,8 @@ private:
         boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam1;
         boost::shared_ptr<gb_visual_detection_3d_msgs::goal_msg const> goalpose_cam2;
 
+
+
         geometry_msgs::PoseStamped goal_normal_cam1;
         geometry_msgs::PoseStamped goal_normal_cam2;
 
@@ -212,34 +218,33 @@ private:
                 // tf transform to cam1_link -> odom frame
                 if (goalpose_cam1 -> x == 0){
                     ROS_INFO("Cam 1: null. Continue...");
-                    continue;
+                    // continue;
                 }
-                    
-                convertToOdom(goal_normal_cam1, goalpose_cam1, cam1_prevTime);
+                else{
+                    convertToOdom(goal_normal_cam1, goalpose_cam1, cam1_prevTime);   
                 
-               
-                if (goal_normal_cam1.pose.position.x != 0)
-                {
-                    double dist = std::sqrt(std::pow(goal_normal_cam1.pose.position.x,2)+
-                              std::pow(goal_normal_cam1.pose.position.y,2) +
-                              std::pow(goal_normal_cam1.pose.position.z,2));
-                    if (dist<=1.5){
-                        ROS_INFO("Cam 1: Valid Pose Received.");
+                    if (goal_normal_cam1.pose.position.x != 0)
+                    {
+                        double dist = std::sqrt(std::pow(goal_normal_cam1.pose.position.x,2)+
+                                std::pow(goal_normal_cam1.pose.position.y,2) +
+                                std::pow(goal_normal_cam1.pose.position.z,2));
+                        if (dist<=1.5){
+                            ROS_INFO("Cam 1: Valid Pose Received.");
 
-                        double transformed_x = goal_normal_cam1.pose.position.x; // placeholder
-                        double transformed_y = goal_normal_cam1.pose.position.y; // placeholder
-                        double transformed_z = goal_normal_cam1.pose.position.z; // placeholder
+                            double transformed_x = goal_normal_cam1.pose.position.x; // placeholder
+                            double transformed_y = goal_normal_cam1.pose.position.y; // placeholder
+                            double transformed_z = goal_normal_cam1.pose.position.z; // placeholder
 
-                        // add to goal pose
-                        goalSetPoint(0) += transformed_x;
-                        goalSetPoint(1) += transformed_y;
-                        goalSetPoint(2) += transformed_z;
-                        
-                        totalCameras++;
-                        numMsgCam1 ++;
+                            // add to goal pose
+                            goalSetPoint(0) += transformed_x;
+                            goalSetPoint(1) += transformed_y;
+                            goalSetPoint(2) += transformed_z;
+                            
+                            totalCameras++;
+                            numMsgCam1 ++;
+                        }
                     }
-                    
-                }
+                }    
             }
 
             if (goalpose_cam2 != NULL)
@@ -248,38 +253,39 @@ private:
                 // tf transform to cam2_link frame -> odom frame
                 if (goalpose_cam2 -> x == 0){
                     ROS_INFO("Cam 2: null. Continue...");
-                    continue;
+                    // continue;
                 }
+                else{
+                    convertToOdom(goal_normal_cam2, goalpose_cam2, cam2_prevTime);
 
-                convertToOdom(goal_normal_cam2, goalpose_cam2, cam2_prevTime);
+                    if (goal_normal_cam2.pose.position.x != 0)
+                    {
+                        double dist = std::sqrt(std::pow(goal_normal_cam2.pose.position.x,2)+
+                                std::pow(goal_normal_cam2.pose.position.y,2) +
+                                std::pow(goal_normal_cam2.pose.position.z,2));
+                        if (dist<=1.5){
+                            ROS_INFO("Cam 2: Valid Pose Received.");
 
-                if (goal_normal_cam2.pose.position.x != 0)
-                {
-                    double dist = std::sqrt(std::pow(goal_normal_cam2.pose.position.x,2)+
-                              std::pow(goal_normal_cam2.pose.position.y,2) +
-                              std::pow(goal_normal_cam2.pose.position.z,2));
-                    if (dist<=1.5){
-                        ROS_INFO("Cam 2: Valid Pose Received.");
+                            double transformed_x = goal_normal_cam2.pose.position.x; // placeholder
+                            double transformed_y = goal_normal_cam2.pose.position.y; // placeholder
+                            double transformed_z = goal_normal_cam2.pose.position.z; // placeholder
 
-                        double transformed_x = goal_normal_cam2.pose.position.x; // placeholder
-                        double transformed_y = goal_normal_cam2.pose.position.y; // placeholder
-                        double transformed_z = goal_normal_cam2.pose.position.z; // placeholder
-
-                        // add to goal pose
-                        goalSetPoint(0) += transformed_x;
-                        goalSetPoint(1) += transformed_y;
-                        goalSetPoint(2) += transformed_z;
-                        totalCameras++;
-                        numMsgCam2++;
+                            // add to goal pose
+                            goalSetPoint(0) += transformed_x;
+                            goalSetPoint(1) += transformed_y;
+                            goalSetPoint(2) += transformed_z;
+                            totalCameras++;
+                            numMsgCam2++;
+                        }
                     }
                 }
             }
 
             // wait for at least 7 valid msgs from cam1 or cam2
-            if (numMsgCam1==7 || numMsgCam2==7)
+            if (numMsgCam1==5 || numMsgCam2==5)
                 break;
 
-            if (ros::Time::now().toSec() - beginTime > 15.0){
+            if (ros::Time::now().toSec() - beginTime > 10.0){
                 std::cout << "Time out on goal getter!" << std::endl;
                 visionFeedback_.data = 39;
                 state_input_pub_.publish(visionFeedback_);
@@ -374,20 +380,23 @@ private:
 
 int main(int argc, char ** argv)
 {
-  ros::init(argc, argv, "goal_getter");
+    ros::init(argc, argv, "goal_getter");
 
-  GoalGetter goal_getter;
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
 
-  // Configure the loop frequency (Hertzios):
+    GoalGetter goal_getter;
 
-  ros::Rate loop_rate(HZ);
+    // Configure the loop frequency (Hertzios):
 
-  while (ros::ok())
-  {
-    ros::spinOnce();
+    ros::Rate loop_rate(HZ);
+
+    while (ros::ok())
+    {
+    // ros::spinOnce();
     goal_getter.step();
-    loop_rate.sleep();
-  }
+    // loop_rate.sleep();
+    }
 
-  return 0;
+    return 0;
 }

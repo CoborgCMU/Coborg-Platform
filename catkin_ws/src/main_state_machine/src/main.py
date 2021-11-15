@@ -90,7 +90,7 @@ class main_status:
                 feedbackMain_pub.publish(self.status)
                 faultNode = "Voice" if new_status == 19 else "AM" if new_status == 29 else "Vision"
                 print("Status: " + str(mainState(self.status)) + "\t| Fault in " + faultNode)       
-                speaker_pub.publish("errorSound.mp3")
+                speaker_pub.publish("jeez.mp3")
             elif new_status == armState.IDLE:
                 self.status = mainState.IDLE
                 feedbackMain_pub.publish(self.status)

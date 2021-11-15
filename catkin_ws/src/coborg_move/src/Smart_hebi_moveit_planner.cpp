@@ -42,7 +42,7 @@ double motor4_joint;
 
 // start up variables
 // set start up procedure to prevent max torque at start up phenomena
-bool boolFirstTime = true;
+bool boolFirstTime = false;
 double startup_sec = 0.1;
 
 // set global variable to publish joint angles
@@ -76,40 +76,56 @@ void effortCallback(const sensor_msgs::JointState::ConstPtr& msg)
     std::cout<<"effortCallback finalized"<<std::endl; // // //
 }
 
-Eigen::VectorXd getGravityCompensationEfforts(const hebi::robot_model::RobotModel& model, 
-  const Eigen::VectorXd& masses, const Eigen::VectorXd& positions, const Eigen::Vector3d& gravity) {
+Eigen::VectorXd getGravityCompensationEfforts(const hebi::robot_model::RobotModel& model, const Eigen::VectorXd& masses, const Eigen::VectorXd& positions, const Eigen::Vector3d& gravity) {
+    std::cout << "starting gravity compensation" << std::endl;
+    // Normalize gravity vector (to 1g, or 9.8 m/s^2)
+    Eigen::Vector3d normed_gravity = gravity;
+    normed_gravity /= normed_gravity.norm();
+    normed_gravity *= 9.81;
 
-  // Normalize gravity vector (to 1g, or 9.8 m/s^2)
-  Eigen::Vector3d normed_gravity = gravity;
-  normed_gravity /= normed_gravity.norm();
-  normed_gravity *= 9.81;
+    size_t num_dof = model.getDoFCount();
+    size_t num_frames = model.getFrameCount(hebi::robot_model::FrameType::CenterOfMass);
 
-  size_t num_dof = model.getDoFCount();
-  size_t num_frames = model.getFrameCount(hebi::robot_model::FrameType::CenterOfMass);
+    hebi::robot_model::MatrixXdVector jacobians;
+    model.getJ(hebi::robot_model::FrameType::CenterOfMass, positions, jacobians);
 
-  hebi::robot_model::MatrixXdVector jacobians;
-  model.getJ(hebi::robot_model::FrameType::CenterOfMass, positions, jacobians);
+    // Get torque for each module
+    // comp_torque = J' * wrench_vector
+    // (for each frame, sum this quantity)
+    Eigen::VectorXd comp_torque(num_dof);
+    comp_torque.setZero();
 
-  // Get torque for each module
-  // comp_torque = J' * wrench_vector
-  // (for each frame, sum this quantity)
-  Eigen::VectorXd comp_torque(num_dof);
-  comp_torque.setZero();
+    // Wrench vector
+    Eigen::VectorXd wrench_vec(6); // For a single frame; this is (Fx/y/z, tau x/y/z)
+    wrench_vec.setZero();
 
-  // Wrench vector
-  Eigen::VectorXd wrench_vec(6); // For a single frame; this is (Fx/y/z, tau x/y/z)
-  wrench_vec.setZero();
-  for (size_t i = 0; i < num_frames; i++) {
-    // Set translational part
-    for (size_t j = 0; j < 3; j++) {
-      wrench_vec[j] = -normed_gravity[j] * masses[i];
+    for (size_t i = 0; i < num_frames; i++){
+        jacobians[i](2,0) *= -1;
+        jacobians[i](2,1) *= -1;
+        jacobians[i](2,2) *= -1;
+        jacobians[i](2,3) *= -1;
+        jacobians[i](4,0) *= -1;
+        jacobians[i](4,1) *= -1;
+        jacobians[i](4,2) *= -1;
+        jacobians[i](4,3) *= -1;
     }
 
-    // Add the torques for each joint to support the mass at this frame
-    comp_torque += jacobians[i].transpose() * wrench_vec;
-  }
 
-  return comp_torque;
+    for (size_t i = 0; i < num_frames; i++) {
+        // Set translational part
+        for (size_t j = 0; j < 3; j++) {
+            wrench_vec[j] = -normed_gravity[j] * masses[i];
+        }
+
+        // Add the torques for each joint to support the mass at this frame
+        std::cout << "Number of Frames: " << num_frames << std::endl;
+        std::cout << "Jacobian Number: " << i << " | Jacobian: " << jacobians[i] << std::endl;
+        
+
+        comp_torque += jacobians[i].transpose() * wrench_vec;
+    }
+
+    return comp_torque;
 }
 
 
@@ -250,6 +266,7 @@ int main(int argc, char** argv)
             motor3_joint = 0;
             motor4_joint = 0;
         }
+        std::cout << control_type << std::endl;
 
         // if the motors sendback feedback information
         if (group->getNextFeedback(group_feedback))
@@ -327,37 +344,38 @@ int main(int argc, char** argv)
                     double mass_x5_4_kg = 0.335;
 
                     Eigen::VectorXd masses(9);
-                    masses << mass_x5_9_kg, bracket_weight_kg * 2 + link_density_kgpm * .127, mass_x8_16_kg, bracket_weight_kg * 2 + link_density_kgpm * 0.2286, mass_x5_9_kg, bracket_weight_kg * 2 + link_density_kgpm * 0.1905, mass_x5_4_kg, end_effector_kg, 0;
-
+                    // masses << mass_x5_9_kg, bracket_weight_kg * 2 + link_density_kgpm * .127, mass_x8_16_kg, bracket_weight_kg * 2 + link_density_kgpm * 0.2286, mass_x5_9_kg, bracket_weight_kg * 2 + link_density_kgpm * 0.1905, mass_x5_4_kg, end_effector_kg, 0;
+                    masses << mass_x5_9_kg, bracket_weight_kg * 2 + link_density_kgpm * .127, mass_x8_16_kg * 0.2, bracket_weight_kg * 2 + link_density_kgpm * 0.2286, mass_x5_9_kg * 2.7, bracket_weight_kg * 2 + link_density_kgpm * 0.1905, mass_x5_4_kg * 0.7, end_effector_kg * 0.01, 0;
 
                     auto base_accel = group_feedback[0].imu().accelerometer().get();
-                    Vector3d gravity(-base_accel.getX(), -base_accel.getY(), -base_accel.getZ());
-                    // Eigen::Vector3d gravity(0, 0, -1);
+                    // Vector3d gravity(-base_accel.getX(), -base_accel.getY(), -base_accel.getZ());
+                    Eigen::Vector3d gravity(0, 0, -1);
 
                     Eigen::VectorXd effort(group->size());
                     effort = getGravityCompensationEfforts(*model, masses, feedbackPos, gravity);
                     
                     double effort_comp = 1.0;
-                    ros::console::shutdown();
-				    std::cout.clear();
-	    			std::cout<<"/////////////////////////////////"<<std::endl;
-                    std::cout<<"masses is: "<<masses<<std::endl;
-                    std::cout<<"efforts is: "<<effort<<std::endl;
-                    std::cout<<"current effort is: " << feedbackTor << std::endl;
-                    positions[0] = -effort(0);
-                    positions[1] = -effort(1);
-                    positions[2] = -effort(2);
-                    positions[3] = -effort(3);
+                    // ros::console::shutdown();
+				    // std::cout.clear();
+	    			// std::cout<<"/////////////////////////////////"<<std::endl;
+                    // std::cout<<"masses is: "<<masses<<std::endl;
+                    // std::cout<<"feedbackPos is: "<<feedbackPos<<std::endl;
+                    // std::cout<<"efforts is: "<<effort<<std::endl;
+                    // std::cout<<"current effort is: " << feedbackTor << std::endl;
+                    positions[0] = effort(0);
+                    positions[1] = effort(1);
+                    positions[2] = effort(2);
+                    positions[3] = effort(3);
                     positions *= effort_comp;
                     groupCommand.setEffort(positions);
-    				std::cout.setstate(std::ios_base::failbit);
-                    group->sendCommand(groupCommand);
+    				// std::cout.setstate(std::ios_base::failbit);
                 }
                 else
                 {
                     groupCommand.setPosition(positions);
                 }
 
+                group->sendCommand(groupCommand);
                 
                 // ROS_INFO_STREAM((float) durr);
                 impValue = false;
