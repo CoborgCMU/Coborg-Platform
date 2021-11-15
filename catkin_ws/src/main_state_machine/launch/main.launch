@@ -19,7 +19,7 @@
     </include>
 
     <!--Start up Move-it nodes-->
-    <arg name="use_rviz" default="false" />
+    <arg name="use_rviz" default="True" />
     <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch">
         <arg name="use_rviz" value="$(arg use_rviz)"/>
     </include>
