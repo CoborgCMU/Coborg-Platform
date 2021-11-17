@@ -100,6 +100,7 @@ moveit_msgs::MotionPlanResponse* response_ptr;
 ros::Publisher* state_input_pub_ptr;
 ros::Publisher* display_publisher_ptr;
 ros::Publisher* speaker_pub_ptr;
+ros::Publisher* simulated_joint_states_pub_ptr;
 // Sounds
 std_msgs::String pushSound;
 std_msgs::String pullSound;
@@ -548,6 +549,24 @@ void main_cmd_callback(const std_msgs::Int32::ConstPtr& msg)
 			// Old: status.data = 2;
 			state_input_pub_ptr->publish(status);
 		}
+		else if (state == 0)
+		{
+			// state = 6;
+			// rr_to_home = true;
+
+			sensor_msgs::JointState hebi_home_msg;
+
+			hebi_home_msg.header.stamp = ros::Time::now();
+			hebi_home_msg.name = names;
+			hebi_home_msg.header.frame_id = "Position";
+			for (unsigned int ii = 0; ii < 4; ii++)
+			{
+				hebi_home_msg.position.push_back(joint_group_positions[ii]);
+			}
+
+			simulated_joint_states_pub_ptr->publish(hebi_home_msg);
+
+		}
 	}
 }
 // Interpolator callback for trajectory finishes
@@ -858,6 +877,8 @@ int main(int argc, char** argv)
 	// Feng Xiang
 	// Publisher to publish joint_states for resolved rate controller
 	ros::Publisher simulated_joint_states_pub = node_handle.advertise<sensor_msgs::JointState>("/move_group/fake_controller_joint_states",1);
+	simulated_joint_states_pub_ptr = &simulated_joint_states_pub;
+
 
 	// // Publish initial state (waiting)
 	// status.data = 3;
@@ -886,6 +907,7 @@ int main(int argc, char** argv)
     Eigen::VectorXd thetadot(group_size);
 
 	float singularThresh = 1.0;
+	float singularThreshBuffer = 0.25;
     Eigen::MatrixXd W(group_size,group_size);
     W.setIdentity();
 	W(0,0) = 1.0;
@@ -1566,7 +1588,7 @@ int main(int argc, char** argv)
 			// Eigen::VectorXd xg(3);
 			// xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z;
 
-			std::cout << "[FENG XIANG] - SETTING GOAL POSE XG: " << xg << std::endl;
+			// std::cout << "[FENG XIANG] - SETTING GOAL POSE XG: " << xg << std::endl;
 
 
 			// get current joint angles (thetas)
@@ -1577,7 +1599,7 @@ int main(int argc, char** argv)
 			}
 
 			// //[x,y,z of the end effector] -- x0
-			std::cout << "[FENG XIANG] - SETTING CURRENT POSITION OF END EFFECTOR" << std::endl;
+			// std::cout << "[FENG XIANG] - SETTING CURRENT POSITION OF END EFFECTOR" << std::endl;
 			std::vector<double> joint_values{thetas(0), thetas(1), thetas(2), thetas(3)};
 			robotCurrState.setJointGroupPositions(joint_model_group, joint_values);
 			const Eigen::Affine3d& link_pose = robotCurrState.getGlobalLinkTransform("end_link/INPUT_INTERFACE");
@@ -1590,7 +1612,7 @@ int main(int argc, char** argv)
 
 			//Compute Jacobian -- J
             //[2d matrix of joint angles ]
-			std::cout << "[FENG XIANG] -  COMPUTING END EFFECTOR JACOBIAN" << std::endl;
+			// std::cout << "[FENG XIANG] -  COMPUTING END EFFECTOR JACOBIAN" << std::endl;
             Eigen::MatrixXd J;
             // model->getJEndEffector(thetas, J);
 			Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
@@ -1673,7 +1695,7 @@ int main(int argc, char** argv)
 				// std::cout << "Goal:" << xg << std::endl;
 				// std::cout << "Current: " << x0 << std::endl;
 
-				std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
+				// std::cout << "[FENG XIANG] - COMPUTING DELTA THETA FROM EQUATIONS" << std::endl;
 				if (use_angular_rr)
 				{
 					thetadot = position_rr_ratio * (W.inverse()*ee_J_cartesian.transpose()*(ee_J_cartesian*W.inverse()*ee_J_cartesian.transpose()).inverse()*err_cartesian);
@@ -1693,14 +1715,14 @@ int main(int argc, char** argv)
 					}
 				}
 				
-				ros::console::shutdown();
-				std::cout.clear();
+				// ros::console::shutdown();
+				// std::cout.clear();
 
 				Eigen::VectorXd tempThetas = thetas+thetadot;
 				if(std::abs(tempThetas(2)) < singularThresh && std::abs(tempThetas(3)) < singularThresh){
-					std::cout << "[RR] Arm at Singularity" << std::endl;
-					W(0,0) = 5;
-					W(1,1) = 5;
+					std::cout << "[RR] Arm at Singularity - " << abs(goal_pose_normal_vector(2)) << " so gain is " << (5-4*abs(goal_pose_normal_vector(2))) << std::endl;
+					W(0,0) = (5-4*abs(goal_pose_normal_vector(2)));
+					W(1,1) = (5-4*abs(goal_pose_normal_vector(2)));
 				}
 				else
 				{
@@ -1709,7 +1731,7 @@ int main(int argc, char** argv)
 				}
 				thetas = thetas + thetadot;
 
-				std::cout.setstate(std::ios_base::failbit);
+				// std::cout.setstate(std::ios_base::failbit);
 
 				// double joint_threshold_val = 0.04;
 				for (unsigned int ii = 0; ii < group_size; ii++)
@@ -1801,7 +1823,8 @@ int main(int argc, char** argv)
 		// Check if the robot is returning to home
 		if (state == 6)
 		{
-			
+			// ros::console::shutdown();
+			// std::cout.clear();
 			robot_state::RobotState goal_state(robot_model);
 			// robot_state::RobotState& goal_state = psm->getCurrentStateNonConst();
 			// Feng Xiang
@@ -1840,6 +1863,7 @@ int main(int argc, char** argv)
 				planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
 				if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
 				{
+
 					continue;
 				}
 				homeInit = true;
@@ -1901,8 +1925,10 @@ int main(int argc, char** argv)
 				planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
 				if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
 				{
+					std::cout << "rr_to_home plan failed. planning again." << std::endl;
 					continue;
 				}
+				
 			}
 
 			// Let the main_state_machine node know that the robot is initializing
@@ -1942,8 +1968,10 @@ int main(int argc, char** argv)
 			// 	move_group_ptr->execute(my_plan);
 			// }
 			
+			std::cout << "executing home plan to return to home." << std::endl;
 			move_group_ptr->execute(my_plan);
 			prev_plan_res = response;
+			std::cout << "home plan executed. waahahooooo." << std::endl;
 			// Let the main_state_machine node know that the robot is executing
 			// Old: status.data = 2;
 			// state_input_pub.publish(status);
@@ -1959,6 +1987,7 @@ int main(int argc, char** argv)
 			// state_input_pub.publish(status);
 			// ROS_INFO("Return to home successful, waiting");
 			// }
+			// std::cout.setstate(std::ios_base::failbit);
 
 		}
 		// Manually check if the robot got to its target
