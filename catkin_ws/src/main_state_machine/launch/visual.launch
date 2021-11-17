@@ -1,6 +1,7 @@
 <launch>
     <!--Start up RVIZ -->
     <arg name="use_rviz" default="true" />
+    <arg name="debug" default="false" />
     <!-- <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch">
         <arg name="use_rviz" value="$(arg use_rviz)"/>
     </include> -->

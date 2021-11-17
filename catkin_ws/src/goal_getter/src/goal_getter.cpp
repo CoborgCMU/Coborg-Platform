@@ -5,6 +5,7 @@
 #include <gb_visual_detection_3d_msgs/goal_msg.h>
 #include <goal_getter/GoalPose.h>
 #include <vector>
+#include <queue>
 #include <cmath>
 #include <math.h>
 #include <boost/scoped_ptr.hpp>
@@ -24,7 +25,7 @@
 
 
 #define HZ 20
-double tf_time_offset = 0.1;
+double tf_time_offset = 0.15;
 double cam1_prevTime = 0.0;
 double cam2_prevTime = 0.0;
 ros::Time prevTime;
@@ -127,12 +128,11 @@ private:
         goal_normal_pose.pose.orientation.z = goal_normal_quaternion.z();
         goal_normal_pose.pose.orientation.w = goal_normal_quaternion.w();
 
-    
-
     }
 
-    void convertToOdom(geometry_msgs::PoseStamped& goal_normal, const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg, double &prevTimeLocal)
+    void convertToOdom(geometry_msgs::PoseStamped& goal_normal, const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg, double& prevTimeLocal)
     {
+
         if (ros::Time::now().toSec() - prevTimeLocal > tf_time_offset)
         {   
 
@@ -184,6 +184,8 @@ private:
         goalSetPoint(1) = 0;
         goalSetPoint(2) = 0;
         int totalCameras = 0;
+        bool cam1_valid = false;
+        bool cam2_valid = false;
 
         double beginTime = ros::Time::now().toSec();
 
@@ -225,23 +227,37 @@ private:
                 
                     if (goal_normal_cam1.pose.position.x != 0)
                     {
-                        double dist = std::sqrt(std::pow(goal_normal_cam1.pose.position.x,2)+
-                                std::pow(goal_normal_cam1.pose.position.y,2) +
-                                std::pow(goal_normal_cam1.pose.position.z,2));
+                        double dist = std::sqrt(std::pow(goalpose_cam1->x,2)+
+                                std::pow(goalpose_cam1->y,2) +
+                                std::pow(goalpose_cam1->z,2));
                         if (dist<=1.5){
                             ROS_INFO("Cam 1: Valid Pose Received.");
+                            std::cout << goalpose_cam1 -> Class << std::endl;
 
                             double transformed_x = goal_normal_cam1.pose.position.x; // placeholder
                             double transformed_y = goal_normal_cam1.pose.position.y; // placeholder
                             double transformed_z = goal_normal_cam1.pose.position.z; // placeholder
 
                             // add to goal pose
-                            goalSetPoint(0) += transformed_x;
-                            goalSetPoint(1) += transformed_y;
-                            goalSetPoint(2) += transformed_z;
+
+                            if (goalpose_cam1 -> Class == "Hand: 2"){
+                                // if we grab two hands, we stop
+                                cam1_valid = true;
+                                goalSetPoint(0) = transformed_x;
+                                goalSetPoint(1) = transformed_y;
+                                goalSetPoint(2) = transformed_z;
+                                totalCameras = 1;
+                                numMsgCam1 = 1;
+                            }
+                            else{
+                                goalSetPoint(0) += transformed_x;
+                                goalSetPoint(1) += transformed_y;
+                                goalSetPoint(2) += transformed_z;
+                                
+                                totalCameras++;
+                                numMsgCam1 ++;
+                            }
                             
-                            totalCameras++;
-                            numMsgCam1 ++;
                         }
                     }
                 }    
@@ -260,29 +276,41 @@ private:
 
                     if (goal_normal_cam2.pose.position.x != 0)
                     {
-                        double dist = std::sqrt(std::pow(goal_normal_cam2.pose.position.x,2)+
-                                std::pow(goal_normal_cam2.pose.position.y,2) +
-                                std::pow(goal_normal_cam2.pose.position.z,2));
+                        double dist = std::sqrt(std::pow(goalpose_cam2 ->x,2)+
+                                std::pow(goalpose_cam2 -> y,2) +
+                                std::pow(goalpose_cam2 -> z,2));
                         if (dist<=1.5){
                             ROS_INFO("Cam 2: Valid Pose Received.");
+                            std::cout << goalpose_cam2 -> Class << std::endl;
 
                             double transformed_x = goal_normal_cam2.pose.position.x; // placeholder
                             double transformed_y = goal_normal_cam2.pose.position.y; // placeholder
                             double transformed_z = goal_normal_cam2.pose.position.z; // placeholder
 
-                            // add to goal pose
-                            goalSetPoint(0) += transformed_x;
-                            goalSetPoint(1) += transformed_y;
-                            goalSetPoint(2) += transformed_z;
-                            totalCameras++;
-                            numMsgCam2++;
+                            if (goalpose_cam2 -> Class == "Hand: 2"){
+                                // if we grab two hands, we stop
+                                cam2_valid = true;
+                                goalSetPoint(0) = transformed_x;
+                                goalSetPoint(1) = transformed_y;
+                                goalSetPoint(2) = transformed_z;
+                                totalCameras = 1;
+                                numMsgCam2 = 1;
+                            }
+                            else{
+                                // add to goal pose
+                                goalSetPoint(0) += transformed_x;
+                                goalSetPoint(1) += transformed_y;
+                                goalSetPoint(2) += transformed_z;
+                                totalCameras++;
+                                numMsgCam2++;
+                            }
                         }
                     }
                 }
             }
 
             // wait for at least 7 valid msgs from cam1 or cam2
-            if (numMsgCam1==5 || numMsgCam2==5)
+            if (cam1_valid || cam2_valid || numMsgCam1==5 || numMsgCam2==5)
                 break;
 
             if (ros::Time::now().toSec() - beginTime > 10.0){
@@ -319,6 +347,8 @@ private:
 
     }
 
+
+
     void convertToWorld(geometry_msgs::PoseStamped& goal_normal, geometry_msgs::PoseStamped& goalNormalSetPose){
 
         if (ros::Time::now().toSec() - prevTime.toSec() > tf_time_offset)
@@ -331,10 +361,30 @@ private:
                 goal_getter::GoalPose goal_msg;
 
                 tfListener_.transformPose("/world", goalNormalSetPose, goal_normal);
+                // average here
+                // Algorithm:
+                // if size > x -> pop_front -> push_back(goal_normal) -> compute average -> store x,y,z in
+                // if size < x -> push_back
+                if (goal_normal_queue.size() == window_size)
+                {
+                    geometry_msgs::PoseStamped tempPose = goal_normal_queue.front();
+                    goal_normal_sum.pose.position.x -= tempPose.pose.position.x;
+                    goal_normal_sum.pose.position.y -= tempPose.pose.position.y;
+                    goal_normal_sum.pose.position.z -= tempPose.pose.position.z;
+                    goal_normal_queue.pop();
+                }
+                goal_normal_queue.push(goal_normal);
+                goal_normal_sum.pose.position.x += goal_normal.pose.position.x;
+                goal_normal_sum.pose.position.y += goal_normal.pose.position.y;
+                goal_normal_sum.pose.position.z += goal_normal.pose.position.z;
+                goal_normal.pose.position.x = goal_normal_sum.pose.position.x/goal_normal_queue.size();
+                goal_normal.pose.position.y = goal_normal_sum.pose.position.y/goal_normal_queue.size();
+                goal_normal.pose.position.z = goal_normal_sum.pose.position.z/goal_normal_queue.size();
+                
+
+
                 goal_msg.goal_normal = goal_normal;
 
-                tfListener_.transformPose("/motor1/INPUT_INTERFACE", goalNormalSetPose, goal_normal_motor1);
-                goal_msg.goal_normal_motor = goal_normal_motor1;
                 
                 goal_pub_.publish(goal_msg);
                 prevTime = ros::Time::now();
@@ -374,6 +424,12 @@ private:
     bool goal_normal_computed;
     geometry_msgs::PoseStamped goal_normal;
     geometry_msgs::PoseStamped goal_normal_motor1;
+    geometry_msgs::PoseStamped goal_normal_sum;
+    geometry_msgs::PoseStamped goal_normal_motor1_sum;
+    std::queue<geometry_msgs::PoseStamped> goal_normal_queue;
+    std::queue<geometry_msgs::PoseStamped> goal_normal_motor1_queue;
+    int window_size = 3;
+    
 };
 
 

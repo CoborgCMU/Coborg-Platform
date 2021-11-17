@@ -145,7 +145,7 @@ int main(int argc, char** argv)
     feedbackPos.setZero();
 
     // (impedance control) declare varaibles to be using for force control state
-    group->setFeedbackFrequencyHz(20);
+    group->setFeedbackFrequencyHz(200);
     ros::Time begin = ros::Time::now();
     ros::Time curr = ros::Time::now();
     ros::Time beginImp = ros::Time::now();
@@ -193,47 +193,24 @@ int main(int argc, char** argv)
 
             hebi_jointstate_pub.publish(hebi_feedback_message);
 
-            // intiliaze if HEBI motors are starting up for the first time
-            if (boolFirstTime)
-            {
+            curr = ros::Time::now();
+            // position control
+            positions[0] = motor1_joint;
+            positions[1] = motor2_joint;
+            positions[2] = motor3_joint;
+            positions[3] = motor4_joint;
 
-                // TODO: load xml gain files that has the velocity and effort limits on them
-                // FORNOW: hardcode velocity numbers and push those velocities to the joints for a period of time
-                curr = ros::Time::now();
-                startupVelocity[0] = 0.2 * durr * (motor1_joint - hebi_feedback_message.position[0]);
-                startupVelocity[1] = 0.2 * durr * (motor2_joint - hebi_feedback_message.position[1]);
-                startupVelocity[2] = 0.2 * durr * (motor3_joint - hebi_feedback_message.position[2]);
-                startupVelocity[3] = 0.2 * durr * (motor4_joint - hebi_feedback_message.position[3]);
+            // velocity
 
-                groupCommandBegin.setVelocity(startupVelocity);
-                group->sendCommand(groupCommandBegin);
+            groupCommand.setPosition(positions);
+            // groupCommand.setVelocity(velocities);
 
-                if (durr > startup_sec)
-                {
-                    boolFirstTime = false;
-                }
-            }
-            else
-            {
-                curr = ros::Time::now();
-                // position control
-                positions[0] = motor1_joint;
-                positions[1] = motor2_joint;
-                positions[2] = motor3_joint;
-                positions[3] = motor4_joint;
+            // group->sendCommand(groupCommand);
+            
+            group->sendCommand(groupCommand);
+            // ROS_INFO_STREAM((float) durr);
+            impValue = false;
 
-                // velocity
-
-                groupCommand.setPosition(positions);
-                // groupCommand.setVelocity(velocities);
-
-                // group->sendCommand(groupCommand);
-                
-                group->sendCommand(groupCommand);
-                // ROS_INFO_STREAM((float) durr);
-                impValue = false;
-
-            }
 
 
 
