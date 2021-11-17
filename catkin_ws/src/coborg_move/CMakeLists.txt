@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   hebi_cpp_api
   message_generation
   std_msgs
+  std_srvs
   geometry_msgs
   tf
   trajectory_msgs
@@ -65,7 +66,7 @@ find_package(catkin REQUIRED COMPONENTS
 #   FILES
 # )
 
-## Generate services in the 'srv' folder
+# # Generate services in the 'srv' folder
 # add_service_files(
 #   FILES
 #   Service1.srv
@@ -83,6 +84,7 @@ find_package(catkin REQUIRED COMPONENTS
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
+  std_srvs
   geometry_msgs
   sensor_msgs
 )
@@ -125,6 +127,7 @@ catkin_package(
   hebi_cpp_api
   message_runtime
   std_msgs
+  std_srvs
   tf
   trajectory_msgs
   moveit_core

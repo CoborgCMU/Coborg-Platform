@@ -87,7 +87,21 @@ Eigen::VectorXd getGravityCompensationEfforts(const hebi::robot_model::RobotMode
     size_t num_frames = model.getFrameCount(hebi::robot_model::FrameType::CenterOfMass);
 
     hebi::robot_model::MatrixXdVector jacobians;
+    model.getJ(hebi::robot_model::FrameType::Input, positions, jacobians);
+    for (size_t i = 0; i < num_frames; i++)
+    {
+        // Add the torques for each joint to support the mass at this frame
+        std::cout << "Number of Frames: " << num_frames << std::endl;
+        std::cout << "Input Jacobian Number: " << i << " | Jacobian: " << jacobians[i] << std::endl;
+    }
+
     model.getJ(hebi::robot_model::FrameType::CenterOfMass, positions, jacobians);
+    for (size_t i = 0; i < num_frames; i++)
+    {
+        // Add the torques for each joint to support the mass at this frame
+        std::cout << "Number of Frames: " << num_frames << std::endl;
+        std::cout << "CoM Jacobian Number: " << i << " | Jacobian: " << jacobians[i] << std::endl;
+    }
 
     // Get torque for each module
     // comp_torque = J' * wrench_vector
@@ -99,16 +113,16 @@ Eigen::VectorXd getGravityCompensationEfforts(const hebi::robot_model::RobotMode
     Eigen::VectorXd wrench_vec(6); // For a single frame; this is (Fx/y/z, tau x/y/z)
     wrench_vec.setZero();
 
-    for (size_t i = 0; i < num_frames; i++){
-        jacobians[i](2,0) *= -1;
-        jacobians[i](2,1) *= -1;
-        jacobians[i](2,2) *= -1;
-        jacobians[i](2,3) *= -1;
-        jacobians[i](4,0) *= -1;
-        jacobians[i](4,1) *= -1;
-        jacobians[i](4,2) *= -1;
-        jacobians[i](4,3) *= -1;
-    }
+    // for (size_t i = 0; i < num_frames; i++){
+    //     jacobians[i](2,0) *= -1;
+    //     jacobians[i](2,1) *= -1;
+    //     jacobians[i](2,2) *= -1;
+    //     jacobians[i](2,3) *= -1;
+    //     jacobians[i](4,0) *= -1;
+    //     jacobians[i](4,1) *= -1;
+    //     jacobians[i](4,2) *= -1;
+    //     jacobians[i](4,3) *= -1;
+    // }
 
 
     for (size_t i = 0; i < num_frames; i++) {
@@ -117,9 +131,7 @@ Eigen::VectorXd getGravityCompensationEfforts(const hebi::robot_model::RobotMode
             wrench_vec[j] = -normed_gravity[j] * masses[i];
         }
 
-        // Add the torques for each joint to support the mass at this frame
-        std::cout << "Number of Frames: " << num_frames << std::endl;
-        std::cout << "Jacobian Number: " << i << " | Jacobian: " << jacobians[i] << std::endl;
+        
         
 
         comp_torque += jacobians[i].transpose() * wrench_vec;
@@ -362,12 +374,13 @@ int main(int argc, char** argv)
                     // std::cout<<"feedbackPos is: "<<feedbackPos<<std::endl;
                     // std::cout<<"efforts is: "<<effort<<std::endl;
                     // std::cout<<"current effort is: " << feedbackTor << std::endl;
-                    positions[0] = effort(0);
-                    positions[1] = effort(1);
-                    positions[2] = effort(2);
-                    positions[3] = effort(3);
-                    positions *= effort_comp;
-                    groupCommand.setEffort(positions);
+                    // positions[0] = effort(0);
+                    // positions[1] = effort(1);
+                    // positions[2] = effort(2);
+                    // positions[3] = effort(3);
+                    // positions *= effort_comp;
+                    // groupCommand.setEffort(positions);
+                    groupCommand.setPosition(positions);
     				// std::cout.setstate(std::ios_base::failbit);
                 }
                 else

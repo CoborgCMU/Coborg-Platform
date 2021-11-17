@@ -34,7 +34,7 @@
     <node pkg="voice_recog" name="voice_recog" type="voice_recog.py" output="screen" launch-prefix="xterm -geometry 40x25+0+0 -e"/>
 
     <!-- Start up Main State Machine -->
-    <node pkg="main_state_machine" name="coborg_main" type="main.py" output="screen" launch-prefix="xterm -geometry 63x30+320+0 -e"/> 
+    <node pkg="main_state_machine" name="coborg_main" type="main.py" output="screen" launch-prefix="xterm -geometry 70x25+310+0 -e"/> 
 
     <!-- Launch Hebi -->
     <node pkg="coborg_move" type="KDC_find_hebi_moveit_planner" name="KDC_find_hebi_moveit_planner" output="screen" launch-prefix="xterm -geometry 40x30+0+400 -e"/>
@@ -42,7 +42,7 @@
     <!-- Launch Integrated AM -->
     <arg name="planning_plugin" value="ompl_interface/OMPLPlanner" />
     <arg name="planning_adapters" value="default_planner_request_adapters/AddTimeParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints" />
-    <node pkg="coborg_move" type="Integrated_AM" name="Integrated_AM" output="screen" launch-prefix="xterm -geometry 100x30+320+400 -e">
+    <node pkg="coborg_move" type="Integrated_AM" name="Integrated_AM" output="screen" launch-prefix="xterm -geometry 100x30+310+400 -e">
         <param name="planning_plugin" value="$(arg planning_plugin)" />
         <param name="request_adapters" value="$(arg planning_adapters)" />
         <param name="start_state_max_bounds_error" value="0.1" />

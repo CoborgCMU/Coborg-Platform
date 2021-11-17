@@ -25,7 +25,7 @@
 
 
 #define HZ 20
-double tf_time_offset = 0.1;
+double tf_time_offset = 0.15;
 double cam1_prevTime = 0.0;
 double cam2_prevTime = 0.0;
 ros::Time prevTime;
@@ -130,8 +130,9 @@ private:
 
     }
 
-    void convertToOdom(geometry_msgs::PoseStamped& goal_normal, const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg, double &prevTimeLocal)
+    void convertToOdom(geometry_msgs::PoseStamped& goal_normal, const gb_visual_detection_3d_msgs::goal_msg::ConstPtr& goal_msg, double& prevTimeLocal)
     {
+
         if (ros::Time::now().toSec() - prevTimeLocal > tf_time_offset)
         {   
 
@@ -430,7 +431,7 @@ private:
     geometry_msgs::PoseStamped goal_normal_motor1_sum;
     std::queue<geometry_msgs::PoseStamped> goal_normal_queue;
     std::queue<geometry_msgs::PoseStamped> goal_normal_motor1_queue;
-    int window_size = 5;
+    int window_size = 3;
     
 };
 

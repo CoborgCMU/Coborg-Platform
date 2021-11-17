@@ -58,6 +58,8 @@
 #include "goal_getter/GoalPose.h"
 #include "sensor_msgs/JointState.h"
 
+#include "std_srvs/Empty.h"
+
 // TO DO:
 // Update goal_tolerance_angle with the actual tolerance of the end-effector
 // Consider adding an adjusting tolerance for plans in the while loop
@@ -101,6 +103,7 @@ ros::Publisher* speaker_pub_ptr;
 // Sounds
 std_msgs::String pushSound;
 std_msgs::String pullSound;
+std_msgs::String startSound;
 // Planning Initializations
 int state = 6;
 std_msgs::Int32 status;
@@ -225,14 +228,14 @@ std::vector<double> joint_group_positions = { -0.05, -2.0, -2.1, -2.3 };
 // Initialize Ready Variables
 // std::vector<double> joint_group_ready_position = {1.14, 0.53, -1.54, -1.98};
 std::vector<std::vector<double>> joint_group_ready_position;
-std::vector<double> joint_group_low_ready_position = {0.82, -0.19, -2.3, -2.40};
-std::vector<double> joint_group_mid_ready_position = {0.82, 0.55, -2.3, -2.40};
-std::vector<double> joint_group_high_ready_position = {0.93, 1.07, -2.3, -2.40};
+std::vector<double> joint_group_low_ready_position = {1.1, -0.19, -2.3, -2.40};
+std::vector<double> joint_group_mid_ready_position = {1.1, 0.55, -2.3, -2.40};
+std::vector<double> joint_group_high_ready_position = {1.1, 1.07, -2.3, -2.40};
 
 bool homeInit = false;
 // bool debugBool = false;
 // std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.3, 2.3}, {-2.3, 2.3}};
-std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.5, 0.01}, {-2.4, 0.01}};
+std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.0, -0.1}, {-2.4,-0.25}};
 bool rr_to_home = false;
 
 // Resolved Rate Globals
@@ -243,15 +246,15 @@ double prevGoalCallbackTime = 0.0;
 ros::Time prevPoseMotionDetectTime;
 // Resolved Rate Global Variables
 ros::Time rr_iterate_start_time;
-double rr_push_in_distance = 0.09;
-double rr_push_in_max = 0.12;
-double rr_push_in_min = 0.05;
+double rr_push_in_distance = 0.035;
+double rr_push_in_max = 0.035;
+double rr_push_in_min = 0.035;
 double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
 
 bool use_angular_rr = 0;
 double position_rr_ratio = 1;
-double angular_rr_ratio = 0.1;
+double angular_rr_ratio = 0.0;
 
 bool use_rr_collision_checking = 1;
 
@@ -867,21 +870,27 @@ int main(int argc, char** argv)
 	ros::Subscriber goal_sub = node_handle.subscribe("/goal", 1, goal_callback);
 	ros::Subscriber interpolator_success_sub = node_handle.subscribe("/interpolator_success", 1, interpolator_success_callback);
 
+	// Initialize clear_octomap action server
+	ros::ServiceClient clear_octo_client = node_handle.serviceClient<std_srvs::Empty>("clear_octomap");
+	std_srvs::Empty empty_srv_req;
+
 	// Sounds
 	pushSound.data = "pushHumanSound.mp3";
 	pullSound.data = "pullHumanSound.mp3";
+	startSound.data = "startupSound.mp3";
 
 
 	// Feng Xiang: hardcoded number of motor joints on robot arm
     Eigen::VectorXd thetas(group_size);
     Eigen::VectorXd thetadot(group_size);
 
-	float singularThresh = 0.1;
+	float singularThresh = 1.0;
     Eigen::MatrixXd W(group_size,group_size);
     W.setIdentity();
-	W(3,3) = 2.0;
-
-	
+	W(0,0) = 1.0;
+	W(1,1) = 1.0;
+	W(2,2) = 1.0;
+	W(3,3) = 1.0;
 
     
     prevPoseMotionDetectTime = ros::Time::now();
@@ -890,8 +899,8 @@ int main(int argc, char** argv)
 	joint_group_ready_position.push_back(joint_group_high_ready_position);
 
 
-
 	std::cout<<"Publishers and subscribers initialized"<<std::endl;
+	speaker_pub_ptr->publish(startSound);
 
 	std::cout<<"Looping and ready"<<std::endl;
 	while (ros::ok())
@@ -1540,6 +1549,14 @@ int main(int argc, char** argv)
 			// }
 
 			// move_group.stop();
+			// std::vector<std::string> linkNames = robot_model->getLinkModelNames();
+			// // std::cout << "Link Names: " << linkNames << std::endl;
+			// for (auto name : linkNames)
+			// {
+			// 	std::cout << "Link Name: " << name << std::endl;
+			// }
+			// // std::abort(); 
+			// continue;
 			
 			
 			// xg = goal
@@ -1676,15 +1693,17 @@ int main(int argc, char** argv)
 				}
 				
 				
-				// Eigen::VectorXd tempThetas = thetas+thetadot;
-				// if(tempThetas(2) < singularThresh && tempThetas(3) < singularThresh){
-				// 	thetas(0) = thetas(0) + thetadot(0);
-				// 	thetas(1) = thetas(0) + thetadot(1);
-				// }
-				// else
-				// {
-				// 	thetas = thetas + thetadot;
-				// }
+				Eigen::VectorXd tempThetas = thetas+thetadot;
+				if(std::abs(tempThetas(2)) < singularThresh && std::abs(tempThetas(3)) < singularThresh){
+					std::cout << "[RR] Arm at Singularity" << std::endl;
+					W(0,0) = 5;
+					W(1,1) = 5;
+				}
+				else
+				{
+					W(0,0) = 1;
+					W(1,1) = 1;
+				}
 				thetas = thetas + thetadot;
 
 				// double joint_threshold_val = 0.04;
@@ -1707,6 +1726,11 @@ int main(int argc, char** argv)
 				hebi_thetas_msg.header.stamp = ros::Time::now();
 				hebi_thetas_msg.header.frame_id = "Position";
 				hebi_thetas_msg.name = names;
+
+				// ros::console::shutdown();
+				// std::cout.clear();
+				
+
 				if (use_rr_collision_checking)
 				{
 					// Set the joint positions of the robot state to the proposed joint positions
@@ -1720,6 +1744,9 @@ int main(int argc, char** argv)
 					collision_detection::CollisionRequest c_req;
 					collision_detection::CollisionResult c_res;
 					psm->checkSelfCollision(c_req, c_res);
+
+
+
 					if (!c_res.collision)
 					{
 						std::cout<<"No collision detected"<<std::endl;
@@ -1743,11 +1770,15 @@ int main(int argc, char** argv)
 					simulated_joint_states_pub.publish(hebi_thetas_msg);
 				}
 
+				// std::cout.setstate(std::ios_base::failbit);
+
 			}
 			if (rr_to_home == false)
 			{
 				rr_to_home = true;
 			}
+
+
 
 
 
@@ -1768,6 +1799,7 @@ int main(int argc, char** argv)
 		{
 			
 			robot_state::RobotState goal_state(robot_model);
+			// robot_state::RobotState& goal_state = psm->getCurrentStateNonConst();
 			// Feng Xiang
 
 			if (homeInit == false)
@@ -1782,7 +1814,7 @@ int main(int argc, char** argv)
 				plan_req.start_state.joint_state.velocity = {};
 				plan_req.start_state.joint_state.effort = {};
 				goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
-
+				clear_octo_client.call(empty_srv_req);
 				homeInit = true;
 			}
 			else if (rr_to_home == true)
@@ -1791,7 +1823,32 @@ int main(int argc, char** argv)
 				plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
 				plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
 				plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+				
+
+				// std::vector<double> hebiCurrJointAngles = hebiJointAngles;
+
+				// sensor_msgs::JointState hebi_thetas_msg;
+				// hebi_thetas_msg.header.stamp = ros::Time::now();
+				// hebi_thetas_msg.header.frame_id = "Position";
+				// hebi_thetas_msg.name = names;
+				// hebi_thetas_msg.position = hebiCurrJointAngles;
+
+				// simulated_joint_states_pub.publish(hebi_thetas_msg);
+
+				// ros::Duration(0.25).sleep();
+
+				// plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+				// plan_req.start_state.joint_state.position = hebiCurrJointAngles;
+				// plan_req.start_state.joint_state.velocity = {};
+				// plan_req.start_state.joint_state.effort = {};
+
+				// goal_state.setVariablePositions(hebiCurrJointAngles);
+				
 				goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position[0]);
+				// clear octomap
+				clear_octo_client.call(empty_srv_req);
+				
+
 			}
 			else
 			{
@@ -1800,16 +1857,8 @@ int main(int argc, char** argv)
 				plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
 				plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
 				goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
+				clear_octo_client.call(empty_srv_req);
 
-
-
-				// Set the start state to the current joint state of the HEBI motors
-				std::cout<<"Update the start of the plan request to be the robot's current state"<<std::endl;
-				for (unsigned int ii=0; ii < plan_req.start_state.joint_state.position.size(); ii++)
-				{
-					// plan_req.start_state.joint_state.position[ii] = hebiJointAngles[ii];
-					// plan_req.start_state.joint_state.velocity[ii] = hebiJointAngVelocities[ii];
-				}
 			}
 
 			if (rr_to_home == false)
