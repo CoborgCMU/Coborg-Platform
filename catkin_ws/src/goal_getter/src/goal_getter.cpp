@@ -227,9 +227,9 @@ private:
                 
                     if (goal_normal_cam1.pose.position.x != 0)
                     {
-                        double dist = std::sqrt(std::pow(goal_normal_cam1.pose.position.x,2)+
-                                std::pow(goal_normal_cam1.pose.position.y,2) +
-                                std::pow(goal_normal_cam1.pose.position.z,2));
+                        double dist = std::sqrt(std::pow(goalpose_cam1->x,2)+
+                                std::pow(goalpose_cam1->y,2) +
+                                std::pow(goalpose_cam1->z,2));
                         if (dist<=1.5){
                             ROS_INFO("Cam 1: Valid Pose Received.");
                             std::cout << goalpose_cam1 -> Class << std::endl;
@@ -276,9 +276,9 @@ private:
 
                     if (goal_normal_cam2.pose.position.x != 0)
                     {
-                        double dist = std::sqrt(std::pow(goal_normal_cam2.pose.position.x,2)+
-                                std::pow(goal_normal_cam2.pose.position.y,2) +
-                                std::pow(goal_normal_cam2.pose.position.z,2));
+                        double dist = std::sqrt(std::pow(goalpose_cam2 ->x,2)+
+                                std::pow(goalpose_cam2 -> y,2) +
+                                std::pow(goalpose_cam2 -> z,2));
                         if (dist<=1.5){
                             ROS_INFO("Cam 2: Valid Pose Received.");
                             std::cout << goalpose_cam2 -> Class << std::endl;
@@ -385,9 +385,6 @@ private:
 
                 goal_msg.goal_normal = goal_normal;
 
-                tfListener_.transformPose("/motor1/INPUT_INTERFACE", goalNormalSetPose, goal_normal_motor1);
-                // average here
-                goal_msg.goal_normal_motor = goal_normal_motor1;
                 
                 goal_pub_.publish(goal_msg);
                 prevTime = ros::Time::now();
