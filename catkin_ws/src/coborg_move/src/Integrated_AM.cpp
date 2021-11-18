@@ -259,6 +259,11 @@ double angular_rr_ratio = 0.0;
 
 bool use_rr_collision_checking = 1;
 
+unsigned int home_plan_attempts = 0;
+unsigned int max_home_plan_attempts = 5;
+unsigned int home_attempts = 0;
+unsigned int max_home_attempts = 5;
+
 
 geometry_msgs::PoseStamped motorGoalPoseStamped;
 
@@ -640,8 +645,25 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 	{
 		state = 6;
 		rr_to_home = true;
-		status.data = 29; 
-		state_input_pub_ptr->publish(status);
+		home_attempts += 1;
+		if (home_attempts > max_home_attempts)
+		{
+			// Send the arm to the ready position through a naive joint move
+			sensor_msgs::JointState hebi_home_msg;
+
+			hebi_home_msg.header.stamp = ros::Time::now();
+			hebi_home_msg.name = names;
+			hebi_home_msg.header.frame_id = "Position";
+			for (unsigned int ii = 0; ii < 4; ii++)
+			{
+				hebi_home_msg.position.push_back(joint_group_ready_position[0][ii]);
+			}
+			simulated_joint_states_pub_ptr->publish(hebi_home_msg);
+			home_attempts = 0;
+		}
+		///////////////
+		// status.data = 29;
+		// state_input_pub_ptr->publish(status);
 	}
 }
 // HEBI joint angles callback
