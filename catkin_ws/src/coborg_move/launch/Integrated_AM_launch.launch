@@ -1,0 +1,16 @@
+<launch>
+    <arg name="planning_plugin" value="ompl_interface/OMPLPlanner" />
+    <arg name="planning_adapters" value="default_planner_request_adapters/AddTimeParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints" />
+    <node pkg="coborg_move" type="Integrated_AM" name="Integrated_AM" output="screen" >
+        <param name="planning_plugin" value="$(arg planning_plugin)" />
+        <param name="request_adapters" value="$(arg planning_adapters)" />
+        <param name="start_state_max_bounds_error" value="0.1" />
+    </node>
+    
+    <!-- <node pkg="tf" type="static_transform_publisher" name="t265_coborg_tf" args="-0.2794 0.4999 0.67305 0 0 0 /world /t265_link 100" />
+    <node pkg="tf" type="static_transform_publisher" name="t265_odom_tf" args="0 0 0 0 0 0 /t265_link /odom 100" />
+    <node pkg="tf" type="static_transform_publisher" name="d400_link_coborg_tf" args="0.2794 -0.4999 -0.63305 0 0 0 /d400_link /world 100" />
+     -->
+    <!-- <rosparam command="load" file="$(find coborg_arm)/config/kinematics.yaml"/> -->
+    <!-- <rosparam command="load" file="$(find coborg_arm)/config/ompl_planning.yaml"/> -->
+</launch>

@@ -1,3 +1,4 @@
+std_msgs/Header header
 string Class
 float64 x
 float64 y

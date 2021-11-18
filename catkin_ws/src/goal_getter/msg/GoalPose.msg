@@ -1,0 +1,2 @@
+geometry_msgs/PoseStamped goal_normal
+geometry_msgs/PoseStamped goal_normal_motor

@@ -1,14 +1,14 @@
 
 "use strict";
 
-let SetCommandLifetime = require('./SetCommandLifetime.js')
-let SetFeedbackFrequency = require('./SetFeedbackFrequency.js')
-let SetIKSeed = require('./SetIKSeed.js')
 let SetGains = require('./SetGains.js')
+let SetIKSeed = require('./SetIKSeed.js')
+let SetFeedbackFrequency = require('./SetFeedbackFrequency.js')
+let SetCommandLifetime = require('./SetCommandLifetime.js')
 
 module.exports = {
-  SetCommandLifetime: SetCommandLifetime,
-  SetFeedbackFrequency: SetFeedbackFrequency,
-  SetIKSeed: SetIKSeed,
   SetGains: SetGains,
+  SetIKSeed: SetIKSeed,
+  SetFeedbackFrequency: SetFeedbackFrequency,
+  SetCommandLifetime: SetCommandLifetime,
 };

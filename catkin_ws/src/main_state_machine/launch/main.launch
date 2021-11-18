@@ -1,21 +1,50 @@
 <launch>
-    <!--Start up realsense -->
-    <include file="$(find realsense2_camera)/launch/rs_d400_and_t265.launch">
-        <arg name="camera" value="cam1"/>
+    <!--Start up realsense-->
+    <include file="$(find realsense2_camera)/launch/rs_t265.launch">
+        <arg name="camera" value="t265"/>
+        <!-- <arg name="initial_reset" value="true"/> -->
+        <!-- <arg name="serial_no" value="905312111132"/> -->
+        <arg name="serial_no" value="952322110610"/>
+
     </include>
+
+    <include file="$(find realsense2_camera)/launch/rs_rgbd.launch">
+        <arg name="camera" value="cam1"/>
+        <arg name="serial_no" value="801212070841"/>
+    </include>
+
+    <include file="$(find realsense2_camera)/launch/rs_rgbd.launch">
+        <arg name="camera" value="cam2"/>
+        <arg name="serial_no" value="943222073980"/>
+    </include>
+
     <!--Start up Move-it nodes-->
-    <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch"/>
+    <arg name="use_rviz" default="True" />
+    <include file="$(find coborg_move)/launch/demo_hebi_realsense_tf.launch">
+        <arg name="use_rviz" value="$(arg use_rviz)"/>
+    </include>
+
     <!--Start up Vision subystem-->
     <include file="$(find darknet_ros_3d)/launch/darknet_ros_3d.launch"/>
-    <!--Start up Voice subsystem-->
-    <include file="$(find voice_recog)/launch/voice.launch"/>
-    <!--Start up Main State Machine-->
-    <node pkg="main_state_machine" name="coborg_main" type="main.py" output="screen"> 
+
+    <!--Start up goal getter -->
+    <include file="$(find goal_getter)/launch/goal_getter.launch"/>
+
+    <!-- Start up Voice subsystem -->
+    <node pkg="voice_recog" name="voice_recog" type="voice_recog.py" output="screen" launch-prefix="xterm -geometry 40x25+0+0 -e"/>
+
+    <!-- Start up Main State Machine -->
+    <node pkg="main_state_machine" name="coborg_main" type="main.py" output="screen" launch-prefix="xterm -geometry 70x25+310+0 -e"/> 
+
+    <!-- Launch Hebi -->
+    <node pkg="coborg_move" type="KDC_find_hebi_moveit_planner" name="KDC_find_hebi_moveit_planner" output="screen" launch-prefix="xterm -geometry 40x30+0+400 -e"/>
+
+    <!-- Launch Integrated AM -->
+    <arg name="planning_plugin" value="ompl_interface/OMPLPlanner" />
+    <arg name="planning_adapters" value="default_planner_request_adapters/AddTimeParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints" />
+    <node pkg="coborg_move" type="Integrated_AM" name="Integrated_AM" output="screen" launch-prefix="xterm -geometry 100x30+310+400 -e">
+        <param name="planning_plugin" value="$(arg planning_plugin)" />
+        <param name="request_adapters" value="$(arg planning_adapters)" />
+        <param name="start_state_max_bounds_error" value="0.1" />
     </node>
-    <!--Start up goal setter-->
-    <include file="$(find coborg_move)/launch/tf_moveit_goalsetNode.launch"/>
-    <!--Start up voice goal-->
-    <include file="$(find coborg_move)/launch/voiceGoalPoseGenerator.launch"/>
-    <!--Start up hebi moveit planner-->
-    <include file="$(find coborg_move)/launch/find_hebi_moveit_planner.launch"/>
 </launch>

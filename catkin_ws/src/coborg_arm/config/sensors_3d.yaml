@@ -2,9 +2,9 @@
 sensors:
   - filtered_cloud_topic: filtered_cloud
     max_range: 1.0
-    max_update_rate: 5.0
+    max_update_rate: 4.0
     padding_offset: 0.01
     padding_scale: 1.0
-    point_cloud_topic: /cam1/depth_registered/points
-    point_subsample: 40
+    point_cloud_topic: /cam2/depth_registered/points
+    point_subsample: 100
     sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater

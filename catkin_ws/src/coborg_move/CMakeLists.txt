@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   hebi_cpp_api
   message_generation
   std_msgs
+  std_srvs
   geometry_msgs
   tf
   trajectory_msgs
@@ -24,6 +25,7 @@ find_package(catkin REQUIRED COMPONENTS
   rviz_visual_tools
   sensor_msgs
   gb_visual_detection_3d_msgs
+  goal_getter
 )
 
 ## System dependencies are found with CMake's conventions
@@ -64,7 +66,7 @@ find_package(catkin REQUIRED COMPONENTS
 #   FILES
 # )
 
-## Generate services in the 'srv' folder
+# # Generate services in the 'srv' folder
 # add_service_files(
 #   FILES
 #   Service1.srv
@@ -82,6 +84,7 @@ find_package(catkin REQUIRED COMPONENTS
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
+  std_srvs
   geometry_msgs
   sensor_msgs
 )
@@ -124,12 +127,14 @@ catkin_package(
   hebi_cpp_api
   message_runtime
   std_msgs
+  std_srvs
   tf
   trajectory_msgs
   moveit_core
   moveit_ros_planning_interface
   sensor_msgs
   gb_visual_detection_3d_msgs
+  goal_getter
 #  DEPENDS system_lib
 )
 
@@ -170,12 +175,12 @@ include_directories(
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(hello_world src/hello_world.cpp)
+# add_executable(hello_world src/hello_world.cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(hello_world
-  ${catkin_LIBRARIES}
-)
+# target_link_libraries(hello_world
+#   ${catkin_LIBRARIES}
+# )
 
 
 add_executable(find_hebi_modules src/find_hebi_modules.cpp)
@@ -222,6 +227,63 @@ add_executable(voiceGoalPoseGenerator src/voiceGoalPoseGenerator.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(voiceGoalPoseGenerator
+  ${catkin_LIBRARIES}
+)
+
+add_executable(resolved_rate src/resolved_rate.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(resolved_rate
+  ${catkin_LIBRARIES}
+)
+
+
+add_executable(KDC_actuated_manipulation_node src/KDC_actuated_manipulation_node.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(KDC_actuated_manipulation_node
+  ${catkin_LIBRARIES}
+)
+
+add_executable(KDC_find_hebi_moveit_planner src/KDC_find_hebi_moveit_planner.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(KDC_find_hebi_moveit_planner
+  ${catkin_LIBRARIES}
+)
+
+add_executable(Smart_hebi_moveit_planner src/Smart_hebi_moveit_planner.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(Smart_hebi_moveit_planner
+  ${catkin_LIBRARIES}
+)
+
+add_executable(KDC_actuated_test_copy src/KDC_actuated_test_copy.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(KDC_actuated_test_copy
+  ${catkin_LIBRARIES}
+)
+
+add_executable(Integrated_AM src/Integrated_AM.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(Integrated_AM
+  ${catkin_LIBRARIES}
+)
+
+add_executable(resolved_rate_integrated src/resolved_rate_integrated.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(resolved_rate_integrated
+  ${catkin_LIBRARIES}
+)
+
+add_executable(AM_interpolator src/AM_interpolator.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(AM_interpolator
   ${catkin_LIBRARIES}
 )
 
