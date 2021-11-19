@@ -99,7 +99,7 @@ std_msgs::String pullSound;
 std_msgs::String startSound;
 
 // Planning Initializations
-int state = 6;
+int state = 7;
 std_msgs::Int32 status;
 const std::string PLANNING_GROUP = "dof_4_lowerlonger_arm";
 std::string move_group_planner_id = "RRTConnect";
@@ -210,7 +210,6 @@ bool homeInit = false;
 // bool debugBool = false;
 // std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.3, 2.3}, {-2.3, 2.3}};
 std::vector<std::vector<double>> resolved_rate_joint_limits = {{-2.6, 2.6}, {-2.3, 2.3}, {-2.0, -0.1}, {-2.4,-0.25}};
-bool rr_to_home = false;
 
 // Resolved Rate Globals
 double wait_time_for_pushing = 2.0;
@@ -318,8 +317,7 @@ void main_cmd_callback(const std_msgs::Int32::ConstPtr& msg)
 		}
 		else if (state == 0)
 		{
-			// state = 6;
-			// rr_to_home = true;
+			// state = 7;
 
 			sensor_msgs::JointState hebi_home_msg;
 
@@ -368,22 +366,30 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 		// Check if the robot was returning to home
 		else if (state == 6)
 		{
+			state = 7;
+			std::cout<<"Successfully went to ready position."<<std::endl;
+		}
+		else if (state == 7)
+		{
 			state = 0;
-			rr_to_home = false;
 			ROS_INFO("Successfully returned to home; waiting");
 			// Let the main_state_machine node know that the robot is ready
 			status.data = 23; // Old: 3
 			state_input_pub_ptr->publish(status);
 			status.data = 20;
 			state_input_pub_ptr->publish(status);
+			if (!homeInit)
+			{
+				homeInit = true;
+			}
+			home_attempts = 0;
 		}
 
 	}
 
 	else if (msg->feedback.state == "IDLE")
 	{
-		state = 6;
-		rr_to_home = true;
+		state = 7;
 		home_attempts += 1;
 		if (home_attempts > max_home_attempts)
 		{
@@ -913,94 +919,42 @@ int main(int argc, char** argv)
 				}
 				simulated_joint_states_pub.publish(hebi_thetas_msg);
 			}
-			if (rr_to_home == false)
-			{
-				rr_to_home = true;
-			}
 		}
-
-		// Check if the robot is returning to home
+		// Check if the robot is moving to the ready position from resolved rate
 		if (state == 6)
 		{
-			robot_state::RobotState goal_state(robot_model);
-			if (homeInit == false)
-			{
-				plan_req.start_state.joint_state.name = {"motor1/X5_9", "motor2/X8_16", "motor3/X5_9", "motor4/X5_4"};
-				plan_req.start_state.joint_state.position = {0.0, -1.93, -2.38, -2.50};
-				plan_req.start_state.joint_state.velocity = {};
-				plan_req.start_state.joint_state.effort = {};
-				goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
-				clear_octo_client.call(empty_srv_req);
+			plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+			plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+			plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
+			plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
 
-				plan_req.goal_constraints.clear();
-				moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
-				plan_req.goal_constraints.push_back(joint_goal);
-				std::cout<<"joint_goal is: "<<std::endl;
-				ROS_INFO_STREAM(joint_goal);
+			plan_req.goal_constraints.clear();
+			goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position[0]);
 
-				ROS_INFO("Planning to return home");
-				// Set move group planning constraints
-				move_group.setNumPlanningAttempts(num_attempts_return_home);
-				move_group.setPlanningTime(moveit_planning_time_return_home);
-				
-				// Create and set planning goal
-				clear_octo_client.call(empty_srv_req);
-				plan_req.group_name = PLANNING_GROUP;
-				plan_req.planner_id = moveit_planner;
-				plan_req.num_planning_attempts = num_attempts_return_home;
-				plan_req.allowed_planning_time = moveit_planning_time_return_home;
-				planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
-				
-				if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
-				{
-
-					continue;
-				}
-				homeInit = true;
-			}
-			else if (rr_to_home == true)
-			{
-				plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
-				plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
-				plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
-				plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
-
-				plan_req.goal_constraints.clear();
-				goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position[0]);
-
-				moveit_msgs::Constraints joint_goal_0 = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
-				plan_req.goal_constraints.push_back(joint_goal_0);
-				std::cout<<"joint_goal_0 is: "<<std::endl;
-				ROS_INFO_STREAM(joint_goal_0);
+			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
+			plan_req.goal_constraints.push_back(joint_goal);
+			std::cout<<"joint_goal is: "<<joint_goal<<std::endl;
+			ROS_INFO_STREAM(joint_goal);
+		
+			ROS_INFO("Planning to return to ready");
+			// Set move group planning constraints
+			move_group.setNumPlanningAttempts(num_attempts_return_home);
+			move_group.setPlanningTime(moveit_planning_time_return_home);
 			
-				goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
-
-				moveit_msgs::Constraints joint_goal_1 = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
-				plan_req.goal_constraints.push_back(joint_goal_1);
-				std::cout<<"joint_goal_1 is: "<<std::endl;
-				ROS_INFO_STREAM(joint_goal_1);
-
-				ROS_INFO("Planning to return home");
-				// Set move group planning constraints
-				move_group.setNumPlanningAttempts(num_attempts_return_home);
-				move_group.setPlanningTime(moveit_planning_time_return_home);
-				
-				// Create and set planning goal
-				clear_octo_client.call(empty_srv_req);
-				plan_req.group_name = PLANNING_GROUP;
-				plan_req.planner_id = moveit_planner;
-				plan_req.num_planning_attempts = num_attempts_return_home;
-				plan_req.allowed_planning_time = moveit_planning_time_return_home;
-				planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
-				if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
-				{
-					std::cout << "rr_to_home plan failed. planning again." << std::endl;
-					continue;
-				}
-				
+			// Create and set planning goal
+			clear_octo_client.call(empty_srv_req);
+			plan_req.group_name = PLANNING_GROUP;
+			plan_req.planner_id = moveit_planner;
+			plan_req.num_planning_attempts = num_attempts_return_home;
+			plan_req.allowed_planning_time = moveit_planning_time_return_home;
+			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+			if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
+			{
+				std::cout << "Returning to ready plan failed. planning again." << std::endl;
+				continue;
 			}
 
-			// Let the main_state_machine node know that the robot is initializing
+			// Let the main_state_machine node know that the robot is executing
 			status.data = 22;
 			state_input_pub.publish(status);
 			
@@ -1027,10 +981,86 @@ int main(int argc, char** argv)
 			my_plan.start_state_ = response.trajectory_start;
 			my_plan.planning_time_ = response.planning_time;
 
-			std::cout << "executing home plan to return to home." << std::endl;
+			std::cout << "Executing plan to return to ready." << std::endl;
 			move_group_ptr->execute(my_plan);
 			prev_plan_res = response;
-			std::cout << "home plan executed. waahahooooo." << std::endl;
+			std::cout << "Executed plan to return to ready." << std::endl;
+		}
+		// Check if the robot is returning to home
+		if (state == 7)
+		{
+			robot_state::RobotState goal_state(robot_model);
+			if (homeInit == false)
+			{
+				plan_req.start_state.joint_state.name = {"motor1/X5_9", "motor2/X8_16", "motor3/X5_9", "motor4/X5_4"};
+				plan_req.start_state.joint_state.position = {0.0, -1.93, -2.38, -2.50};
+				plan_req.start_state.joint_state.velocity = {};
+				plan_req.start_state.joint_state.effort = {};
+				goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
+			}
+			else
+			{
+				plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
+				plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+				plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
+				plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+				plan_req.goal_constraints.clear();
+				goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
+			}
+
+			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
+			plan_req.goal_constraints.push_back(joint_goal);
+			std::cout<<"joint_goal is: "<<joint_goal<<std::endl;
+
+			ROS_INFO("Planning to return home");
+			// Set move group planning constraints
+			move_group.setNumPlanningAttempts(num_attempts_return_home);
+			move_group.setPlanningTime(moveit_planning_time_return_home);
+			
+			// Create and set planning goal
+			clear_octo_client.call(empty_srv_req);
+			plan_req.group_name = PLANNING_GROUP;
+			plan_req.planner_id = moveit_planner;
+			plan_req.num_planning_attempts = num_attempts_return_home;
+			plan_req.allowed_planning_time = moveit_planning_time_return_home;
+			planning_pipeline_global_ptr->generatePlan(*psmPtr, plan_req, plan_res);
+			if (plan_res.error_code_.val != plan_res.error_code_.SUCCESS)
+			{
+				std::cout << "Planning to return home failed. planning again." << std::endl;
+				continue;
+			}
+
+			// Let the main_state_machine node know that the robot is executing
+			status.data = 22;
+			state_input_pub.publish(status);
+			
+			// Store plan
+			moveit_msgs::MotionPlanResponse response;
+			plan_res.getMessage(response);
+			response_ptr = &response;
+			std::cout<<"response is: "<<response<<std::endl;
+
+			//Visualize the result
+            moveit_msgs::DisplayTrajectory display_trajectory;
+
+            // Visualize the trajectory
+            ROS_INFO("Visualizing the trajectory");
+			display_trajectory.trajectory.clear();
+            display_trajectory.trajectory_start = response.trajectory_start;
+            display_trajectory.trajectory.push_back(response.trajectory);
+            display_publisher_ptr->publish(display_trajectory);
+            visual_tools_ptr->publishTrajectoryLine(display_trajectory.trajectory.back(), joint_model_group);
+            visual_tools_ptr->trigger();
+
+			// Set the trajectory and execute the plan
+			my_plan.trajectory_ = response.trajectory;
+			my_plan.start_state_ = response.trajectory_start;
+			my_plan.planning_time_ = response.planning_time;
+
+			std::cout << "Executing home plan to return to home." << std::endl;
+			move_group_ptr->execute(my_plan);
+			prev_plan_res = response;
+			std::cout << "Home plan executed. waahahooooo." << std::endl;
 		}
 
 		// Manually check if the robot got to its target
