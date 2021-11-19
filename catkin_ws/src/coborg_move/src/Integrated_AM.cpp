@@ -923,6 +923,7 @@ int main(int argc, char** argv)
 		// Check if the robot is moving to the ready position from resolved rate
 		if (state == 6)
 		{
+			robot_state::RobotState goal_state(robot_model);
 			plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
 			plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
 			plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
