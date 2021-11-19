@@ -46,12 +46,17 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+add_library(goal_getter_lib
+  src/GoalGetter.cpp
+)
+
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-add_executable(goal_getter src/goal_getter.cpp)
+add_executable(goal_getter src/goal_getter_node.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(goal_getter
   ${catkin_LIBRARIES}
+  goal_getter_lib
 )
 
 add_dependencies(goal_getter ${catkin_EXPORTED_TARGETS})
