@@ -345,11 +345,13 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 	std::cout<<"execute_trajectory_feedback_callback called"<<std::endl;
 	std::cout<<"msg->feedback.state is: "<<msg->feedback.state<<std::endl;
 	std::cout<<"msg->status.text is: "<<msg->status.text<<std::endl;
+	std::cout << state << std::endl;
 	// Check if the trajectory has finished
 	if (msg->feedback.state == "IDLE" && msg->status.text == "Solution was found and executed.")
 	{
 		std::cout<<"row::Time::now() is: "<<ros::Time::now()<<std::endl;
 		std::cout<<"plan_start is: "<<plan_start<<std::endl;
+		std::cout << "Current State: " << state << std::endl;
 		// Check if the robot was moving to a target
 		if (state == 2)
 		{
@@ -389,8 +391,11 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 
 	else if (msg->feedback.state == "IDLE")
 	{
-		state = 7;
-		home_attempts += 1;
+		if (state != 0)
+		{
+			state = 7;
+			home_attempts += 1;
+		}
 		if (home_attempts > max_home_attempts)
 		{
 			// Send the arm to the ready position through a naive joint move
@@ -401,9 +406,15 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			hebi_home_msg.header.frame_id = "Position";
 			for (unsigned int ii = 0; ii < 4; ii++)
 			{
-				hebi_home_msg.position.push_back(joint_group_ready_position[0][ii]);
+				hebi_home_msg.position.push_back(joint_group_positions[ii]);
 			}
+			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 			simulated_joint_states_pub_ptr->publish(hebi_home_msg);
+			ros::Duration(3.0).sleep();
+			prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions = hebi_home_msg.position;
+			robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
+			current_state.setVariablePositions(hebi_home_msg.position);
+			state = 0;
 			home_attempts = 0;
 		}
 		/////////////// For FVD we overwrote error status and force go home
@@ -985,6 +996,7 @@ int main(int argc, char** argv)
 			std::cout << "Executing plan to return to ready." << std::endl;
 			move_group_ptr->execute(my_plan);
 			prev_plan_res = response;
+			ros::Duration(0.5).sleep();
 			std::cout << "Executed plan to return to ready." << std::endl;
 		}
 		// Check if the robot is returning to home
