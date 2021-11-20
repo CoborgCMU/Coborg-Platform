@@ -84,7 +84,7 @@ planning_pipeline::PlanningPipelinePtr planning_pipeline_global_ptr;
 moveit_visual_tools::MoveItVisualTools* visual_tools_ptr;
 const moveit::core::JointModelGroup* joint_model_group;
 moveit::planning_interface::MoveGroupInterface* move_group_ptr;
-moveit::core::RobotStatePtr* robot_state_ptr;
+moveit::core::RobotState* robot_state_ptr;
 moveit_msgs::MotionPlanResponse* response_ptr;
 
 // ROS Initializations
@@ -414,6 +414,13 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions = hebi_home_msg.position;
 			robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
 			current_state.setVariablePositions(hebi_home_msg.position);
+			current_state.update(true);
+			// (*psmPtr)->setCurrentState(response.trajectory_start);
+			// moveit_msgs::RobotState current_state_message;
+			// current_state_message.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
+			// robot_state::RobotState current_state(current_state_message);
+			(*psmPtr)->setCurrentState(current_state);
+			// robot_state.setJointGroupPositions(joint_model_group, response.trajectory.joint_trajectory.points.back().positions);
 			state = 0;
 			home_attempts = 0;
 		}
@@ -504,22 +511,26 @@ int main(int argc, char** argv)
 	// Create Planning Scene
 	planning_scene::PlanningScenePtr psm(new planning_scene::PlanningScene(robot_model));
 	psmPtr = &psm;
-	robot_state::RobotState& robotCurrState = psm->getCurrentStateNonConst();
+	// robot_state::RobotState& robot_state = psm->getCurrentStateNonConst();
 	
 	std::cout<<"Planning scene initialized"<<std::endl;
 
-	moveit::core::RobotStatePtr robot_state(new moveit::core::RobotState(robot_model));
-	robot_state_ptr = &robot_state;
+	// moveit::core::RobotStatePtr robot_state(new moveit::core::RobotState(robot_model));
+	// robot_state_ptr = &robot_state;
 	std::cout<<"Robot state set up"<<std::endl;
 
 	/* Create a JointModelGroup to keep track of the current robot pose and planning group. The Joint Model
 	group is useful for dealing with one set of joints at a time such as a left arm or a end effector */
-	joint_model_group = robot_state->getJointModelGroup(PLANNING_GROUP);
+	
 
 	// Create Planning Pipeline
 	planning_pipeline::PlanningPipelinePtr planning_pipeline(new planning_pipeline::PlanningPipeline(robot_model, *node_handle_ptr, "/Integrated_AM/planning_plugin", "Integrated_AM/request_adapters"));
 	planning_pipeline_global_ptr = planning_pipeline;
 	std::cout<<"Planning pipeline initialized"<<std::endl;
+
+	robot_state::RobotState& robot_state = psm->getCurrentStateNonConst();
+	robot_state_ptr = &robot_state;
+	joint_model_group = robot_state.getJointModelGroup(PLANNING_GROUP);
 
 	// Set Up Visualization Tools
 	namespace rvt = rviz_visual_tools;
@@ -788,8 +799,8 @@ int main(int argc, char** argv)
 			}
 
 			std::vector<double> joint_values{thetas(0), thetas(1), thetas(2), thetas(3)};
-			robotCurrState.setJointGroupPositions(joint_model_group, joint_values);
-			const Eigen::Affine3d& link_pose = robotCurrState.getGlobalLinkTransform("end_link/INPUT_INTERFACE");
+			robot_state.setJointGroupPositions(joint_model_group, joint_values);
+			const Eigen::Affine3d& link_pose = robot_state.getGlobalLinkTransform("end_link/INPUT_INTERFACE");
 
 			Eigen::VectorXd x0(6);
 			Eigen::Vector3d x0cart = link_pose.translation();
@@ -798,7 +809,7 @@ int main(int argc, char** argv)
 
             Eigen::MatrixXd J;
 			Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
-			robotCurrState.getJacobian(joint_model_group, robotCurrState.getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, J);
+			robot_state.getJacobian(joint_model_group, robot_state.getLinkModel(joint_model_group->getLinkModelNames().back()), reference_point_position, J);
 			Eigen::MatrixXd ee_J_cartesian = J.block(0,0,3,group_size);
 			Eigen::MatrixXd ee_J_angular = J.block(3,0,3,group_size);
 
@@ -1009,6 +1020,7 @@ int main(int argc, char** argv)
 				plan_req.start_state.joint_state.position = {0.0, -1.93, -2.38, -2.50};
 				plan_req.start_state.joint_state.velocity = {};
 				plan_req.start_state.joint_state.effort = {};
+				plan_req.goal_constraints.clear();
 				goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
 			}
 			else
@@ -1069,6 +1081,9 @@ int main(int argc, char** argv)
 			my_plan.trajectory_ = response.trajectory;
 			my_plan.start_state_ = response.trajectory_start;
 			my_plan.planning_time_ = response.planning_time;
+
+			psm->setCurrentState(response.trajectory_start);
+			robot_state.setJointGroupPositions(joint_model_group, response.trajectory.joint_trajectory.points.back().positions);
 
 			std::cout << "Executing home plan to return to home." << std::endl;
 			move_group_ptr->execute(my_plan);
