@@ -241,7 +241,7 @@ geometry_msgs::PoseStamped motorGoalPoseStamped;
 
 
 // Custom trajectory finish variables
-bool manual_trajectory_finish = 0;
+bool manual_trajectory_finish = 1;
 std::vector<float> trajectory_finish_position_threshold = {0.03, 0.1, 0.03, 0.04};
 
 // Define Subscriber Callbacks
@@ -299,8 +299,7 @@ void main_cmd_callback(const std_msgs::Int32::ConstPtr& msg)
 			ROS_INFO("Planning to move to target");
 		}
 	}
-
-	if (msg->data == 2) // go to home
+	else if (msg->data == 2) // go to home
 	{
 		if (state == 4)
 		{
@@ -317,7 +316,7 @@ void main_cmd_callback(const std_msgs::Int32::ConstPtr& msg)
 		}
 		else if (state == 0)
 		{
-			// state = 7;
+			state = 7;
 
 			sensor_msgs::JointState hebi_home_msg;
 
@@ -331,12 +330,18 @@ void main_cmd_callback(const std_msgs::Int32::ConstPtr& msg)
 
 			simulated_joint_states_pub_ptr->publish(hebi_home_msg);
 			// Feng Xiang
-			robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
-			current_state.setVariablePositions(hebi_home_msg.position);
-			current_state.update(true);
-			(*psmPtr)->setCurrentState(current_state);
+			// robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
+			// current_state.setVariablePositions(joint_group_positions);
+			// current_state.update(true);
+			// (*psmPtr)->setCurrentState(current_state);
+			// move_group_ptr->setStartState(current_state);
+			ros::Duration(0.5).sleep();
 
 		}
+	}
+	else if (msg->data == 0 || msg->data == 9)
+	{
+		state = 7;
 	}
 }
 
@@ -434,7 +439,7 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			// current_state_message.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
 			// robot_state::RobotState current_state(current_state_message);
 			// (*psmPtr)->setCurrentState(current_state);
-			ros::Duration(3.0).sleep();
+			ros::Duration(1.0).sleep();
 			// robot_state.setJointGroupPositions(joint_model_group, response.trajectory.joint_trajectory.points.back().positions);
 			state = 0;
 			home_attempts = 0;
@@ -489,8 +494,11 @@ int main(int argc, char** argv)
 	ros::NodeHandle* node_handle_ptr;
 	node_handle_ptr = &node_handle;
 
-	ros::AsyncSpinner spinner(1);
+	ros::AsyncSpinner spinner(2);
 	spinner.start();
+	// ros::waitForShutdown();
+	// ros::MultiThreadedSpinner spinner(2);
+	// spinner.spin();
 
 	int group_size = names.size();
 
@@ -643,6 +651,11 @@ int main(int argc, char** argv)
 			plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
 			plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
 
+			robot_state_ptr->setVariablePositions(plan_req.start_state.joint_state.position);
+			robot_state_ptr->update(true);
+			(*psmPtr)->setCurrentState(*robot_state_ptr);
+			move_group_ptr->setStartState(*robot_state_ptr);
+
 			// Set the start state to the current joint state of the HEBI motors
 			std::cout<<"Update the start of the plan request to be the robot's current state"<<std::endl;
 			std::cout<<"plan_req.start_state.joint_state.position.size() is: "<<plan_req.start_state.joint_state.position.size()<<std::endl;
@@ -672,16 +685,20 @@ int main(int argc, char** argv)
 			// Set the trajectory and execute the plan
 			my_plan.trajectory_ = response.trajectory;
 			my_plan.start_state_ = response.trajectory_start;
-			move_group_ptr->setStartState(my_plan.start_state_);
+			// (*psmPtr)->setCurrentState(my_plan.start_state_);
+
+			// move_group_ptr->setStartState(my_plan.start_state_);
+			
 			my_plan.planning_time_ = response.planning_time;
 
 			// Execute move
 			move_group_ptr->execute(my_plan);
 			ros::Duration(0.5).sleep();
+			
 			prev_plan_res = response;
 			ROS_INFO("Going to ready state.");
 
-			ros::Duration(1.0).sleep(); //Wait for arm to finish moving?
+			// ros::Duration(1.0).sleep(); //Wait for arm to finish moving?
 
 			// compute orientation goal
 			// compute offset
@@ -699,6 +716,8 @@ int main(int argc, char** argv)
             goal_tolerance_pose = goal_tolerance_pose_default;
             goal_tolerance_angle = goal_tolerance_angle_default;
             std::cout<<"Calling planning pipeline to generate plan"<<std::endl;
+
+			bool goToHomeBool = false;
             
 			while (true)
             {
@@ -718,6 +737,11 @@ int main(int argc, char** argv)
                 plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
                 plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
 
+				robot_state_ptr->setVariablePositions(plan_req.start_state.joint_state.position);
+				robot_state_ptr->update(true);
+				(*psmPtr)->setCurrentState(*robot_state_ptr);
+				move_group_ptr->setStartState(*robot_state_ptr);
+
 				// Set the start state to the current joint state of the HEBI motors
 				std::cout<<"Update the start of the plan request to be the robot's current state"<<std::endl;
                 std::cout<<"Generating plan, state == -1"<<std::endl;
@@ -732,6 +756,7 @@ int main(int argc, char** argv)
                         continue;
                     }
                     state = 6;
+					goToHomeBool = true;
                     ROS_INFO("Couldn't find a suitable path, returning to home");
 
                     // Let the main_state_machine node know that the robot is ready
@@ -770,6 +795,10 @@ int main(int argc, char** argv)
 				std::cout<<"plan_res.error_code_.val did not equal plan_res.error_code_.SUCCESS"<<std::endl;
                 continue;
             }
+			else if (goToHomeBool == true)
+			{
+				continue;
+			}
 
             // Visualize the result
             moveit_msgs::DisplayTrajectory display_trajectory;
@@ -789,12 +818,21 @@ int main(int argc, char** argv)
 			my_plan.start_state_ = response.trajectory_start;
 			my_plan.planning_time_ = response.planning_time;
 
-			move_group_ptr->setStartState(my_plan.start_state_);
+			// (*psmPtr)->setCurrentState(my_plan.start_state_);
+			// move_group_ptr->setStartState(my_plan.start_state_);
+
+			
+
+			
 
             std::cout<<"my_plan.planning_time_ is: "<<my_plan.planning_time_<<std::endl;
             std::cout<<"my_plan.start_state_ is: "<<my_plan.start_state_<<std::endl;
             std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
             std::cout<<"plan_res.planning_time_ is: "<<plan_res.planning_time_<<std::endl;
+
+			move_group_ptr->execute(my_plan);
+			ros::Duration(0.5).sleep();
+			
 
             prev_plan_res = response;
 			plan_start = ros::Time::now();
@@ -803,8 +841,7 @@ int main(int argc, char** argv)
             state_input_pub_ptr->publish(status);
             ROS_INFO("Moving to target");
 
-			move_group_ptr->execute(my_plan);
-			ros::Duration(0.5).sleep();
+			
         }
 
 		// if (state == 3)
@@ -828,7 +865,7 @@ int main(int argc, char** argv)
 		// 	state = 0;
 		// }
 
-		if (state == 3 || state == 4 || state == 5)
+		else if (state == 3 || state == 4 || state == 5)
 		{		
 			// // set effort limits to +/- 0 Nm
 			// gains = GainStruct();
@@ -989,13 +1026,18 @@ int main(int argc, char** argv)
 			}
 		}
 		// Check if the robot is moving to the ready position from resolved rate
-		if (state == 6)
+		else if (state == 6)
 		{
 			robot_state::RobotState goal_state(robot_model);
 			plan_req.start_state.joint_state.name = prev_plan_res.trajectory.joint_trajectory.joint_names;
 			plan_req.start_state.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
 			plan_req.start_state.joint_state.velocity = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].velocities;
 			plan_req.start_state.joint_state.effort = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].effort;
+
+			robot_state_ptr->setVariablePositions(plan_req.start_state.joint_state.position);
+			robot_state_ptr->update(true);
+			(*psmPtr)->setCurrentState(*robot_state_ptr);
+			move_group_ptr->setStartState(*robot_state_ptr);
 
 			plan_req.goal_constraints.clear();
 			goal_state.setJointGroupPositions(joint_model_group, joint_group_ready_position[0]);
@@ -1050,16 +1092,19 @@ int main(int argc, char** argv)
 			my_plan.start_state_ = response.trajectory_start;
 			my_plan.planning_time_ = response.planning_time;
 
-			move_group_ptr->setStartState(my_plan.start_state_);
+			// (*psmPtr)->setCurrentState(my_plan.start_state_);
+			// move_group_ptr->setStartState(my_plan.start_state_);
 
+			
 			std::cout << "Executing plan to return to ready." << std::endl;
 			move_group_ptr->execute(my_plan);
 			ros::Duration(0.5).sleep();
+			
 			prev_plan_res = response;
 			std::cout << "Executed plan to return to ready." << std::endl;
 		}
 		// Check if the robot is returning to home
-		if (state == 7)
+		else if (state == 7)
 		{
 			robot_state::RobotState goal_state(robot_model);
 			if (homeInit == false)
@@ -1080,6 +1125,11 @@ int main(int argc, char** argv)
 				plan_req.goal_constraints.clear();
 				goal_state.setJointGroupPositions(joint_model_group, joint_group_positions);
 			}
+
+			robot_state_ptr->setVariablePositions(plan_req.start_state.joint_state.position);
+			robot_state_ptr->update(true);
+			(*psmPtr)->setCurrentState(*robot_state_ptr);
+			move_group_ptr->setStartState(*robot_state_ptr);
 
 			moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group);
 			plan_req.goal_constraints.push_back(joint_goal);
@@ -1129,20 +1179,23 @@ int main(int argc, char** argv)
 			my_plan.trajectory_ = response.trajectory;
 			my_plan.start_state_ = response.trajectory_start;
 			my_plan.planning_time_ = response.planning_time;
-			move_group_ptr->setStartState(my_plan.start_state_);
+			// (*psmPtr)->setCurrentState(my_plan.start_state_);
+			// move_group_ptr->setStartState(my_plan.start_state_);
+			
 
-			psm->setCurrentState(response.trajectory_start);
-			robot_state.setJointGroupPositions(joint_model_group, response.trajectory.joint_trajectory.points.back().positions);
+			// psm->setCurrentState(response.trajectory_start);
+			// robot_state.setJointGroupPositions(joint_model_group, response.trajectory.joint_trajectory.points.back().positions);
 
 			std::cout << "Executing home plan to return to home." << std::endl;
 			move_group_ptr->execute(my_plan);
-			ros::Duration(1.0).sleep();
+			ros::Duration(0.5).sleep();
+			
 			prev_plan_res = response;
 			std::cout << "Home plan executed. waahahooooo." << std::endl;
 		}
 
 		// Manually check if the robot got to its target
-		if ((state == 2 || state == 6) && manual_trajectory_finish)
+		if ((state == 2 || state == 6 || state == 7) && manual_trajectory_finish)
 		{
 			std::cout<<"Manually checking trajectory finish"<<std::endl;
 			unsigned int state_solved = 1;
@@ -1168,13 +1221,22 @@ int main(int argc, char** argv)
 				std::cout<<"Trajectory finished!"<<std::endl;
 				if (state == 2)
 				{
-					state = 3;
+					speaker_pub_ptr->publish(pushSound);
+					// Add a delay so that the user can move their hand
+					ros::Duration(wait_time_for_pushing).sleep();
+
 					// Initialize Resolved Rate Variables
 					rr_iterate_start_time = ros::Time::now();
 					rr_curr_offset = -goal_offset;
-					std::cout<<"Successfully reached offset target, extending"<<std::endl;
+					state = 3;
+					ROS_INFO("Successfully reached target offset; extending");
 				}
 				else if (state == 6)
+				{
+					state = 7;
+					std::cout<<"Successfully went to ready position."<<std::endl;
+				}
+				else if (state == 7)
 				{
 					state = 0;
 					ROS_INFO("Successfully returned to home; waiting");
@@ -1183,6 +1245,11 @@ int main(int argc, char** argv)
 					state_input_pub_ptr->publish(status);
 					status.data = 20;
 					state_input_pub_ptr->publish(status);
+					if (!homeInit)
+					{
+						homeInit = true;
+					}
+					home_attempts = 0;
 				}
 			}
 		}
