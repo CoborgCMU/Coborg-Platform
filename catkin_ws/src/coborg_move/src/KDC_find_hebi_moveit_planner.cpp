@@ -98,6 +98,8 @@ int main(int argc, char** argv)
 
     std::vector<std::string> names;
     names = {"base_1", "shoulder_2", "elbow_3", "wrist_4"};
+    std::vector<std::string> ros_names;
+    ros_names = {"motor1/X5_9", "motor2/X8_16", "motor3/X5_9", "motor4/X5_4"};
 
     // connect to HEBI joints on network through UDP connection
     std::shared_ptr<hebi::Group> group;
@@ -182,7 +184,7 @@ int main(int argc, char** argv)
 
             for (unsigned int it = 0; it < names.size(); it++)
             {
-                hebi_feedback_message.name.push_back(names[it]);
+                hebi_feedback_message.name.push_back(ros_names[it]);
 
                 hebi_feedback_message.position.push_back((float) feedbackPos(it));
                 hebi_feedback_message.velocity.push_back((float) feedbackVel(it));

@@ -330,6 +330,11 @@ void main_cmd_callback(const std_msgs::Int32::ConstPtr& msg)
 			}
 
 			simulated_joint_states_pub_ptr->publish(hebi_home_msg);
+			// Feng Xiang
+			robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
+			current_state.setVariablePositions(hebi_home_msg.position);
+			current_state.update(true);
+			(*psmPtr)->setCurrentState(current_state);
 
 		}
 	}
@@ -410,16 +415,26 @@ void execute_trajectory_feedback_callback(const moveit_msgs::MoveGroupActionFeed
 			}
 			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 			simulated_joint_states_pub_ptr->publish(hebi_home_msg);
-			ros::Duration(3.0).sleep();
-			prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions = hebi_home_msg.position;
-			robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
-			current_state.setVariablePositions(hebi_home_msg.position);
-			current_state.update(true);
+			
+			// prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions = hebi_home_msg.position;
+			prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions = joint_group_positions;
+			prev_plan_res.trajectory_start.joint_state.position = joint_group_positions;
+			// (*psmPtr)->setCurrentState(prev_plan_res.trajectory_start);
+			robot_state::RobotStatePtr current_state_ptr = (*psmPtr)->getCurrentStateUpdated(prev_plan_res.trajectory_start);
+			// robot_state::RobotState current_state = *current_state_ptr;
+			(*psmPtr)->setCurrentState(*current_state_ptr);
+			move_group_ptr->setStartState(*current_state_ptr);
+			// robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
+			// current_state.setJointPositions(joint_group_positions);
+			// current_state.setVariablePositions(joint_group_positions);
+			
+			// current_state.update(true);
 			// (*psmPtr)->setCurrentState(response.trajectory_start);
 			// moveit_msgs::RobotState current_state_message;
 			// current_state_message.joint_state.position = prev_plan_res.trajectory.joint_trajectory.points[prev_plan_res.trajectory.joint_trajectory.points.size() - 1].positions;
 			// robot_state::RobotState current_state(current_state_message);
-			(*psmPtr)->setCurrentState(current_state);
+			// (*psmPtr)->setCurrentState(current_state);
+			ros::Duration(3.0).sleep();
 			// robot_state.setJointGroupPositions(joint_model_group, response.trajectory.joint_trajectory.points.back().positions);
 			state = 0;
 			home_attempts = 0;
@@ -593,10 +608,10 @@ int main(int argc, char** argv)
 	float singularThreshBuffer = 0.25;
     Eigen::MatrixXd W(group_size,group_size);
     W.setIdentity();
-	W(0,0) = 1.0;
-	W(1,1) = 1.0;
-	W(2,2) = 1.0;
-	W(3,3) = 1.0;
+	// W(0,0) = 1.0;
+	// W(1,1) = 1.0;
+	// W(2,2) = 1.0;
+	// W(3,3) = 1.0;
 
     prevPoseMotionDetectTime = ros::Time::now();
 	joint_group_ready_position.push_back(joint_group_low_ready_position);
@@ -657,10 +672,12 @@ int main(int argc, char** argv)
 			// Set the trajectory and execute the plan
 			my_plan.trajectory_ = response.trajectory;
 			my_plan.start_state_ = response.trajectory_start;
+			move_group_ptr->setStartState(my_plan.start_state_);
 			my_plan.planning_time_ = response.planning_time;
 
 			// Execute move
-			move_group.execute(my_plan);
+			move_group_ptr->execute(my_plan);
+			ros::Duration(0.5).sleep();
 			prev_plan_res = response;
 			ROS_INFO("Going to ready state.");
 
@@ -772,6 +789,8 @@ int main(int argc, char** argv)
 			my_plan.start_state_ = response.trajectory_start;
 			my_plan.planning_time_ = response.planning_time;
 
+			move_group_ptr->setStartState(my_plan.start_state_);
+
             std::cout<<"my_plan.planning_time_ is: "<<my_plan.planning_time_<<std::endl;
             std::cout<<"my_plan.start_state_ is: "<<my_plan.start_state_<<std::endl;
             std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
@@ -785,10 +804,35 @@ int main(int argc, char** argv)
             ROS_INFO("Moving to target");
 
 			move_group_ptr->execute(my_plan);
+			ros::Duration(0.5).sleep();
         }
+		// if (state == 3)
+		// {
+		// 	sensor_msgs::JointState hebi_home_msg;
 
+		// 	hebi_home_msg.header.stamp = ros::Time::now();
+		// 	hebi_home_msg.name = names;
+		// 	hebi_home_msg.header.frame_id = "Position";
+		// 	for (unsigned int ii = 0; ii < 4; ii++)
+		// 	{
+		// 		hebi_home_msg.position.push_back(joint_group_positions[ii]);
+		// 	}
+
+		// 	simulated_joint_states_pub_ptr->publish(hebi_home_msg);
+		// 	// Feng Xiang
+		// 	robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
+		// 	current_state.setVariablePositions(hebi_home_msg.position);
+		// 	current_state.update(true);
+		// 	(*psmPtr)->setCurrentState(current_state);
+		// 	state = 0;
+		// }
 		if (state == 3 || state == 4 || state == 5)
 		{		
+			// // set effort limits to +/- 0 Nm
+			// gains = GainStruct();
+			// gains.effortMaxOutput = ones(1,4) * limit;
+			// gains.effortMinOutput = ones(1,4) * -limit;
+			// group.send('gains', gains);
 
 			Eigen::VectorXd xg(6);
 			xg << goal_pose.pose.position.x, goal_pose.pose.position.y, goal_pose.pose.position.z, goal_pose_euler(0), goal_pose_euler(1), goal_pose_euler(2);
@@ -1004,10 +1048,12 @@ int main(int argc, char** argv)
 			my_plan.start_state_ = response.trajectory_start;
 			my_plan.planning_time_ = response.planning_time;
 
+			move_group_ptr->setStartState(my_plan.start_state_);
+
 			std::cout << "Executing plan to return to ready." << std::endl;
 			move_group_ptr->execute(my_plan);
-			prev_plan_res = response;
 			ros::Duration(0.5).sleep();
+			prev_plan_res = response;
 			std::cout << "Executed plan to return to ready." << std::endl;
 		}
 		// Check if the robot is returning to home
@@ -1081,12 +1127,14 @@ int main(int argc, char** argv)
 			my_plan.trajectory_ = response.trajectory;
 			my_plan.start_state_ = response.trajectory_start;
 			my_plan.planning_time_ = response.planning_time;
+			move_group_ptr->setStartState(my_plan.start_state_);
 
 			psm->setCurrentState(response.trajectory_start);
 			robot_state.setJointGroupPositions(joint_model_group, response.trajectory.joint_trajectory.points.back().positions);
 
 			std::cout << "Executing home plan to return to home." << std::endl;
 			move_group_ptr->execute(my_plan);
+			ros::Duration(1.0).sleep();
 			prev_plan_res = response;
 			std::cout << "Home plan executed. waahahooooo." << std::endl;
 		}
