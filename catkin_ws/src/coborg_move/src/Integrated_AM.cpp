@@ -225,9 +225,9 @@ double rr_push_in_min = 0.035;
 double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
 
-bool use_angular_rr = 0;
+bool use_angular_rr = 1;
 double position_rr_ratio = 1;
-double angular_rr_ratio = 0.0;
+double angular_rr_ratio = 0.1;
 
 bool use_rr_collision_checking = 1;
 
