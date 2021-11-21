@@ -31,22 +31,22 @@
   </link>
   <link name="body">
     <visual>
-      <origin rpy="0 0 0" xyz=".14 0.2475 -.50"/>
+      <origin rpy="0 0 0" xyz=".14 0.2975 -.50"/>
       <geometry>
-        <box size="0.3 0.32 1.0"/>
+        <box size="0.3 0.42 1.0"/>
       </geometry>
       <material name="silver">
         <color rgba="0.6 0.6 0.6 1"/>
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz=".14 0.2475 -.50"/>
+      <origin rpy="0 0 0" xyz=".14 0.2975 -.50"/>
       <geometry>
-        <box size="0.3 0.32 1.0"/>
+        <box size="0.3 0.42 1.0"/>
       </geometry>
     </collision>
     <inertial>
-      <origin rpy="0 0 0" xyz=".14 .2475 -.50"/>
+      <origin rpy="0 0 0" xyz=".14 .2975 -.50"/>
       <mass value="1.0"/>
       <inertia ixx=".112" ixy="0.0" ixz="0.0" iyy=".029" iyz="0.0" izz=".0235"/>
     </inertial>
@@ -75,7 +75,7 @@
   </link>
   <link name="head">
     <visual>
-      <origin rpy="0 0 0" xyz=".16 0.2475 .13"/>
+      <origin rpy="0 0 0" xyz=".16 0.2875 .13"/>
       <geometry>
         <sphere radius="0.18"/>
       </geometry>
@@ -84,13 +84,13 @@
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz=".16 0.2475 .13"/>
+      <origin rpy="0 0 0" xyz=".16 0.2875 .13"/>
       <geometry>
         <sphere radius="0.18"/>
       </geometry>
     </collision>
     <inertial>
-      <origin rpy="0 0 0" xyz=".09 0.2475 .13"/>
+      <origin rpy="0 0 0" xyz=".09 0.2875 .13"/>
       <mass value="1.0"/>
       <inertia ixx=".00324" ixy="0.0" ixz="0.0" iyy=".00324" iyz="0.0" izz=".00324"/>
     </inertial>
