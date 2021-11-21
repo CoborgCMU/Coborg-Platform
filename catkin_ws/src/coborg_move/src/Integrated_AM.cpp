@@ -806,6 +806,7 @@ int main(int argc, char** argv)
 			move_group_ptr->execute(my_plan);
 			ros::Duration(0.5).sleep();
         }
+
 		// if (state == 3)
 		// {
 		// 	sensor_msgs::JointState hebi_home_msg;
@@ -820,12 +821,13 @@ int main(int argc, char** argv)
 
 		// 	simulated_joint_states_pub_ptr->publish(hebi_home_msg);
 		// 	// Feng Xiang
-		// 	robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
-		// 	current_state.setVariablePositions(hebi_home_msg.position);
-		// 	current_state.update(true);
-		// 	(*psmPtr)->setCurrentState(current_state);
+		// 	// robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
+		// 	// current_state.setVariablePositions(hebi_home_msg.position);
+		// 	// current_state.update(true);
+		// 	// (*psmPtr)->setCurrentState(current_state);
 		// 	state = 0;
 		// }
+
 		if (state == 3 || state == 4 || state == 5)
 		{		
 			// // set effort limits to +/- 0 Nm
