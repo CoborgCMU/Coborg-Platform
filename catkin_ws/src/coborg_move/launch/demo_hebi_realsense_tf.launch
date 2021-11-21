@@ -12,8 +12,9 @@
     <node pkg="tf" type="static_transform_publisher" name="motor1_to_uppercam" args="-0.278 -0.04826 0.332232 0.698132 -0.0524599 0 /motor1/INPUT_INTERFACE /cam2_link 100" />
 
     <!-- <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.2609 -0.0381 0.5149 3.8397 0 0 /world /t265_link 100" /> -->
-    <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.055372 -0.062484 -0.298196 2.44348 0 0 /t265_link /world 100" />
+    <!-- <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.055372 -0.062484 -0.298196 2.44348 0 0 /t265_link /world 100" /> -->
 
+    <node pkg="tf" type="static_transform_publisher" name="world_to_t265cam" args="-0.1651 -0.234 -0.15145 0 0 0 /t265_link /world 100" />
     <node pkg="tf" type="static_transform_publisher" name="newchest_frame_coborg" args="0.1651 0.234 0.15145 0 0 0 /world /new_chest_frame 100" />
 
 

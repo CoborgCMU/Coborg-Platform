@@ -219,9 +219,9 @@ double prevGoalCallbackTime = 0.0;
 ros::Time prevPoseMotionDetectTime;
 // Resolved Rate Global Variables
 ros::Time rr_iterate_start_time;
-double rr_push_in_distance = 0.035;
-double rr_push_in_max = 0.06;
-double rr_push_in_min = 0.035;
+double rr_push_in_distance = 0.10;
+double rr_push_in_max = 0.10;
+double rr_push_in_min = 0.10;
 double rr_iterate_time = 3.0;
 double rr_curr_offset = -goal_offset;
 
@@ -314,30 +314,30 @@ void main_cmd_callback(const std_msgs::Int32::ConstPtr& msg)
 			ROS_INFO("Leaving target");
 			state_input_pub_ptr->publish(status);
 		}
-		else if (state == 0)
-		{
-			state = 7;
+		// else if (state == 0)
+		// {
+		// 	state = 7;
 
-			sensor_msgs::JointState hebi_home_msg;
+		// 	// sensor_msgs::JointState hebi_home_msg;
 
-			hebi_home_msg.header.stamp = ros::Time::now();
-			hebi_home_msg.name = names;
-			hebi_home_msg.header.frame_id = "Position";
-			for (unsigned int ii = 0; ii < 4; ii++)
-			{
-				hebi_home_msg.position.push_back(joint_group_positions[ii]);
-			}
+		// 	// hebi_home_msg.header.stamp = ros::Time::now();
+		// 	// hebi_home_msg.name = names;
+		// 	// hebi_home_msg.header.frame_id = "Position";
+		// 	// for (unsigned int ii = 0; ii < 4; ii++)
+		// 	// {
+		// 	// 	hebi_home_msg.position.push_back(joint_group_positions[ii]);
+		// 	// }
 
-			simulated_joint_states_pub_ptr->publish(hebi_home_msg);
-			// Feng Xiang
-			// robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
-			// current_state.setVariablePositions(joint_group_positions);
-			// current_state.update(true);
-			// (*psmPtr)->setCurrentState(current_state);
-			// move_group_ptr->setStartState(current_state);
-			ros::Duration(0.5).sleep();
+		// 	// simulated_joint_states_pub_ptr->publish(hebi_home_msg);
+		// 	// Feng Xiang
+		// 	// robot_state::RobotState& current_state = (*psmPtr)->getCurrentStateNonConst();
+		// 	// current_state.setVariablePositions(joint_group_positions);
+		// 	// current_state.update(true);
+		// 	// (*psmPtr)->setCurrentState(current_state);
+		// 	// move_group_ptr->setStartState(current_state);
+		// 	ros::Duration(0.5).sleep();
 
-		}
+		// }
 	}
 	else if (msg->data == 0 || msg->data == 9)
 	{
@@ -829,9 +829,6 @@ int main(int argc, char** argv)
             std::cout<<"my_plan.start_state_ is: "<<my_plan.start_state_<<std::endl;
             std::cout<<"my_plan.trajectory_ is: "<<my_plan.trajectory_<<std::endl;
             std::cout<<"plan_res.planning_time_ is: "<<plan_res.planning_time_<<std::endl;
-
-			move_group_ptr->execute(my_plan);
-			ros::Duration(0.5).sleep();
 			
 
             prev_plan_res = response;
@@ -840,8 +837,8 @@ int main(int argc, char** argv)
             status.data = 22; 
             state_input_pub_ptr->publish(status);
             ROS_INFO("Moving to target");
-
-			
+			move_group_ptr->execute(my_plan);
+			ros::Duration(0.5).sleep();
         }
 
 		// if (state == 3)

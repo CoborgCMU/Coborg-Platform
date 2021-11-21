@@ -54,7 +54,7 @@ class GoalGetter
     geometry_msgs::PoseStamped goal_normal_motor1_sum;
     std::queue<geometry_msgs::PoseStamped> goal_normal_queue;
     std::queue<geometry_msgs::PoseStamped> goal_normal_motor1_queue;
-    int window_size = 3;
+    int window_size = 1;
 
      // timing variables for ROS
     double tf_time_offset = 0.15;
