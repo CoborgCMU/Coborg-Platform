@@ -5,7 +5,6 @@ from pocketsphinx import Decoder
 import pyaudio
 from pydub import AudioSegment
 from pydub.playback import play
-import math
 import enum
 import time
 import threading
@@ -141,7 +140,7 @@ if __name__ == "__main__":
                             voice_commands_pub.publish(Command.STOP)
                             sound = AudioSegment.from_mp3(sound_dir + 'stopSound.mp3')
                     
-                    # Translate to base language model if 'coborg' is heard.
+                    # Translate to base language model if 'hey coborg' is heard.
                     # Switch back to trigger model if language model hears a command (plays failure sound if command not valid)
                     if 'hey coborg' in results:
                         sound = AudioSegment.from_mp3(sound_dir + 'triggerSound.mp3')
