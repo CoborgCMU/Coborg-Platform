@@ -14,13 +14,13 @@ title: Vision System Setup Readme
 
 In this readme, we will do the following things for vision system:
 
-- Set up 2D YOLO v3 with ROS
-- Set up GPU for YOLO
-- Set up 3D YOLO with ROS and surface normal
-- Run goal getter and integrate whole vision system
+- Set up 2D YOLO v3 with ROS (Required for the whole system compilation and demo)
+- Set up GPU for YOLO (Better to have)
+- Set up 3D YOLO with ROS and surface normal (Optional)
+- Run goal getter and integrate whole vision system (Required)
 
 ---
-## Integrating 2D YOLO with ROS
+## Integrating 2D YOLO with ROS (Required for compiling and running our full use case)
 
 To install YOLO in ROS, we will use a YOLO ROS wrapper GitHub repository [darknet_ros](https://github.com/leggedrobotics/darknet_ros). You can simply follow their instructions in the README or follow the instructions below. 
 
@@ -40,7 +40,7 @@ Before you start the integration, make sure you have prepared your pre-trained Y
 
 - numpy: 1.19.0
 
-- If use NVIDIA Jetson, JetPack 4.3 works fine (default: CUDA 10.0 + cuDNN 7.6), need to downgrade default OpenCV from 4.1.1 to 3.4.6 (compile OpenCV from source, using this [link](https://jkjung-avt.github.io/opencv-on-nano/))
+- If use NVIDIA Jetson, JetPack 4.3 will automatically install CUDA, cuDNN for you (default: CUDA 10.0 + cuDNN 7.6), but you need to downgrade default OpenCV from 4.1.1 to 3.4.6 (compile OpenCV from source, using this [link](https://jkjung-avt.github.io/opencv-on-nano/))
 
 - YOLO: The official YOLO ROS wrapper GitHub repo [darknet_ros](https://github.com/leggedrobotics/darknet_ros) currently only supports YOLOv3 and below. If you are using YOLOv4, try this repo instead [yolo_v4](https://github.com/tom13133/darknet_ros/tree/yolov4)
 
@@ -59,7 +59,9 @@ Before you start the integration, make sure you have prepared your pre-trained Y
 
     ```catkin_make -DCMAKE_BUILD_TYPE=Release```
 
-3. #### Using your own model:
+3. #### Using your own model: 
+
+   **Note: our repo only contains the hand detection config file, the weight file has to be downloaded using the .sh under /weight folder!**
    
     Within `/darknet_ros/yolo_network_config`:
 
@@ -208,7 +210,8 @@ The process listed below will work whether you are using YOLO through the darkne
 ---
 ## Set Up YOLO 3D with ROS and Get Surface Normal
 
-**Note: if you download our repo, you can skip this part!**
+**Note: if you download our repo, you can skip this setup! You already have everthing to run the full use case. Below are the steps for us to track our implementation.**
+
 
 ### Within catkin_ws/src, clone these repo below
 
@@ -275,7 +278,7 @@ In the goal getter, we post-process all of the position and surface normals from
    
 2. `roslaunch darknet_ros_3d darknet_ros_3d.launch` (this launch file will launch all YOLO stuff)
    
-3. `roslaunch goal_getter goal_getter.launch` 
+3. `roslaunch goal_getter goal_getter.launch` (this launch file will launch the post-processing in multi-cameras settings)
 
 4. Check the rostopic results in terminal:
    
