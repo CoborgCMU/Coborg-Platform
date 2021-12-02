@@ -11,7 +11,11 @@ COBORG is an exoskeleton platform that will change the world. The vision of this
 
 **Note:Darknet and darknet_ros need to be setup seperately since the large weight files and large /data folder in darknet. See vision subsystem readme to setup these two package before catkin_make**
 
+**Note:If there is any error related to missing msg package, catkin_make the specific package seperately before catkin_make the whole system.**
+
 ```
+Optional: catkin_make <package_name>
+
 catkin_make
 ```
 
@@ -20,8 +24,9 @@ catkin_make
 The integrated, voice activated mode of the actuated manipulation system incorporates the other subsystems of this product: voice, vision, and main state machine nodes. This mode was run in the SVD encore event to showcase the synergy between the different subsystems and to showcase the use case flow of using the robot arm. To run this mode, the user must run the other subsystem nodes. From a high level, the order of launching subsystems is shown below:
 
 1. RealSense D435i and T265 -> depth camera node
-3. Darknet ros 3D model -> vision node
-2. Robot model and URDF -> robot model node
+2. Darknet ros 3D model -> vision node
+3. Goal post-processing -> goal_getter node
+4. Robot model and URDF -> robot model node
 5. Voice recognition node -> voice node
 6. Main state machine node -> main state machine node
 7. MoveIt model interface node -> path planning node
@@ -42,6 +47,9 @@ roslaunch coborg_move demo_hebi_realsense_tf.launch
 
 # terminal instance
 roslaunch darknet_ros_3d darknet_ros_3d.launch
+
+# terminal instance
+roslaunch goal_getter goal_getter.launch
 
 # terminal instance
 roslaunch voice_recog voice.launch
