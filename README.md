@@ -2,8 +2,6 @@
 
 COBORG is an exoskeleton platform that will change the world. The vision of this system is to be able to act as a helping hand for it’s operator. We’ve found that people who do overhead manufacturing, for example automation or aircraft assembly, tend to strain their arms after working for long periods of time, and often require a second person to assist them as they work. We want to create a platform that will empower and aid the user as they do their day to day tasks.
 
-Check our [website](https://mrsdprojects.ri.cmu.edu/2021teamc/) for the system design and demonstration.
-
 ## Get Started
 
 
@@ -13,7 +11,7 @@ Check our [website](https://mrsdprojects.ri.cmu.edu/2021teamc/) for the system d
 
 **Note:Darknet and darknet_ros need to be setup seperately since the large weight files and large /data folder in darknet. See vision subsystem readme to setup these two package before catkin_make**
 
-**Note:If there is any error message related to the missing msg package, caktin_make the specific package first, then catkin_make the whole system.**
+**Note:If there is any error related to missing msg package, catkin_make the specific package seperately before catkin_make the whole system.**
 
 ```
 Optional: catkin_make <package_name>
@@ -41,6 +39,12 @@ source devel/setup.bash
 roslaunch main_state_machine main.launch
 ```
 
+An alternative method is to run an alias command through terminal to run the main.launch script:
+```
+source devel/setup.bash
+coborg
+```
+
 To run subsystem seperately, the following commands should be run (user will need multiple terminal tabs and windows to run all these nodes). Make sure to run `source devel/setup.bash` for all new terminal instances:
 
 ```
@@ -60,24 +64,21 @@ roslaunch voice_recog voice.launch
 roslaunch main_state_machine main.launch
 
 # terminal instance
-roslaunch coborg_move tf_moveit_goalsetNode.launch
+roslaunch coborg_move Integrated_AM_launch.launch
 
 # terminal instance
-roslaunch coborg_move voiceGoalPoseGenerator.launch
-
-# terminal instance
-roslaunch coborg_move find_hebi_moveit_planner.launch
+roslaunch coborg_move KDC_find_hebi_moveit_planner.launch
 ```
+The flow of this mode begins with verifying that the D435i camera is set at the appropriate viewing angle and the camera can see the hands that will be in view at their intended positions. In addition, the robot arm should be in its home/compact position before giving the COBORG voice commands.
 
-The node contains the same preset positioning and rosparam structure as the preset positions mode implemented for the first SVD event. In addition, this mode can react to appropriate voice inputs, generate a goal pose from detected hands from the vision noce, and have te robot arm move to those goal positions. 
+The first thing the user will do is position either one or two hands in front and in view of one or both D435i cameras. The user will then recite "Hey COBORG." in the direction of the microphone that is connected to the local computer. An audible confirmation sound will play when the node correctly interprets the initiation sound. The user will then recite "go here" towards the direction of the microphone. The robot will feedback an audible confirmation sound and the vision and actuated manipulation pipeline will begin. After the vision nodes acquire the goal position of the center of the one hand or the average center between the two hands, the actuated manipulation system will acquire that goal pose and initiate its motion. The robot arm will first confirm it is in its home position. Then the robot arm will initiate to its ready position which is partly extended outwards in front of the robot. The arm will then attempt to solve for a position that is some offset distance along the surface normal of the part relative to the global frame of the robot URDF model. Once the COBORG reaches this offset position, it will then initiate naive push and stabilization. By tracking the global goal position, the arm and adjust itself and it is moving towards and providing force on the intended part. Once the user wants the robot arm to retract back, the user will say "Hey COBORG". The robot will feedback a confirmation tone. The user will say "come back". The robot will feedback another audible confirmation tone. The arm will then go back to the ready position and then back to home.
 
-The flow of this mode begins with verifying that the D435i camera is set at the appropriate viewing angle and the camera can see the hands that will be in view at their intended positions. Make sure both cameras (D435i, T265) are launched by checking rviz before start the full use case. In addition, the robot arm should be in its home/compact position before beginning this runthrough.
-
-The first thing the user will do is push either one or two hands in front and in view of the D435i camera. The user will then recite "CoBorg" in the direction of the microphone that is connected to the local computer. An audible confirmation sound will play when the node correctly interprets the initiation sound. The user will then recite "go here" towards the direction of the microphone. The robot will feedback an audible confirmation sound and the vision and actuated manipulation pipeline will begin. After the vision nodes acquire the goal position of the center of the one hand or the average center between the two hands, the actuated manipulation system will acquire that goal pose and initiate its motion. The robot arm will first confirm it is in its home position. Then the robot arm will initiate to its ready position which is partly extended outwards in front of the robot. The arm will then attempt to solve for a position that is some X distance away from the goal position in the X-Axis direction relative to the global frame of the robot URDF model. If the arm solves for this position, then the arm will move to that position. The last goal that the robot arm will solve for is at the goal position. The ideal end position of the robot arm is either in the center of the one hand in the one-handed case or at the average position between the two hands in the two-handed case. Once the user wants the robot arm to retract back, the user will say "CoBorg". The robot will feedback a confirmation tone. The user will say "come back". The robot will feedback another audible confirmation tone. The arm will then go back to the ready position and then back to home.
+If the user provides an audible "STOP STOP STOP STOP" command to the COBORG, the system will cut power to the motors and the arm will go limb. If the COBORG was stabilizing and holding a part before this emergency stop command, the arm will lose control of the intended part. Make sure to have control of the part to avoid any damage to the user. To start the motors, the user will say the key phrase "Hey COBORG." The robot will feedback an audible confirmation tone. The user will then say "start up" and the system will provide power to the motors. 
 
 
 ## Team
-CMU 2020MRSD Team C:
+CMU 2020 - MRSD Team C:
+
 Husam Wadi, Yuqing Qin, Gerry D’Ascoli, Feng Xiang, Jonathan Lord-Fonda
 
 BioRobotics Lab at CMU.
