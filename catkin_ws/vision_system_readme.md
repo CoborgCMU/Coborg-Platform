@@ -92,7 +92,7 @@ Before you start the integration, make sure you have prepared your pre-trained Y
 
    * object_detector (`std_msgs::Int8`) Number of detected objects
    * bounding_boxes (`darknet_ros_msgs::BoundingBoxes`) Bounding boxes (class, x, y, w, h) details are shown in `/darknet_ros_msgs`
-   * detection_image (`sensor_msgs::Image`) Image with detected bounding boxes
+   * detection_image (`sensor_msgs::Image`) Image with detected bounding boxes (Note: current version disabled the visualization to save computational power)
 
 ---
 ## Setting up YOLO with CUDA GPU Acceleration
@@ -208,6 +208,8 @@ The process listed below will work whether you are using YOLO through the darkne
 ---
 ## Set Up YOLO 3D with ROS and Get Surface Normal
 
+**Note: if you download our repo, you can skip this part!**
+
 ### Within catkin_ws/src, clone these repo below
 
 **Note: clone the repo below and checkout to "melodic" branch before going further!!**
@@ -260,27 +262,26 @@ The process listed below will work whether you are using YOLO through the darkne
    
 ## Post-processing and Vision System Integration
 
-### Goal Getter Node (Deprecated)
+**Note: if you only use one single camera, then you can skip this post-processing, and directly use the output from darknet_ros_3d as the goal position, surface normal**
 
-In the goal getter, we post-process all of the 3D bounding boxes got from the darknet_ros_3d node. Specifically, we take the average 3D position over those detected bounding boxes. We publish the averaged goal position and surface normal into the `/goal` topic.
+### Goal Getter Node 
 
-### Optimize Goal Getter Node (latest version):
+In the goal getter, we post-process all of the position and surface normals from different cameras (currently only support less than two cameras). It will grab one goal msg at a time and convert to the /t265_odom frame, then take the moving average logic and post-process both cameras before it converts to the /world frame. The goal getter node will keep publishing the final goal pose (tf posestamped msg) to the /goal topic. From rviz, you could check the calculated /goal_pose by looking at the specific tf frame. 
 
-Instead of post-processing the 3D bounding boxes in another node, we merge the process when we calculate the 3D bounding boxes and publish the goal position to /goal rostopic. 
 
 ### Run the whole vision demo:
 
-1. `roslaunch realsense2_camera rs_rgbd.launch` or use our predefined `rs_d400_and_t265.launch`
+1. `roslaunch realsense2_camera <corresponding camera launch file: t265, rgbd> camera:=<name> serial_no:=<number>` with three different cameras. You could check our main.launch to see which camera to launch.
    
-2. `roslaunch darknet_ros_3d darknet_ros_3d.launch` (this launch file will launch all vision nodes)
+2. `roslaunch darknet_ros_3d darknet_ros_3d.launch` (this launch file will launch all YOLO stuff)
    
-3. `rosrun goal_getter goal_getter` (Deprecated)
-   
-   **Note: I did not include launch file for goal_getter node, simply run it with rosrun**
+3. `roslaunch goal_getter goal_getter.launch` 
 
 4. Check the rostopic results in terminal:
    
    `rostopic echo /goal`
+   
+5. Check rviz: tf frame /goal_pose
 
 ## References
 - https://github.com/leggedrobotics/darknet_ros
