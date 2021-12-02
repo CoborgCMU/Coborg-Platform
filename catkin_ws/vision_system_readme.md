@@ -2,7 +2,7 @@
 # Jekyll 'Front Matter' goes here. Most are set by default, and should NOT be
 # overwritten except in special circumstances. 
 # You should set the date the article was last updated like this:
-date: 2021-09-10 # YYYY-MM-DD
+date: 2021-12-02 # YYYY-MM-DD
 # This will be displayed at the bottom of the article
 # You should set the article's title:
 title: Vision System Setup Readme
@@ -266,12 +266,12 @@ The process listed below will work whether you are using YOLO through the darkne
 
 ### Goal Getter Node 
 
-In the goal getter, we post-process all of the position and surface normals from different cameras (currently only support less than two cameras). It will grab one goal msg at a time and convert to the /t265_odom frame, then take the moving average logic and post-process both cameras before it converts to the /world frame. The goal getter node will keep publishing the final goal pose (tf posestamped msg) to the /goal topic. From rviz, you could check the calculated /goal_pose by looking at the specific tf frame. 
+In the goal getter, we post-process all of the position and surface normals from different cameras (currently only support this setting: two D435i cameras and 1 t265 camera). It will grab one goal msg at a time from each cameras and convert them to the `/t265_odom` frame, then take the moving average logic and post-process both transformed pose before it converts to the `/world` frame. The goal getter node will keep publishing the final goal pose (tf posestamped msg) to the `/goal` topic. From rviz, you could check the calculated `/goal_pose` by looking at the specific tf frame. 
 
 
 ### Run the whole vision demo:
 
-1. `roslaunch realsense2_camera <corresponding camera launch file: t265, rgbd> camera:=<name> serial_no:=<number>` with three different cameras. You could check our main.launch to see which camera to launch.
+1. `roslaunch realsense2_camera <corresponding camera launch file: t265, rgbd> camera:=<name> serial_no:=<number>` with three different cameras (2 D435i, 1 T265). You could check our main.launch to see their launch parameter settings.
    
 2. `roslaunch darknet_ros_3d darknet_ros_3d.launch` (this launch file will launch all YOLO stuff)
    
@@ -281,7 +281,7 @@ In the goal getter, we post-process all of the position and surface normals from
    
    `rostopic echo /goal`
    
-5. Check rviz: tf frame /goal_pose
+5. Check rviz: tf frame `/goal_pose`
 
 ## References
 - https://github.com/leggedrobotics/darknet_ros
