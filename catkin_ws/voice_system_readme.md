@@ -23,20 +23,29 @@ This readme contains:
 ---
 ## Subsystem Description
 
-The voice recognition node is the interface between the user and the robot. This node processes raw audio from the system microphone and processes for recognized voice commands. The keyword trigger phrase of "Hey Coborg" serves as a barrier to prevent unwanted command recognition.
+The voice recognition node is the interface between the user and the robot. This node processes raw audio from the system microphone and processes for recognized voice commands. The NLP model active filters background noise to improve voice recognition. The keyword trigger phrase of "Hey Coborg" serves as a barrier to prevent unwanted command recognition.
+This voice_recog node also serves as an interface for the ROS framework to the system audio output. Other nodes can publish to a topic, then the audio plays through voice_recog.
 
 ### ROS Nodes
 * #### voice_recog
 
 ### ROS Topics
 * #### Subscribed ROS topics:
-   * None
+   * /speaker (`std_msgs::String`) Name of .mp3 file in Coborg-Platform/catkin_ws/src/voice_recog/src/Sounds/
+      * EX: msg.data = "jeez.mp3" plays the jeez.mp3 file out of the system speakers.
 * #### Published ROS topics:
-   * /voice_commands (`std_msgs::Int8`) Interger code for the recognized voice command
-      * 1 - STOP: Soft E-stop command, triggered by "Hey Coborg ... Stop" or "Stop Stop Stop"
-      * 2 - TARGET: Move to the identified target, triggered by "Hey Coborg ... Go Here"
-      * 3 - HOME: Return to the Home (Compact) position, triggered by "Hey Coborg ... Come Back"
-      * 4 - READY: Get into the Ready position in front of the user, triggered by "Hey Coborg ... Get Ready"
+   * /voice_cmd (`std_msgs::Int32`) Interger code for the recognized voice command
+      * 0 - RESTART: Disengage E-stop, triggered by "Hey Coborg ... Start Up"
+      * 1 - TARGET: Move to the identified target, triggered by "Hey Coborg ... Go Here"
+      * 2 - HOME: Return to the Home (Compact) position, triggered by "Hey Coborg ... Come Back"
+      * 3 - READY: Get into the Ready position in front of the user, triggered by "Hey Coborg ... Get Ready"
+      * 4 - CELEBRATE: Fun command to play a copyrighted song to celebrate a successful demo, trigged by "Hey Coborg ... Successful Fall Validation Demonstration"
+      * 9 - STOP: Soft E-stop command, triggered by "Hey Coborg ... Stop" or "Stop Stop Stop"
+   * /feedback_voice (`std_msgs::Int32`) Interger code for the recognized voice command
+      * 10 - IDLE: Waiting for a voice command trigger "Hey Coborg"
+      * 11 - INIT: The voice node is setting up
+      * 12 - PROCESSING: Heard "Hey Coborg", processing following audio for recognized commands
+      * 13 - COMPLETED: Command recognition completed (either successfully recognized or no command interpreted)
 ---
 
 ## Setting up pocketsphinx-python and audio input/output libraries
