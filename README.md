@@ -14,7 +14,8 @@ COBORG is an exoskeleton platform that will change the world. The vision of this
 **Note:If there is any error message related to the missing msg package, caktin_make the specific package first, then catkin_make the whole system.**
 
 ```
-catkin_make <package_name>
+Optional: catkin_make <package_name>
+
 catkin_make
 ```
 
