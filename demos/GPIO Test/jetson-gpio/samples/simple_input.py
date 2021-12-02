@@ -23,7 +23,7 @@ import RPi.GPIO as GPIO
 import time
 
 # Pin Definitions
-input_pin = 18  # BCM pin 18, BOARD pin 12
+input_pin = 23  # BCM pin 23, BOARD pin 16
 
 def main():
     prev_value = None

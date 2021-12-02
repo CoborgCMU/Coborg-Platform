@@ -1,3 +1,0 @@
-<launch>
-    <node pkg="coborg_move" type="KDC_actuated_manipulation_node" name="KDC_actuated_manipulation_node" output="screen" />
-</launch>

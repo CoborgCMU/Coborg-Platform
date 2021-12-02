@@ -1,3 +1,0 @@
-<launch>
-    <node pkg="coborg_move" type="Smart_hebi_moveit_planner" name="Smart_hebi_moveit_planner" output="screen"/>
-</launch>
