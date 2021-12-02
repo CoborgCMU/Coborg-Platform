@@ -45,7 +45,7 @@ Before you start the integration, make sure you have prepared your pre-trained Y
 - YOLO: The official YOLO ROS wrapper GitHub repo [darknet_ros](https://github.com/leggedrobotics/darknet_ros) currently only supports YOLOv3 and below. If you are using YOLOv4, try this repo instead [yolo_v4](https://github.com/tom13133/darknet_ros/tree/yolov4)
 
 ### Steps
-1. #### Download the repo:
+1. #### Download the ROS wrapper package we are using:
    
     ```cd catkin_workspace/src```
 
