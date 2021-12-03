@@ -74,10 +74,10 @@ These are identical to the voice commands, however we seperated them to allow th
 
 ### ROS Topics
 
-   * voiceCommand_sub (`std_msgs::Int32`) commands from `/voice_cmd`
-   * feedbackVoice_sub (`std_msgs::Int32`) state feedback from voice `/feedback_voice`
-   * feedbackVision_sub (`std_msgs::Int32`) state feedback from vision `/feedback_vision`
-   * feedbackArm_sub (`std_msgs::Int32`) state feedback from arm `/feedback_arm`
-   * mainCommand_pub  (`std_msgs::Int32`) publishes commands to arm `/main__cmd`
-   * feedbackMain_pub  (`std_msgs::Int32`) publishes main state`/feedback_main`
-   * speaker_pub (`std_msgs::String`) publishes sounds `/speaker`
+         * voiceCommand_sub (`std_msgs::Int32`) commands from `/voice_cmd`
+         * feedbackVoice_sub (`std_msgs::Int32`) state feedback from voice `/feedback_voice`
+         * feedbackVision_sub (`std_msgs::Int32`) state feedback from vision `/feedback_vision`
+         * feedbackArm_sub (`std_msgs::Int32`) state feedback from arm `/feedback_arm`
+         * mainCommand_pub  (`std_msgs::Int32`) publishes commands to arm `/main__cmd`
+         * feedbackMain_pub  (`std_msgs::Int32`) publishes main state`/feedback_main`
+         * speaker_pub (`std_msgs::String`) publishes sounds `/speaker`
