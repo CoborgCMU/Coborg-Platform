@@ -32,13 +32,19 @@ The voice recognition node is the interface between the user and the robot. This
 * #### Subscribed ROS topics:
    * None
 * #### Published ROS topics:
-   * /voice_commands (`std_msgs::Int8`) Interger code for the recognized voice command
+   * /voice_cmd (`std_msgs::Int8`) Interger code for the recognized voice command
       * 0 - RESTART: Powers up robot arm, triggered by "Hey Coborg...Start up"
       * 1 - TARGET: Move to the identified target, triggered by "Hey Coborg ... Go Here"
       * 2 - HOME: Return to the Home (Compact) position, triggered by "Hey Coborg ... Come Back"
       * 3 - READY: Get into the Ready position in front of the user, triggered by "Hey Coborg ... Get Ready"
       * 4 - CELEBRATE: Plays some music, triggered by "Hey Coborg...Successful Fall Validation Demonstration"
       * 9 - STOP: Kills power to robot arm, triggered by "Stop Stop Stop"
+
+   * /feedback_voice (`std_msgs::Int32`) Interger code for the recognized voice command
+      * 10 - IDLE: Waiting for a voice command trigger "Hey Coborg"
+      * 11 - INIT: The voice node is setting up
+      * 12 - PROCESSING: Heard "Hey Coborg", processing following audio for recognized commands
+      * 13 - COMPLETED: Command recognition completed (either successfully recognized or no command interpreted)
 ---
 
 ## Setting up pocketsphinx-python and audio input/output libraries
