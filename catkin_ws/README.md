@@ -75,6 +75,8 @@ The first thing the user will do is position either one or two hands in front an
 
 If the user provides an audible "STOP STOP STOP STOP" command to the COBORG, the system will cut power to the motors and the arm will go limb. If the COBORG was stabilizing and holding a part before this emergency stop command, the arm will lose control of the intended part. Make sure to have control of the part to avoid any damage to the user. To start the motors, the user will say the key phrase "Hey COBORG." The robot will feedback an audible confirmation tone. The user will then say "start up" and the system will provide power to the motors. 
 
+## Node Map
+![image](https://user-images.githubusercontent.com/73564742/144555761-8695f970-f987-4043-8a71-17a137f081e4.png)
 
 ## Team
 CMU 2020 - MRSD Team C:
