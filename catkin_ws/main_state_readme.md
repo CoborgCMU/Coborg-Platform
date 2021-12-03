@@ -53,24 +53,24 @@ rosrun main_state_machine main.py
 Refer to the state diagram to understand the structure: https://tinyurl.com/coborgstate
 
 #### Main Commands:
-0. RESTART: Powers up robot arm, triggered by "Hey Coborg...Start up"
-1. TARGET: Move to the identified target, triggered by "Hey Coborg ... Go Here"
-2. HOME: Return to the Home (Compact) position, triggered by "Hey Coborg ... Come Back"
-3. READY: Get into the Ready position in front of the user, triggered by "Hey Coborg ... Get Ready"
-4. CELEBRATE: Plays some music, triggered by "Hey Coborg...Successful Fall Validation Demonstration"
-9. STOP: Kills power to robot arm, triggered by "Stop Stop Stop"
+      0. RESTART: Powers up robot arm, triggered by "Hey Coborg...Start up"
+      1. TARGET: Move to the identified target, triggered by "Hey Coborg ... Go Here"
+      2. HOME: Return to the Home (Compact) position, triggered by "Hey Coborg ... Come Back"
+      3. READY: Get into the Ready position in front of the user, triggered by "Hey Coborg ... Get Ready"
+      4. CELEBRATE: Plays some music, triggered by "Hey Coborg...Successful Fall Validation Demonstration"
+      9. STOP: Kills power to robot arm, triggered by "Stop Stop Stop"
 
 These are identical to the voice commands, however we seperated them to allow the main node to control when those commands are executed.
 
 #### Main Feedback:
-0. Idle = Command completed/performing holding task, ready for next command (maintaining position in 3d space)
-1. Initializing = Starting up node
-2. Executing = Command being executed (e.g. moving to target)
-3. Completed = Task finished successfully
-9. Error = Problem that requires full reset.
+      0. Idle = Command completed/performing holding task, ready for next command (maintaining position in 3d space)
+      1. Initializing = Starting up node
+      2. Executing = Command being executed (e.g. moving to target)
+      3. Completed = Task finished successfully
+      9. Error = Problem that requires full reset.
 
 #### Subsystem Feedback:
-https://tinyurl.com/coborgstate
+      * https://tinyurl.com/coborgstate
 
 ### ROS Topics
 
