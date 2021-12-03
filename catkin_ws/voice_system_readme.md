@@ -34,13 +34,14 @@ This voice_recog node also serves as an interface for the ROS framework to the s
    * /speaker (`std_msgs::String`) Name of .mp3 file in Coborg-Platform/catkin_ws/src/voice_recog/src/Sounds/
       * EX: msg.data = "jeez.mp3" plays the jeez.mp3 file out of the system speakers.
 * #### Published ROS topics:
-   * /voice_cmd (`std_msgs::Int32`) Interger code for the recognized voice command
-      * 0 - RESTART: Disengage E-stop, triggered by "Hey Coborg ... Start Up"
+   * /voice_cmd (`std_msgs::Int8`) Interger code for the recognized voice command
+      * 0 - RESTART: Powers up robot arm, triggered by "Hey Coborg...Start up"
       * 1 - TARGET: Move to the identified target, triggered by "Hey Coborg ... Go Here"
       * 2 - HOME: Return to the Home (Compact) position, triggered by "Hey Coborg ... Come Back"
       * 3 - READY: Get into the Ready position in front of the user, triggered by "Hey Coborg ... Get Ready"
-      * 4 - CELEBRATE: Fun command to play a copyrighted song to celebrate a successful demo, trigged by "Hey Coborg ... Successful Fall Validation Demonstration"
-      * 9 - STOP: Soft E-stop command, triggered by "Hey Coborg ... Stop" or "Stop Stop Stop"
+      * 4 - CELEBRATE: Plays some music, triggered by "Hey Coborg...Successful Fall Validation Demonstration"
+      * 9 - STOP: Kills power to robot arm, triggered by "Stop Stop Stop"
+      
    * /feedback_voice (`std_msgs::Int32`) Interger code for the recognized voice command
       * 10 - IDLE: Waiting for a voice command trigger "Hey Coborg"
       * 11 - INIT: The voice node is setting up

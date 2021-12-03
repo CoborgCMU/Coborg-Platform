@@ -5,20 +5,17 @@
 date: 2021-09-14 # YYYY-MM-DD
 # This will be displayed at the bottom of the article
 # You should set the article's title:
-title: Actuated Manipulation System Setup Readme
+title: Actuated Manipulation System Setup
 # The 'title' is automatically displayed at the top of the page
 # and used in other parts of the site.
 ---
 
 ## Overview
 
-In this readme, we will do the following things for the actuated manipulation system:
+In this readme, we will discussing the following:
 
-- Install and set up actuated manipulation system
-- Run randomPoseGenerator for first SVD performance
-- Run voicePoseGenerator for SVD encore performance
-
-
+- How to install and configure the COBORG actuated manipulation subsystem
+- Run the full pipeline
 
 ## Setting up actuated manipulation system
 
@@ -27,6 +24,10 @@ In this readme, we will do the following things for the actuated manipulation sy
 - Ubuntu: 18.04
 
 - Ubuntu: librealsense2 (v2.42.0.0-realsense0.4059)
+
+- Ubuntu: MoveIt 1.0 for ROS Melodic
+
+- Ubuntu: HEBI API for ROS Melodic
 
 - ROS: Melodic (v1.4.1-0bionic.20210304.173654)
 
@@ -43,8 +44,9 @@ In this readme, we will do the following things for the actuated manipulation sy
 Run the following commands to clone the repository and go to the appropriate branch:
 
 ```
-git clone https://github.com/Sunny-Qin-0314/Coborg-Platform.git
+git clone https://github.com/CoborgCMU/Coborg-Platform.git
 cd CoBorg-Platform
+git pull
 git checkout devel_arm64
 cd catkin_ws
 ```
@@ -85,110 +87,64 @@ source devel/setup.bash
 
 NOTE: Will need to catkin_make the darknet_ros node separately first before running catkin_make for the reset of the nodes. This will avoid any unexpected errors from occurring.
 
-# How to Run
+# How to Run Full Pipeline
 
-There are various "modes" to run the actuated manipulation system, and are worth noting here:
+To run the full COBORG pipeline would be to run the system with the following subsystems:
+- Main state machine
+- Voice subsystem
+- Vision subsystem
+- Actuated manipulation subsystem
+
+There are two methods to run the full pipeline, and both methods require only one command to terminal:
+1. Run a roslaunch command of the main launch file through terminal:
+```
+roslaunch main_state_machine main.launch
+```
+2. Run a shortcut command through terminal to launch the full pipeline through xterm
+```
+coborg
+```
+
+Operating the COBORG is performed via four voice commands:
+1. "Hey COBORG...Go here"
+2. "Hey COBORG...Come back"
+3. "STOP STOP STOP STOP"
+4. "Hey COBORG...Start up"
+
+Before giving the "Go here" command, make sure to have your hands at the ready position, showing your hands to one or both of the Realsense depth cameras. Once you give the "Go here" command, a feedback signal will be outputted through the speaker to inform the user that the COBORG received the command and is now finding the hands to create a 3D goal pose. Once the goal pose is found, the robot arm will plan and actuate to the goal pose. If the robot arm cannont plan a viable path within a set amount of time, an error sound will be played and the robot arm will come back to the home position and await the next "Go here" command. 
+
+Should the robot arm actuate to the 3D goal pose, the arm will pause for a set amount of time before playing the audio to start stabilization. From there, a separate controller will actuate the arm into the panel and should provide force to hold the part in place. The user can then move around reasonably and the robot arm will adjust its configuration to maintain that goal pose onto the panel.
+
+To bring the arm back, the user will give the "Come back" voice command. COBORG will output a feedback audio signal to confirm and perform a naive pull to release control of the part. Then the robot arm will plan and actuate to the home position. In the rare chance that the robot arm is unable to actuate to the home position, it may hand at the ready intermediate position. In this case, it would be best to kill the COBORG pipeline and restart it via terminal.
+
+Giving the "STOP STOP STOP STOP" command will trigger a GPIO pin in the computer to cut power off from the HEBI motors. In this case, the arm will go limp and drop down. Make sure to have at least one hand controlling the part when giving the "STOP STOP STOP" command to prevent the part dropping onto the user.
+
+To bring power back to the COBORG arm after initiating "STOP STOP STOP STOP", give the "Start up" command. This will bring power back to the HEBI motors and actuate them to the home position. Should the arm not start at the home position after giving the "Start up" command, it would be best to kill the COBORG pipeline and restart it via terminal.
+
+# Miscellaneous methods to run
+
+Other modes to run the actuated manipulation system are:
 
 1. Manual mode
-2. Preset target mode (first SVD)
-3. Integrated, voice-activated mode (SVD encore)
 
 ## Manual Mode
 
 Manual mode involves the user manually quering goal poses to the robot URDF through the ROS visualization tool, RViz. Run the following commands to activate manual mode:
 
 ```
-roslaunch coborg_arm demo.launch
-roslaunch coborg_move find_hebi_moveit_planner.launch
+roslaunch dof_4_lowerlonger_arm demo.launch
+roslaunch coborg_move KDC_find_hebi_moveit_planner.launch
 ```
 
-Querying a goal pose through RViz is as easy as drag-and-dropping the queried end-effector pose (colored in orange through RViz). You can also set multiple preset positions through Rviz, selecting "Plan" and selecting "Execute" once a successful plan is created.
-
-## Preset Target Mode
-
-Preset target mode contains multiple preset target goal poses that are out and in-front of the front of the robot arm. This code was compile and run during the first SVD event and was used to command the robot arm to move through various intermediate positions and goal positions on the bord in front of the robot. Run the following commands to activate preset target mode (this will require multiple terminal windows to be open):
-
-```
-source devel/setup.bash
-roslaunch coborg_move demo_hebi_realsense_tf.launch
-```
-
-In another terminal window, run the following commands:
-
-```
-source devel/setup.bash
-roslaunch coborg_move tf_moveit_goalsetNode.launch
-```
-
-In another terminal window, run the following commands:
-
-```
-source devel/setup.bash
-roslaunch coborg_move randomGoalPoseGenerator.launch
-```
-
-Before running the next node, manually set the robot arm to its home/tucked position through manually querying that pose through RViz. In another terminal window, run the following commands:
-
-```
-source devel/setup.bash
-roslaunch coborg_move find_hebi_moveit_planner.launch
-```
-
-To operate this actuated manipulation mode, there are two rosparams that must be configured: svdTarget and manipulation_state. The svdTarget rosparam sets the goal target pose for the robot arm. The manipulation_state rosparam sets the state triggers of the robot arm. 
-
-The options for the svdTarget rosparam are:
-
-- target1
-- target2
-- target3
-
-To set the value for the svdTarget rosparam, run the following command structure (ensure that you have performed source devel/setup.bash in the terminal):
-
-```
-rosparam set /randomGoalPoseGenerator/svdTarget <value>
-```
-
-The options for the manipulation_state rosparam are:
-
-1. home
-2. ready
-3. push-out
-4. out-disengage
-5. push-up
-6. out-disengage
-
-To set the value for the manipulation_state rosparam, run the follow command structure (ensure that you have performed source devel/setup.bash in the terminal):
-
-```
-rosparam set /tf_moveit_goalsetNode/manipulation_state <value>
-```
-
-The general flow of the robot arm during this mode is to first start at the home position by setting the manipulation_state rosparam to "home". Once robot arm is set to the "home" preset position (i.e. compact/tucked position), the user will set the manipulation_state to "ready". The ready state will partly extend the robot arm outwards to prepare it for outward goal poses. Once the robot arm is set to the "ready" preset position, the user can set the svdTarget position. When the svdTarget position is set, the user can command the robot to to move to the target position through setting the manipulation_state to "push-out" (assuming that all target positions are out and in front of the robot arm). Once the robot arm has reached to the target position or pushed against the target part, the user can command the robot arm to retract back by changing the manipulation_state to "out-disengage". At the end of this sequence, the robot arm will contract to its home/tucked position, and will be ready for the next command.
-
-The command structure of the flow is shown below:
-
-```
-# set robot arm to home to begin
-rosparam set /tf_moveit_goalsetNode/manipulation_state home
-
-# set robot arm to ready
-rosparam set /tf_moveit_goalsetNode/manipulation_state ready
-
-# set the target position of the robot arm (ex. svd target 01)
-rosparam set /randomGoalPoseGenerator/svdTarget target1
-
-# send the robot arm to the goal pose
-rosparam set /tf_moveit_goalsetNode/manipulation_state push-out
-
-# bring the robot arm back to its home position from the goal position
-rosparam set /tf_moveit_goalsetNode/manipulation_state out-disengage
-```
+Querying a goal pose through RViz is as easy as drag-and-dropping the queried end-effector pose (colored in orange through RViz). You can also set multiple preset positions through Rviz, selecting "Plan" and selecting "Execute" once a successful plan is created. There are also a number of preset arm configurations that you can set as goal poses.
 
 
 # Miscellaneous Topics
 
 ## Converting HRDF to URDF
-Note: HRDF file is created using HEBI's 3D CAD tool. 
+Note: HRDF file is created using HEBI's 3D CAD tool:
+
+[HEBI 3D configurator website](https://robotbuilder.hebirobotics.com)
 
 In the terminal, navigate to the hebi_description source folder. You will need to run the generate_pipeline.bash tool to convert HRDF to XACRO and SDF.
 
@@ -201,6 +157,49 @@ The SDF file will be saved in the models/ folder. The URDF file will be saved in
 NOTE: the bash script assumes that there is a gripper at the end of the linkage arm. Would need to do some manual configuration of the XACRO file to clean up the code and add additional components to the URDF model.
 
 NOTE: when observing the kinematic chain of motors and linkages as described in the xacro file, keep in mind that reporting twist angles are origin-based from the previous motor / joint angle, rather than a global angle origin. 
+
+## Converting XACRO to URDF
+Given a configured XACRO .xml robot model file, you can convert that .xml file into a .urdf file using ROS.
+
+1. Make sure to source devel/setup.bash from the ROS catkin workspace
+2. Navigate to the folder where the .xml is located
+3. Run the following command:
+```
+rosrun xacro xacro (XACRO-file).xml > (URDF-file).urdf
+```
+
+The .urdf formatted file will be saved to the same location as the .xml or to a specified directory.
+
+## Running MoveIt Setup Assistant
+To open the MoveIt setup assistant GUI of the existing COBORG, type the following:
+
+```
+roslaunch dof_4_lowerlonger_arm setup_assistant.launch
+```
+
+This will launch the current MoveIt configuration of the COBORG.
+
+If you are creating another MoveIt node from scratch, you can open a fresh MoveIt setup assistant instance by typing the following:
+
+```
+roslaunch moveit_setup_assistant setup_assistant.launch
+```
+
+## Running HEBI Scope
+1. Download the HEBI Scope application from the HEBI website:
+
+    [HEBI Apps download page](https://www.hebirobotics.com/apps)
+
+2. Open the HEBI Scope folder and go to the bin/ directory
+
+3. Through terminal, type:
+    ```
+    ./Scope
+    ```
+
+4. Make sure the HEBI motors are turned on and connected to the local computer in the IP network.
+
+5. You should see the HEBI motors located at the left of the Scope application. 
 
 ## References
 - [ROS MoveIt Tutorial](http://docs.ros.org/en/melodic/api/moveit_tutorials/html/index.html)

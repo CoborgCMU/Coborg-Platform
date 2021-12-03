@@ -2,7 +2,7 @@
 # Jekyll 'Front Matter' goes here. Most are set by default, and should NOT be
 # overwritten except in special circumstances. 
 # You should set the date the article was last updated like this:
-date: 2021-09-10 # YYYY-MM-DD
+date: 2021-12-02 # YYYY-MM-DD
 # This will be displayed at the bottom of the article
 # You should set the article's title:
 title: Vision System Setup Readme
@@ -14,13 +14,13 @@ title: Vision System Setup Readme
 
 In this readme, we will do the following things for vision system:
 
-- Set up 2D YOLO v3 with ROS
-- Set up GPU for YOLO
-- Set up 3D YOLO with ROS and surface normal
-- Run goal getter and integrate whole vision system
+- Set up 2D YOLO v3 with ROS (Required for the whole system compilation and demo)
+- Set up GPU for YOLO (Better to have)
+- Set up 3D YOLO with ROS and surface normal (Optional)
+- Run goal getter and integrate whole vision system (Required)
 
 ---
-## Integrating 2D YOLO with ROS
+## Integrating 2D YOLO with ROS (Required for compiling and running our full use case)
 
 To install YOLO in ROS, we will use a YOLO ROS wrapper GitHub repository [darknet_ros](https://github.com/leggedrobotics/darknet_ros). You can simply follow their instructions in the README or follow the instructions below. 
 
@@ -40,12 +40,12 @@ Before you start the integration, make sure you have prepared your pre-trained Y
 
 - numpy: 1.19.0
 
-- If use NVIDIA Jetson, JetPack 4.3 works fine (default: CUDA 10.0 + cuDNN 7.6), need to downgrade default OpenCV from 4.1.1 to 3.4.6 (compile OpenCV from source, using this [link](https://jkjung-avt.github.io/opencv-on-nano/))
+- If use NVIDIA Jetson, JetPack 4.3 will automatically install CUDA, cuDNN for you (default: CUDA 10.0 + cuDNN 7.6), but you need to downgrade default OpenCV from 4.1.1 to 3.4.6 (compile OpenCV from source, using this [link](https://jkjung-avt.github.io/opencv-on-nano/))
 
 - YOLO: The official YOLO ROS wrapper GitHub repo [darknet_ros](https://github.com/leggedrobotics/darknet_ros) currently only supports YOLOv3 and below. If you are using YOLOv4, try this repo instead [yolo_v4](https://github.com/tom13133/darknet_ros/tree/yolov4)
 
 ### Steps
-1. #### Download the repo:
+1. #### Download the ROS wrapper package we are using:
    
     ```cd catkin_workspace/src```
 
@@ -59,7 +59,9 @@ Before you start the integration, make sure you have prepared your pre-trained Y
 
     ```catkin_make -DCMAKE_BUILD_TYPE=Release```
 
-3. #### Using your own model:
+3. #### Using your own model: 
+
+   **Note: our repo only contains the hand detection config file, the weight file has to be downloaded using the .sh under /weight folder!**
    
     Within `/darknet_ros/yolo_network_config`:
 
@@ -92,7 +94,7 @@ Before you start the integration, make sure you have prepared your pre-trained Y
 
    * object_detector (`std_msgs::Int8`) Number of detected objects
    * bounding_boxes (`darknet_ros_msgs::BoundingBoxes`) Bounding boxes (class, x, y, w, h) details are shown in `/darknet_ros_msgs`
-   * detection_image (`sensor_msgs::Image`) Image with detected bounding boxes
+   * detection_image (`sensor_msgs::Image`) Image with detected bounding boxes (Note: current version disabled the visualization to save computational power)
 
 ---
 ## Setting up YOLO with CUDA GPU Acceleration
@@ -208,6 +210,9 @@ The process listed below will work whether you are using YOLO through the darkne
 ---
 ## Set Up YOLO 3D with ROS and Get Surface Normal
 
+**Note: if you download our repo, you can skip this setup! You already have everthing to run the full use case. Below are the steps for us to track our implementation.**
+
+
 ### Within catkin_ws/src, clone these repo below
 
 **Note: clone the repo below and checkout to "melodic" branch before going further!!**
@@ -260,27 +265,26 @@ The process listed below will work whether you are using YOLO through the darkne
    
 ## Post-processing and Vision System Integration
 
-### Goal Getter Node (Deprecated)
+**Note: if you only use one single camera, then you can skip this post-processing, and directly use the output from darknet_ros_3d as the goal position, surface normal**
 
-In the goal getter, we post-process all of the 3D bounding boxes got from the darknet_ros_3d node. Specifically, we take the average 3D position over those detected bounding boxes. We publish the averaged goal position and surface normal into the `/goal` topic.
+### Goal Getter Node 
 
-### Optimize Goal Getter Node (latest version):
+In the goal getter, we post-process all of the position and surface normals from different cameras (currently only support this setting: two D435i cameras and 1 t265 camera). It will grab one goal msg at a time from each cameras and convert them to the `/t265_odom` frame, then take the moving average logic and post-process both transformed pose before it converts to the `/world` frame. The goal getter node will keep publishing the final goal pose (tf posestamped msg) to the `/goal` topic. From rviz, you could check the calculated `/goal_pose` by looking at the specific tf frame. 
 
-Instead of post-processing the 3D bounding boxes in another node, we merge the process when we calculate the 3D bounding boxes and publish the goal position to /goal rostopic. 
 
 ### Run the whole vision demo:
 
-1. `roslaunch realsense2_camera rs_rgbd.launch` or use our predefined `rs_d400_and_t265.launch`
+1. `roslaunch realsense2_camera <corresponding camera launch file: t265, rgbd> camera:=<name> serial_no:=<number>` with three different cameras (2 D435i, 1 T265). You could check our main.launch to see their launch parameter settings.
    
-2. `roslaunch darknet_ros_3d darknet_ros_3d.launch` (this launch file will launch all vision nodes)
+2. `roslaunch darknet_ros_3d darknet_ros_3d.launch` (this launch file will launch all YOLO stuff)
    
-3. `rosrun goal_getter goal_getter` (Deprecated)
-   
-   **Note: I did not include launch file for goal_getter node, simply run it with rosrun**
+3. `roslaunch goal_getter goal_getter.launch` (this launch file will launch the post-processing in multi-cameras settings)
 
 4. Check the rostopic results in terminal:
    
    `rostopic echo /goal`
+   
+5. Check rviz: tf frame `/goal_pose`
 
 ## References
 - https://github.com/leggedrobotics/darknet_ros

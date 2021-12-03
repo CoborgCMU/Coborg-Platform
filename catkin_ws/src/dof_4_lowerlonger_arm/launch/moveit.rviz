@@ -4,10 +4,11 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /MotionPlanning1
         - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.7425600290298462
-    Tree Height: 334
+    Tree Height: 218
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
@@ -289,143 +290,30 @@ Visualization Manager:
         Show Robot Visual: true
       Value: true
       Velocity_Scaling_Factor: 1
-    - Class: rviz/TF
-      Enabled: true
-      Frame Timeout: 15
-      Frames:
-        All Enabled: false
-        body:
-          Value: false
-        cam1_aligned_depth_to_color_frame:
-          Value: false
-        cam1_color_frame:
-          Value: false
-        cam1_color_optical_frame:
-          Value: false
-        cam1_depth_frame:
-          Value: false
-        cam1_depth_optical_frame:
-          Value: false
-        cam1_link:
-          Value: true
-        cam2_aligned_depth_to_color_frame:
-          Value: false
-        cam2_color_frame:
-          Value: false
-        cam2_color_optical_frame:
-          Value: false
-        cam2_depth_frame:
-          Value: false
-        cam2_depth_optical_frame:
-          Value: false
-        cam2_link:
-          Value: true
-        end_link/INPUT_INTERFACE:
-          Value: false
-        head:
-          Value: false
-        lower_body:
-          Value: false
-        motor1/INPUT_INTERFACE:
-          Value: false
-        motor2/INPUT_INTERFACE:
-          Value: false
-        motor3/INPUT_INTERFACE:
-          Value: false
-        motor4/INPUT_INTERFACE:
-          Value: false
-        ms1/INPUT_INTERFACE:
-          Value: false
-        right_arm1/INPUT_INTERFACE:
-          Value: false
-        right_arm2/INPUT_INTERFACE:
-          Value: false
-        right_arm3/INPUT_INTERFACE:
-          Value: false
-        rodL:
-          Value: false
-        rodR:
-          Value: false
-        sensor/INPUT_INTERFACE:
-          Value: false
-        shoulder_len:
-          Value: false
-        t265_accel_frame:
-          Value: false
-        t265_accel_optical_frame:
-          Value: false
-        t265_gyro_frame:
-          Value: false
-        t265_gyro_optical_frame:
-          Value: false
-        t265_link:
-          Value: true
-        t265_odom_frame:
-          Value: true
-        t265_pose_frame:
-          Value: false
-        world:
-          Value: true
-      Marker Scale: 1
-      Name: TF
-      Show Arrows: true
-      Show Axes: true
-      Show Names: true
-      Tree:
-        t265_odom_frame:
-          t265_pose_frame:
-            t265_link:
-              t265_accel_frame:
-                t265_accel_optical_frame:
-                  {}
-              t265_gyro_frame:
-                t265_gyro_optical_frame:
-                  {}
-              world:
-                body:
-                  {}
-                head:
-                  {}
-                lower_body:
-                  {}
-                motor1/INPUT_INTERFACE:
-                  cam1_link:
-                    cam1_aligned_depth_to_color_frame:
-                      cam1_color_optical_frame:
-                        {}
-                    cam1_color_frame:
-                      {}
-                    cam1_depth_frame:
-                      cam1_depth_optical_frame:
-                        {}
-                  cam2_link:
-                    cam2_aligned_depth_to_color_frame:
-                      cam2_color_optical_frame:
-                        {}
-                    cam2_color_frame:
-                      {}
-                    cam2_depth_frame:
-                      cam2_depth_optical_frame:
-                        {}
-                  right_arm1/INPUT_INTERFACE:
-                    motor2/INPUT_INTERFACE:
-                      right_arm2/INPUT_INTERFACE:
-                        motor3/INPUT_INTERFACE:
-                          right_arm3/INPUT_INTERFACE:
-                            motor4/INPUT_INTERFACE:
-                              sensor/INPUT_INTERFACE:
-                                end_link/INPUT_INTERFACE:
-                                  {}
-                ms1/INPUT_INTERFACE:
-                  {}
-                rodL:
-                  {}
-                rodR:
-                  {}
-                shoulder_len:
-                  {}
-      Update Interval: 0
-      Value: true
+    - Class: rviz/Image
+      Enabled: false
+      Image Topic: /cam1/color/image_raw
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: false
+    - Class: rviz/Image
+      Enabled: false
+      Image Topic: /cam2/color/image_raw
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -487,33 +375,154 @@ Visualization Manager:
       Marker Topic: /darknet_ros_3d/markers
       Name: MarkerArray
       Namespaces:
-        {}
+        darknet3d: true
       Queue Size: 100
       Value: true
-    - Class: rviz/Image
-      Enabled: false
-      Image Topic: /cam1/color/image_raw
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: Image
-      Normalize Range: true
-      Queue Size: 2
-      Transport Hint: raw
-      Unreliable: false
-      Value: false
-    - Class: rviz/Image
-      Enabled: false
-      Image Topic: /cam2/color/image_raw
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: Image
-      Normalize Range: true
-      Queue Size: 2
-      Transport Hint: raw
-      Unreliable: false
-      Value: false
+    - Class: rviz/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        body:
+          Value: false
+        cam1_aligned_depth_to_color_frame:
+          Value: false
+        cam1_color_frame:
+          Value: false
+        cam1_color_optical_frame:
+          Value: false
+        cam1_depth_frame:
+          Value: false
+        cam1_depth_optical_frame:
+          Value: false
+        cam1_link:
+          Value: true
+        cam2_aligned_depth_to_color_frame:
+          Value: false
+        cam2_color_frame:
+          Value: false
+        cam2_color_optical_frame:
+          Value: false
+        cam2_depth_frame:
+          Value: false
+        cam2_depth_optical_frame:
+          Value: false
+        cam2_link:
+          Value: true
+        end_link/INPUT_INTERFACE:
+          Value: false
+        goal_frame:
+          Value: true
+        head:
+          Value: false
+        lower_body:
+          Value: false
+        motor1/INPUT_INTERFACE:
+          Value: false
+        motor2/INPUT_INTERFACE:
+          Value: false
+        motor3/INPUT_INTERFACE:
+          Value: false
+        motor4/INPUT_INTERFACE:
+          Value: false
+        ms1/INPUT_INTERFACE:
+          Value: false
+        new_chest_frame:
+          Value: true
+        right_arm1/INPUT_INTERFACE:
+          Value: false
+        right_arm2/INPUT_INTERFACE:
+          Value: false
+        right_arm3/INPUT_INTERFACE:
+          Value: false
+        rodL:
+          Value: false
+        rodR:
+          Value: false
+        sensor/INPUT_INTERFACE:
+          Value: false
+        shoulder_len:
+          Value: false
+        t265_accel_frame:
+          Value: false
+        t265_accel_optical_frame:
+          Value: false
+        t265_gyro_frame:
+          Value: false
+        t265_gyro_optical_frame:
+          Value: false
+        t265_link:
+          Value: true
+        t265_odom_frame:
+          Value: true
+        t265_pose_frame:
+          Value: false
+        world:
+          Value: true
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        t265_odom_frame:
+          t265_pose_frame:
+            t265_link:
+              t265_accel_frame:
+                t265_accel_optical_frame:
+                  {}
+              t265_gyro_frame:
+                t265_gyro_optical_frame:
+                  {}
+              world:
+                body:
+                  {}
+                goal_frame:
+                  {}
+                head:
+                  {}
+                lower_body:
+                  {}
+                motor1/INPUT_INTERFACE:
+                  cam1_link:
+                    cam1_aligned_depth_to_color_frame:
+                      cam1_color_optical_frame:
+                        {}
+                    cam1_color_frame:
+                      {}
+                    cam1_depth_frame:
+                      cam1_depth_optical_frame:
+                        {}
+                  cam2_link:
+                    cam2_aligned_depth_to_color_frame:
+                      cam2_color_optical_frame:
+                        {}
+                    cam2_color_frame:
+                      {}
+                    cam2_depth_frame:
+                      cam2_depth_optical_frame:
+                        {}
+                  right_arm1/INPUT_INTERFACE:
+                    motor2/INPUT_INTERFACE:
+                      right_arm2/INPUT_INTERFACE:
+                        motor3/INPUT_INTERFACE:
+                          right_arm3/INPUT_INTERFACE:
+                            motor4/INPUT_INTERFACE:
+                              sensor/INPUT_INTERFACE:
+                                end_link/INPUT_INTERFACE:
+                                  {}
+                ms1/INPUT_INTERFACE:
+                  {}
+                new_chest_frame:
+                  {}
+                rodL:
+                  {}
+                rodR:
+                  {}
+                shoulder_len:
+                  {}
+      Update Interval: 0
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -530,7 +539,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 2.5382511615753174
+      Distance: 2.996500015258789
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -545,28 +554,28 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.424797922372818
+      Pitch: 0.48479700088500977
       Target Frame: world
       Value: XYOrbit (rviz)
-      Yaw: 4.889937877655029
+      Yaw: 0.1967644840478897
     Saved: ~
 Window Geometry:
   Displays:
-    collapsed: true
+    collapsed: false
   Height: 1028
   Help:
     collapsed: false
-  Hide Left Dock: true
+  Hide Left Dock: false
   Hide Right Dock: false
   Image:
     collapsed: false
   MotionPlanning:
-    collapsed: true
+    collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000200000000000002a2000003c0fc0200000008fb000000100044006900730070006c0061007900730000000027000001df000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a0056006900650077007300000003b0000000b0000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067000000020c000001db0000017d00fffffffb0000000a0049006d00610067006502000003b70000023500000280000001e0000000020000049700000106fc0100000001fb0000000a0049006d0061006700650200000364000000a300000280000001e0000003a0000003c000000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000002a2000003c0fc020000000afb000000100044006900730070006c00610079007301000000270000016b000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a0056006900650077007300000003b0000000b0000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006701000001980000024f0000017d00fffffffb0000000a0049006d0061006700650000000336000000b10000000000000000fb0000000a0049006d00610067006500000002ab000000860000001600fffffffb0000000a0049006d0061006700650000000319000000ce0000001600ffffff0000047c000003c000000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
-  Width: 928
-  X: 992
-  Y: 24
+  Width: 1828
+  X: 99
+  Y: 68

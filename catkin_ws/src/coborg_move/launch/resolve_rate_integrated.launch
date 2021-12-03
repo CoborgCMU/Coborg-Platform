@@ -1,3 +1,0 @@
-<launch>
-    <node pkg="coborg_move" type="resolved_rate_integrated" name="resolved_rate_integrated" output="screen" launch-prefix="xterm -e"/>
-</launch>

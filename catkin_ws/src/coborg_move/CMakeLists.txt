@@ -182,21 +182,6 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-
-add_executable(find_hebi_modules src/find_hebi_modules.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(find_hebi_modules
-  ${catkin_LIBRARIES}
-)
-
-add_executable(find_hebi_moveit_planner src/find_hebi_moveit_planner.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(find_hebi_moveit_planner
-  ${catkin_LIBRARIES}
-)
-
 add_executable(moveit_tutorials src/moveit_tutorials.cpp)
 
 ## Specify libraries to link a library or executable target against
@@ -209,42 +194,6 @@ install(TARGETS moveit_tutorials DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
-add_executable(tf_moveit_goalsetNode src/tf_moveit_goalsetNode.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(tf_moveit_goalsetNode
-  ${catkin_LIBRARIES}
-)
-
-add_executable(randomGoalPoseGenerator src/randomGoalPoseGenerator.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(randomGoalPoseGenerator
-  ${catkin_LIBRARIES}
-)
-
-add_executable(voiceGoalPoseGenerator src/voiceGoalPoseGenerator.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(voiceGoalPoseGenerator
-  ${catkin_LIBRARIES}
-)
-
-add_executable(resolved_rate src/resolved_rate.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(resolved_rate
-  ${catkin_LIBRARIES}
-)
-
-
-add_executable(KDC_actuated_manipulation_node src/KDC_actuated_manipulation_node.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(KDC_actuated_manipulation_node
-  ${catkin_LIBRARIES}
-)
-
 add_executable(KDC_find_hebi_moveit_planner src/KDC_find_hebi_moveit_planner.cpp)
 
 ## Specify libraries to link a library or executable target against
@@ -252,38 +201,10 @@ target_link_libraries(KDC_find_hebi_moveit_planner
   ${catkin_LIBRARIES}
 )
 
-add_executable(Smart_hebi_moveit_planner src/Smart_hebi_moveit_planner.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(Smart_hebi_moveit_planner
-  ${catkin_LIBRARIES}
-)
-
-add_executable(KDC_actuated_test_copy src/KDC_actuated_test_copy.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(KDC_actuated_test_copy
-  ${catkin_LIBRARIES}
-)
-
 add_executable(Integrated_AM src/Integrated_AM.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(Integrated_AM
-  ${catkin_LIBRARIES}
-)
-
-add_executable(resolved_rate_integrated src/resolved_rate_integrated.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(resolved_rate_integrated
-  ${catkin_LIBRARIES}
-)
-
-add_executable(AM_interpolator src/AM_interpolator.cpp)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(AM_interpolator
   ${catkin_LIBRARIES}
 )
 

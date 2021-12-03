@@ -35,20 +35,20 @@
   </link>
   <link name="body">
     <visual>
-      <origin xyz=".14 0.2475 -.50" rpy="0 0 0" />
+      <origin xyz=".14 0.2975 -.50" rpy="0 0 0" />
       <geometry>
-        <box size="0.3 0.32 1.0" />
+        <box size="0.3 0.42 1.0" />
       </geometry>
       <xacro:silver_material/>
     </visual>
     <collision>
-      <origin xyz=".14 0.2475 -.50" rpy="0 0 0" />
+      <origin xyz=".14 0.2975 -.50" rpy="0 0 0" />
       <geometry>
-        <box size="0.3 0.32 1.0" />
+        <box size="0.3 0.42 1.0" />
       </geometry>
     </collision>
     <inertial>
-      <origin xyz=".14 .2475 -.50" rpy="0 0 0" />
+      <origin xyz=".14 .2975 -.50" rpy="0 0 0" />
       <mass value="1.0"/>
       <inertia ixx=".112" ixy="0.0" ixz="0.0" iyy=".029" iyz="0.0" izz=".0235"/>
     </inertial>
@@ -77,20 +77,20 @@
 
   <link name="head">
     <visual>
-      <origin xyz=".16 0.2475 .13" rpy="0 0 0" />
+      <origin xyz=".16 0.2875 .13" rpy="0 0 0" />
       <geometry>
         <sphere radius="0.18" />
       </geometry>
       <xacro:silver_material/>
     </visual>
     <collision>
-      <origin xyz=".16 0.2475 .13" rpy="0 0 0" />
+      <origin xyz=".16 0.2875 .13" rpy="0 0 0" />
       <geometry>
         <sphere radius="0.18" />
       </geometry>
     </collision>
     <inertial>
-      <origin xyz=".09 0.2475 .13" rpy="0 0 0" />
+      <origin xyz=".09 0.2875 .13" rpy="0 0 0" />
       <mass value="1.0"/>
       <inertia ixx=".00324" ixy="0.0" ixz="0.0" iyy=".00324" iyz="0.0" izz=".00324"/>
     </inertial>
